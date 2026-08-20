@@ -1,0 +1,61 @@
+package com.app.cineticket.service;
+
+import com.app.cineticket.domain.entity.Role;
+import com.app.cineticket.domain.entity.User;
+import com.app.cineticket.dto.request.UserRequestDTO;
+import com.app.cineticket.dto.response.UserResponseDTO;
+import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.mapper.UserMapper;
+import com.app.cineticket.repository.RoleRepository;
+import com.app.cineticket.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class UserService {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final UserMapper userMapper;
+
+    private final PasswordEncoder passwordEncoder;
+
+    @Transactional
+    public UserResponseDTO create(UserRequestDTO requestDTO) {
+        if (userRepository.existsByEmail(requestDTO.email())) {
+            throw new BusinessException("Email já cadastrado");
+        }
+
+        User user = userMapper.toEntity(requestDTO);
+
+        user.setSenha(passwordEncoder.encode(requestDTO.senha()));
+
+        Set<Role> roles = new HashSet<>();
+        if (requestDTO.roleIds() != null) {
+            for (Long roleId : requestDTO.roleIds()) {
+                Role role = roleRepository.findById(roleId)
+                        .orElseThrow(() -> new RuntimeException("Role não encontrado. ID: " + roleId));
+                roles.add(role);
+            }
+        }
+        user.setRoles(roles);
+
+        return userMapper.toResponseDTO(userRepository.save(user));
+
+    }
+
+    @Transactional
+    public List<UserResponseDTO> findAll() {
+        return userRepository.findAll().stream().map(userMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+}
