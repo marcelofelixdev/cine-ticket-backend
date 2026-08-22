@@ -34,4 +34,15 @@ public class MovieController {
     public ResponseEntity<MovieResponseDTO> findById(@PathVariable Long id) {
         return ResponseEntity.ok(movieService.findById(id));
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MovieResponseDTO> update(@PathVariable Long id, @RequestBody @Valid MovieRequestDTO requestDTO) {
+        return ResponseEntity.ok(movieService.update(id, requestDTO));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        movieService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -7,12 +7,7 @@ import jakarta.validation.constraints.Positive;
 public record MovieRequestDTO(
         @NotBlank(message = "O título é obrigatório")
         String titulo,
-
-        @NotBlank(message = "A sinopse é obrigatória")
-        String sinopse,
-
-        String tmdbId,
-
+        
         @NotNull(message = "A duração é obrigatória")
         @Positive
         Integer duracaoEmMinutos

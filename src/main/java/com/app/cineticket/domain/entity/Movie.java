@@ -19,6 +19,9 @@ public class Movie {
     @Column(nullable = false, length = 150)
     private String titulo;
 
+    @Column(name = "poster_url", length = 500)
+    private String posterUrl;
+
     @Column(columnDefinition = "TEXT")
     private String sinopse;
 

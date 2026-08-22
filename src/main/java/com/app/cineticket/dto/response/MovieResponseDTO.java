@@ -5,5 +5,6 @@ public record MovieResponseDTO (
         String titulo,
         String sinopse,
         String tmdbId,
+        String posterUrl,
         Integer duracaoEmMinutos
 ) {}
