@@ -4,9 +4,7 @@ import com.app.cineticket.dto.request.RoomRequestDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
 import com.app.cineticket.service.RoomService;
 import jakarta.validation.Valid;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,5 +27,16 @@ public class RoomController {
     @GetMapping
     public ResponseEntity<List<RoomResponseDTO>> findAll() {
         return ResponseEntity.ok(roomService.findAll());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<RoomResponseDTO> update(@PathVariable Long id, @RequestBody @Valid RoomRequestDTO requestDTO) {
+        return ResponseEntity.ok(roomService.update(id, requestDTO));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        roomService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

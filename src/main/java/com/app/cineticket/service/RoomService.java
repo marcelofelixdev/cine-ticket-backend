@@ -5,13 +5,16 @@ import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.dto.request.RoomRequestDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
+import com.app.cineticket.exception.BusinessException;
 import com.app.cineticket.mapper.RoomMapper;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +43,27 @@ public class RoomService {
         gerarAssentoParaSala(savedRoom);
 
         return roomMapper.toResponseDTO(savedRoom);
+    }
+
+    @Transactional
+    public RoomResponseDTO update(Long id, @Valid RoomRequestDTO requestDTO) {
+        Room room = roomRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Sala não encontrada. ID: " + id));
+
+        room.setNome(requestDTO.nome());
+        room.setCapacidade(requestDTO.capacidade());
+
+        return roomMapper.toResponseDTO(roomRepository.save(room));
+    }
+
+    @Transactional
+    public void delete(@PathVariable Long id) {
+        if (!roomRepository.existsById(id)) {
+            throw new BusinessException("Sala não encontrada. ID: " + id);
+        }
+
+        roomRepository.deleteById(id);
+
     }
 
     private void gerarAssentoParaSala(Room room) {

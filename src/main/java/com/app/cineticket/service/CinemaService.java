@@ -3,6 +3,7 @@ package com.app.cineticket.service;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.dto.request.CinemaRequestDTO;
 import com.app.cineticket.dto.response.CinemaResponseDTO;
+import com.app.cineticket.exception.BusinessException;
 import com.app.cineticket.mapper.CinemaMapper;
 import com.app.cineticket.repository.CinemaRepository;
 import lombok.RequiredArgsConstructor;
@@ -46,5 +47,26 @@ public class CinemaService {
                 .orElseThrow(() -> new RuntimeException("Cinema não encontrado. ID: " + id));
 
         return cinemaMapper.toResponseDTO(cinema);
+    }
+
+    @Transactional
+    public CinemaResponseDTO update(Long id, CinemaRequestDTO requestDTO) {
+        Cinema cinema = cinemaRepository.findById(id)
+                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + id));
+
+        cinema.setCnpj(requestDTO.cnpj());
+        cinema.setNome(requestDTO.nome());
+        cinema.setEndereco(requestDTO.endereco());
+
+        return cinemaMapper.toResponseDTO(cinemaRepository.save(cinema));
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        if (!cinemaRepository.existsById(id)) {
+            throw new BusinessException("Cinema não encontrado. ID: " + id);
+        }
+
+        cinemaRepository.deleteById(id);
     }
 }

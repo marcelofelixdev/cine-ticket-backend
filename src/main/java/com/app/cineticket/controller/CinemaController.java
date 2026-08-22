@@ -5,6 +5,7 @@ import com.app.cineticket.dto.response.CinemaResponseDTO;
 import com.app.cineticket.service.CinemaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,5 +33,17 @@ public class CinemaController {
     @GetMapping("/{id}")
     public ResponseEntity<CinemaResponseDTO> findById(@PathVariable Long id) {
         return ResponseEntity.ok(cinemaService.findById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CinemaResponseDTO> update(
+            @PathVariable Long id, @RequestBody @Valid CinemaRequestDTO requestDTO) {
+        return ResponseEntity.ok(cinemaService.update(id, requestDTO));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        cinemaService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 }

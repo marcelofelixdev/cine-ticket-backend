@@ -15,4 +15,5 @@ public interface RoomMapper {
 
     @Mapping(source = "cinema.nome", target = "cinemaNome")
     RoomResponseDTO toResponseDTO(Room entity);
+
 }

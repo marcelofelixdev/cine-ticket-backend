@@ -40,7 +40,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/cinemas").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/health").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cinemas", "/api/v1/movies", "/api/v1/rooms").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/cinemas/**", "/api/v1/movies/**", "/api/v1/rooms/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/cinemas/**", "/api/v1/movies/**", "/api/v1/rooms/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/sessions/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
 
