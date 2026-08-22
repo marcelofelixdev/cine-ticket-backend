@@ -1,6 +1,7 @@
 package com.app.cineticket.domain.entity;
 
 import com.app.cineticket.domain.enums.TicketStatus;
+import com.app.cineticket.domain.enums.TicketType;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -11,9 +12,7 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @EqualsAndHashCode(of = "id")
 @Entity
-@Table(name = "tb_ticket", uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"session_id", "seat_id"})
-})
+@Table(name = "tb_ticket")
 public class Ticket {
 
     @Id
@@ -39,5 +38,7 @@ public class Ticket {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ticketType", nullable = false)
+    private TicketType ticketType;
 }
