@@ -28,4 +28,10 @@ public class SessionController {
         return ResponseEntity.ok(sessionService.findAll());
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteEmergency(@PathVariable Long id) {
+        sessionService.deleteEmergency(id);
+        return ResponseEntity.noContent().build();
+    }
+
 }

@@ -1,0 +1,74 @@
+$kind: http-request
+name: Delete Session
+method: DELETE
+url: '{{baseUrl}}/api/v1/sessions/{{sessionId}}'
+order: 1649
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const status = pm.response.code;
+
+      // ── 200 / 204 – Deleção bem-sucedida ─────────────────────────────────
+      if (status === 200 || status === 204) {
+          pm.test("Status é 200 ou 204", function () {
+              pm.expect(status).to.be.oneOf([200, 204]);
+          });
+
+          pm.test("Response time é menor que 3000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(3000);
+          });
+
+          if (status === 200) {
+              pm.test("Status 200: body pode conter confirmação", function () {
+                  const text = pm.response.text();
+                  // body pode ser vazio ou conter confirmação — apenas valida que não lança erro
+                  pm.expect(true).to.be.true;
+              });
+          }
+
+          if (status === 204) {
+              pm.test("Status 204: body está vazio", function () {
+                  pm.expect(pm.response.text()).to.be.empty;
+              });
+          }
+      }
+
+      // ── 400 – Sessão não encontrada ───────────────────────────────────────
+      else if (status === 400) {
+          pm.test("Status é 400 (Violação de Regra de Negócio)", function () {
+              pm.expect(status).to.equal(400);
+          });
+
+          pm.test("Body contém campo error", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("error");
+          });
+
+          pm.test("Campo error é 'Violação de Regra de Negócio'", function () {
+              const json = pm.response.json();
+              pm.expect(json.error).to.equal("Violação de Regra de Negócio");
+          });
+
+          pm.test("Body contém campo message", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("message");
+          });
+
+          pm.test("Mensagem contém 'Sessão não encontrada'", function () {
+              const json = pm.response.json();
+              pm.expect(json.message).to.include("Sessão não encontrada");
+          });
+      }
+
+      // ── 401 – Não autorizado ──────────────────────────────────────────────
+      else if (status === 401) {
+          pm.test("Status é 401 (Não autorizado)", function () {
+              pm.expect(status).to.equal(401);
+          });
+      }

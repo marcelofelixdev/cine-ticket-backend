@@ -1,0 +1,137 @@
+$kind: http-request
+name: Buy Ticket
+method: POST
+url: '{{baseUrl}}/api/v1/tickets'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "sessionId": 1,
+      "seatId": 1,
+      "ticketType": "INTEIRA"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const statusCode = pm.response.code;
+
+      if (statusCode === 200 || statusCode === 201) {
+          pm.test("Status é 200 ou 201", function () {
+              pm.expect(statusCode).to.be.oneOf([200, 201]);
+          });
+
+          pm.test("Content-Type é application/json", function () {
+              pm.expect(pm.response.headers.get("Content-Type")).to.include("application/json");
+          });
+
+          pm.test("Response time é menor que 3000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(3000);
+          });
+
+          const json = pm.response.json();
+
+          pm.test("Body contém campo 'id'", function () {
+              pm.expect(json).to.have.property("id");
+          });
+
+          pm.test("Body contém campo 'valorPago'", function () {
+              pm.expect(json).to.have.property("valorPago");
+          });
+
+          pm.test("Body contém campo 'ticketType'", function () {
+              pm.expect(json).to.have.property("ticketType");
+          });
+
+          pm.test("Body contém campo 'status'", function () {
+              pm.expect(json).to.have.property("status");
+          });
+
+          pm.test("Campo 'status' é APPROVED", function () {
+              pm.expect(json.status).to.eql("APPROVED");
+          });
+
+          pm.test("Campo 'ticketType' é INTEIRA ou MEIA", function () {
+              pm.expect(json.ticketType).to.be.oneOf(["INTEIRA", "MEIA"]);
+          });
+
+          pm.test("Campo 'valorPago' é número maior que 0", function () {
+              pm.expect(json.valorPago).to.be.a("number").and.to.be.above(0);
+          });
+
+          pm.test("Body contém objeto 'session'", function () {
+              pm.expect(json).to.have.property("session");
+              pm.expect(json.session).to.be.an("object");
+          });
+
+          pm.test("Body contém objeto 'seat'", function () {
+              pm.expect(json).to.have.property("seat");
+              pm.expect(json.seat).to.be.an("object");
+          });
+
+          pm.test("Body contém objeto 'user'", function () {
+              pm.expect(json).to.have.property("user");
+              pm.expect(json.user).to.be.an("object");
+          });
+
+          pm.environment.set("ticketId", json.id);
+
+      } else if (statusCode === 400) {
+          pm.test("Status é 400", function () {
+              pm.expect(statusCode).to.eql(400);
+          });
+
+          const json = pm.response.json();
+
+          pm.test("Body contém campo 'error'", function () {
+              pm.expect(json).to.have.property("error");
+          });
+
+          pm.test("Campo 'error' é 'Violação de Regra de Negócio'", function () {
+              pm.expect(json.error).to.eql("Violação de Regra de Negócio");
+          });
+
+          pm.test("Body contém campo 'message'", function () {
+              pm.expect(json).to.have.property("message");
+          });
+
+          pm.test("Mensagem de erro é reconhecida", function () {
+              const validMessages = [
+                  "OVERBOOKING: Esta cadeira já foi vendida para está sessão",
+                  "Sessão não encontrada",
+                  "Cadeira não encontrada"
+              ];
+              pm.expect(validMessages).to.include(json.message);
+          });
+
+      } else if (statusCode === 401) {
+          pm.test("Status é 401 (não autorizado)", function () {
+              pm.expect(statusCode).to.eql(401);
+          });
+
+      } else if (statusCode === 422) {
+          pm.test("Status é 422", function () {
+              pm.expect(statusCode).to.eql(422);
+          });
+
+          const json = pm.response.json();
+
+          pm.test("Campo 'error' é 'Erro de Validação de Dados'", function () {
+              pm.expect(json).to.have.property("error");
+              pm.expect(json.error).to.eql("Erro de Validação de Dados");
+          });
+
+      } else {
+          pm.test("Status inesperado: " + statusCode, function () {
+              pm.expect.fail("Status inesperado: " + statusCode);
+          });
+      }

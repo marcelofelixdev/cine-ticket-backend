@@ -1,0 +1,116 @@
+$kind: http-request
+name: Create Session
+method: POST
+url: '{{baseUrl}}/api/v1/sessions'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "horarioInicio": "2025-12-01T19:00:00",
+      "valorBase": 25.00,
+      "movieId": 1,
+      "roomId": 1
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const status = pm.response.code;
+
+      // ── 200 / 201 – Criação bem-sucedida ──────────────────────────────────
+      if (status === 200 || status === 201) {
+          pm.test("Status é 200 ou 201", function () {
+              pm.expect(status).to.be.oneOf([200, 201]);
+          });
+
+          pm.test("Content-Type é application/json", function () {
+              pm.expect(pm.response.headers.get("Content-Type")).to.include("application/json");
+          });
+
+          pm.test("Response time é menor que 3000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(3000);
+          });
+
+          pm.test("Body contém os campos obrigatórios: id, horarioInicio, valorBase", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("id");
+              pm.expect(json).to.have.property("horarioInicio");
+              pm.expect(json).to.have.property("valorBase");
+          });
+
+          pm.test("Body contém objeto movie", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("movie");
+              pm.expect(json.movie).to.be.an("object");
+          });
+
+          pm.test("Body contém objeto room", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("room");
+              pm.expect(json.room).to.be.an("object");
+          });
+
+          pm.test("Salva sessionId no environment", function () {
+              const json = pm.response.json();
+              pm.expect(json.id).to.exist;
+              pm.environment.set("sessionId", json.id);
+          });
+      }
+
+      // ── 401 – Não autorizado ──────────────────────────────────────────────
+      else if (status === 401) {
+          pm.test("Status é 401 (Não autorizado)", function () {
+              pm.expect(status).to.equal(401);
+          });
+      }
+
+      // ── 422 – Erro de validação ───────────────────────────────────────────
+      else if (status === 422) {
+          pm.test("Status é 422 (Erro de Validação)", function () {
+              pm.expect(status).to.equal(422);
+          });
+
+          pm.test("Body contém campo error", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("error");
+          });
+
+          pm.test("Campo error é 'Erro de Validação de Dados'", function () {
+              const json = pm.response.json();
+              pm.expect(json.error).to.equal("Erro de Validação de Dados");
+          });
+      }
+
+      // ── 500 – Filme ou sala não encontrada ────────────────────────────────
+      else if (status === 500) {
+          pm.test("Status é 500 (Erro interno)", function () {
+              pm.expect(status).to.equal(500);
+          });
+
+          pm.test("Body contém campo error", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("error");
+          });
+
+          pm.test("Body contém campo message", function () {
+              const json = pm.response.json();
+              pm.expect(json).to.have.property("message");
+          });
+
+          pm.test("Mensagem indica filme ou sala não encontrada", function () {
+              const json = pm.response.json();
+              const msg = json.message || "";
+              pm.expect(
+                  msg.includes("Filme não encontrado") || msg.includes("Sala não encontrada")
+              ).to.be.true;
+          });
+      }

@@ -1,0 +1,10 @@
+name: CineTicket Local
+values:
+  - key: baseUrl
+    value: 'http://localhost:8080'
+  - key: token
+    secret: true
+  - key: movieId
+    value: ''
+  - key: sessionId
+    value: ''

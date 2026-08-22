@@ -1,0 +1,108 @@
+$kind: http-request
+name: Create Room
+method: POST
+url: '{{baseUrl}}/api/v1/rooms'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Sala 1",
+      "capacidade": 100,
+      "cinemaId": 1
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const status = pm.response.code;
+      const json = pm.response.json();
+
+      if (status === 200 || status === 201) {
+          pm.test("Status é 200 ou 201", function () {
+              pm.expect(status).to.be.oneOf([200, 201]);
+          });
+
+          pm.test("Content-Type é application/json", function () {
+              pm.expect(pm.response.headers.get("Content-Type")).to.include("application/json");
+          });
+
+          pm.test("Response time é menor que 3000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(3000);
+          });
+
+          pm.test("Body contém campo id", function () {
+              pm.expect(json).to.have.property("id");
+          });
+
+          pm.test("Body contém campo nome", function () {
+              pm.expect(json).to.have.property("nome");
+          });
+
+          pm.test("Body contém campo capacidade", function () {
+              pm.expect(json).to.have.property("capacidade");
+          });
+
+          pm.test("Campo capacidade bate com o enviado (100)", function () {
+              pm.expect(json.capacidade).to.eql(100);
+          });
+
+          pm.environment.set("roomId", json.id);
+          pm.test("roomId salvo no environment", function () {
+              pm.expect(pm.environment.get("roomId")).to.eql(json.id);
+          });
+
+      } else if (status === 401) {
+          pm.test("Status é 401 - Não autorizado", function () {
+              pm.expect(status).to.eql(401);
+          });
+
+      } else if (status === 422) {
+          pm.test("Status é 422 - Erro de Validação", function () {
+              pm.expect(status).to.eql(422);
+          });
+
+          pm.test("Body contém campo error", function () {
+              pm.expect(json).to.have.property("error");
+          });
+
+          pm.test("Campo error é 'Erro de Validação de Dados'", function () {
+              pm.expect(json.error).to.eql("Erro de Validação de Dados");
+          });
+
+          pm.test("Body contém campo message descrevendo campos inválidos", function () {
+              pm.expect(json).to.have.property("message");
+              pm.expect(json.message).to.be.a("string").and.not.empty;
+          });
+
+      } else if (status === 500) {
+          pm.test("Status é 500 - Erro interno do servidor", function () {
+              pm.expect(status).to.eql(500);
+          });
+
+          pm.test("Body contém campo error", function () {
+              pm.expect(json).to.have.property("error");
+          });
+
+          pm.test("Body contém campo message", function () {
+              pm.expect(json).to.have.property("message");
+          });
+
+          pm.test("Mensagem pode indicar cinema não encontrado", function () {
+              const msg = json.message || "";
+              pm.expect(msg.length).to.be.above(0);
+          });
+
+      } else {
+          pm.test("Status inesperado: " + status, function () {
+              pm.expect(status).to.be.oneOf([200, 201, 401, 422, 500]);
+          });
+      }

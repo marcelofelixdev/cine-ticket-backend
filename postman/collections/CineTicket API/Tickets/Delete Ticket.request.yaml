@@ -1,0 +1,66 @@
+$kind: http-request
+name: Delete Ticket
+url: '{{baseUrl}}/api/v1/tickets/{{ticketId}}'
+method: DELETE
+headers:
+  - key: Content-Type
+    value: application/json
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+order: 2141
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const statusCode = pm.response.code;
+
+      if (statusCode === 200 || statusCode === 204) {
+          pm.test("Status é 200 ou 204", function () {
+              pm.expect(statusCode).to.be.oneOf([200, 204]);
+          });
+
+          pm.test("Response time é menor que 3000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(3000);
+          });
+
+      } else if (statusCode === 400) {
+          pm.test("Status é 400", function () {
+              pm.expect(statusCode).to.eql(400);
+          });
+
+          const json = pm.response.json();
+
+          pm.test("Body contém campo 'error'", function () {
+              pm.expect(json).to.have.property("error");
+          });
+
+          pm.test("Campo 'error' é 'Violação de Regra de Negócio'", function () {
+              pm.expect(json.error).to.eql("Violação de Regra de Negócio");
+          });
+
+          pm.test("Body contém campo 'message'", function () {
+              pm.expect(json).to.have.property("message");
+          });
+
+          pm.test("Mensagem de erro é reconhecida", function () {
+              const validMessages = [
+                  "Ingresso não encontrado",
+                  "Você não tem permissão para cancelar um ingresso que não é seu.",
+                  "Cancelamento negado! Só é possível cancelar ingressos com no mínimo 30 minutos de antecedência."
+              ];
+              pm.expect(validMessages).to.include(json.message);
+          });
+
+      } else if (statusCode === 401) {
+          pm.test("Status é 401 (não autorizado)", function () {
+              pm.expect(statusCode).to.eql(401);
+          });
+
+      } else {
+          pm.test("Status inesperado: " + statusCode, function () {
+              pm.expect.fail("Status inesperado: " + statusCode);
+          });
+      }

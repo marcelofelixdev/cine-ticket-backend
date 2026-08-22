@@ -1,0 +1,64 @@
+$kind: http-request
+name: Get All Rooms
+method: GET
+url: '{{baseUrl}}/api/v1/rooms'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      const status = pm.response.code;
+      const json = pm.response.json();
+
+      if (status === 200) {
+          pm.test("Status é 200", function () {
+              pm.expect(status).to.eql(200);
+          });
+
+          pm.test("Content-Type é application/json", function () {
+              pm.expect(pm.response.headers.get("Content-Type")).to.include("application/json");
+          });
+
+          pm.test("Response time é menor que 2000ms", function () {
+              pm.expect(pm.response.responseTime).to.be.below(2000);
+          });
+
+          pm.test("Body é um array", function () {
+              pm.expect(json).to.be.an("array");
+          });
+
+          if (json.length > 0) {
+              pm.test("Cada item do array contém campo id", function () {
+                  json.forEach(function (room) {
+                      pm.expect(room).to.have.property("id");
+                  });
+              });
+
+              pm.test("Cada item do array contém campo nome", function () {
+                  json.forEach(function (room) {
+                      pm.expect(room).to.have.property("nome");
+                  });
+              });
+
+              pm.test("Cada item do array contém campo capacidade", function () {
+                  json.forEach(function (room) {
+                      pm.expect(room).to.have.property("capacidade");
+                  });
+              });
+          }
+
+      } else if (status === 401) {
+          pm.test("Status é 401 - Não autorizado", function () {
+              pm.expect(status).to.eql(401);
+          });
+
+      } else {
+          pm.test("Status inesperado: " + status, function () {
+              pm.expect(status).to.be.oneOf([200, 401]);
+          });
+      }

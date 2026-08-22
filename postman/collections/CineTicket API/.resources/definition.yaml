@@ -1,0 +1,17 @@
+$kind: collection
+name: CineTicket API
+description: API collection for the CineTicket cinema ticketing system
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+variables:
+  - key: baseUrl
+    value: 'http://localhost:8080'
+  - key: token
+    value: ''
+  - key: cinemaId
+    value: '1'
+  - key: movieId
+    value: '1'

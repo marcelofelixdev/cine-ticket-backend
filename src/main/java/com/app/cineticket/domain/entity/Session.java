@@ -33,4 +33,7 @@ public class Session {
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
 
+    @Column(name = "ativo", nullable = false)
+    private Boolean ativo = true;
+
 }
