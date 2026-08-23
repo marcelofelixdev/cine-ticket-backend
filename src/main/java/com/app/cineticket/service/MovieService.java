@@ -8,6 +8,9 @@ import com.app.cineticket.exception.BusinessException;
 import com.app.cineticket.mapper.MovieMapper;
 import com.app.cineticket.repository.MovieRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,6 +19,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MovieService {
 
     private final MovieRepository movieRepository;
@@ -33,13 +37,14 @@ public class MovieService {
                 var filmeGringo = tmdbResponse.results().get(0);
 
                 movie.setSinopse(filmeGringo.overview());
+                movie.setTmdbId(String.valueOf(filmeGringo.id()));
 
                 if (filmeGringo.poster_path() != null) {
                     movie.setPosterUrl("https://image.tmdb.org/t/p/w500" + filmeGringo.poster_path());
                 }
             }
         } catch (Exception e) {
-            System.out.println("Falha ao buscar dados no TMDB: " + e.getMessage());
+            log.warn("Falha ao buscar dados no TMDB: {}", e.getMessage());
         }
 
         Movie savedMovie = movieRepository.save(movie);
@@ -47,16 +52,15 @@ public class MovieService {
     }
 
     @Transactional(readOnly = true)
-    public List<MovieResponseDTO> findAll() {
-        return movieRepository.findAll().stream()
-                .map(movieMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public Page<MovieResponseDTO> findAll(Pageable pageable) {
+        return movieRepository.findAll(pageable)
+                .map(movieMapper::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public MovieResponseDTO findById(Long id) {
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Filme não encontrado. ID: " + id));
+                .orElseThrow(() -> new BusinessException("Filme não encontrado. ID: " + id));
         return movieMapper.toResponseDTO(movie);
     }
 

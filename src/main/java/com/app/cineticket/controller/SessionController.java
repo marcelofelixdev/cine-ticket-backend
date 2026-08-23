@@ -24,8 +24,9 @@ public class SessionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SessionResponseDTO>> findAll() {
-        return ResponseEntity.ok(sessionService.findAll());
+    public ResponseEntity<org.springframework.data.domain.Page<SessionResponseDTO>> findAll(
+            @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "horarioInicio") org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(sessionService.findAll(pageable));
     }
 
     @DeleteMapping("/{id}")

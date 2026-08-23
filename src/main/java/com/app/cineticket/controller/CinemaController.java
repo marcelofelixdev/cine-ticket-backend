@@ -26,8 +26,9 @@ public class CinemaController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CinemaResponseDTO>> findAll() {
-        return ResponseEntity.ok(cinemaService.findAll());
+    public ResponseEntity<org.springframework.data.domain.Page<CinemaResponseDTO>> findAll(
+            @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "nome") org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(cinemaService.findAll(pageable));
     }
 
     @GetMapping("/{id}")

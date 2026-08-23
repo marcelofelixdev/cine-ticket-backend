@@ -10,6 +10,8 @@ import java.util.List;
 @Repository
 public interface RoomRepository extends JpaRepository<Room, Long> {
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"cinema"})
+    org.springframework.data.domain.Page<Room> findAll(org.springframework.data.domain.Pageable pageable);
 }
 
 

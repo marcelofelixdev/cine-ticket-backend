@@ -12,6 +12,11 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 
+import com.app.cineticket.service.RateLimitService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -19,9 +24,15 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final TokenService tokenService;
+    private final RateLimitService rateLimitService;
 
     @PostMapping("/login")
-    public ResponseEntity<LoginResponseDTO> login(@RequestBody @Valid LoginRequestDTO requestDTO) {
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody @Valid LoginRequestDTO requestDTO, HttpServletRequest request) {
+
+        String ip = request.getRemoteAddr();
+        if (!rateLimitService.getUserBucket(ip).tryConsume(1)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas de login. Tente novamente mais tarde.");
+        }
 
         var usernamePassword = new UsernamePasswordAuthenticationToken(requestDTO.email(), requestDTO.senha());
 

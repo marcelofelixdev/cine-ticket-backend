@@ -33,7 +33,7 @@ public class RoomService {
     @Transactional
     public RoomResponseDTO create(RoomRequestDTO requestDTO) {
         Cinema cinema = cinemaRepository.findById(requestDTO.cinemaId())
-                .orElseThrow(() -> new RuntimeException("Cinema não encontrado. ID: " + requestDTO.cinemaId()));
+                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + requestDTO.cinemaId()));
 
         Room room = roomMapper.toEntity(requestDTO);
         room.setCinema(cinema);
@@ -46,7 +46,7 @@ public class RoomService {
     }
 
     @Transactional
-    public RoomResponseDTO update(Long id, @Valid RoomRequestDTO requestDTO) {
+    public RoomResponseDTO update(Long id, RoomRequestDTO requestDTO) {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Sala não encontrada. ID: " + id));
 
@@ -57,7 +57,7 @@ public class RoomService {
     }
 
     @Transactional
-    public void delete(@PathVariable Long id) {
+    public void delete(Long id) {
         if (!roomRepository.existsById(id)) {
             throw new BusinessException("Sala não encontrada. ID: " + id);
         }
@@ -95,9 +95,8 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public List<RoomResponseDTO> findAll() {
-        return roomRepository.findAll().stream()
-                .map(roomMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public org.springframework.data.domain.Page<RoomResponseDTO> findAll(org.springframework.data.domain.Pageable pageable) {
+        return roomRepository.findAll(pageable)
+                .map(roomMapper::toResponseDTO);
     }
 }

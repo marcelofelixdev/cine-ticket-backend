@@ -14,6 +14,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     List<Ticket> findBySessionId(Long sessionId);
 
-    List<Ticket> findByUserId(Long userId);
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"session.movie", "session.room", "seat"})
+    org.springframework.data.domain.Page<Ticket> findByUserId(Long userId, org.springframework.data.domain.Pageable pageable);
 
 }

@@ -4,9 +4,10 @@ import com.app.cineticket.dto.request.MovieRequestDTO;
 import com.app.cineticket.dto.response.MovieResponseDTO;
 import com.app.cineticket.service.MovieService;
 import jakarta.validation.Valid;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,8 +27,8 @@ public class MovieController {
     }
 
     @GetMapping
-    public ResponseEntity<List<MovieResponseDTO>> findAll() {
-        return ResponseEntity.ok(movieService.findAll());
+    public ResponseEntity<Page<MovieResponseDTO>> findAll(@PageableDefault(size = 10, page = 0, sort = "titulo") Pageable pageable) {
+        return ResponseEntity.ok(movieService.findAll(pageable));
     }
 
     @GetMapping("/{id}")

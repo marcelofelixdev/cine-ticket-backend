@@ -24,7 +24,7 @@ public class CinemaService {
     public CinemaResponseDTO create(CinemaRequestDTO requestDTO) {
 
         if (cinemaRepository.existsByCnpj(requestDTO.cnpj())) {
-            throw new RuntimeException("Já existe um cinema cadastrado com esse CNPJ.");
+            throw new BusinessException("Já existe um cinema cadastrado com esse CNPJ.");
         }
 
         Cinema cinema = cinemaMapper.toEntity(requestDTO);
@@ -34,17 +34,15 @@ public class CinemaService {
     }
 
     @Transactional(readOnly = true)
-    public List<CinemaResponseDTO> findAll() {
-        return cinemaRepository.findAll()
-                .stream()
-                .map(cinemaMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public org.springframework.data.domain.Page<CinemaResponseDTO> findAll(org.springframework.data.domain.Pageable pageable) {
+        return cinemaRepository.findAll(pageable)
+                .map(cinemaMapper::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public CinemaResponseDTO findById(Long id) {
         Cinema cinema = cinemaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cinema não encontrado. ID: " + id));
+                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + id));
 
         return cinemaMapper.toResponseDTO(cinema);
     }

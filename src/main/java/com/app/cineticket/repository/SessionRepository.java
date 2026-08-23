@@ -11,6 +11,10 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     List<Session> findByAtivoTrue();
 
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"movie", "room", "room.cinema"})
+    org.springframework.data.domain.Page<Session> findByAtivoTrue(org.springframework.data.domain.Pageable pageable);
+
+    List<Session> findByRoomId(Long roomId);
 }
 
 
