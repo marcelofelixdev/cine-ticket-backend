@@ -6,32 +6,43 @@ import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.dto.request.PaymentEventDTO;
 import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentConsumer {
 
     private final TicketRepository ticketRepository;
 
     @RabbitListener(queues = RabbitMQConfig.FILA_PAGAMENTOS)
     public void processarPagamento(PaymentEventDTO evento) {
-    System.out.println("[CONSUMER] Iniciando cobrança do ingresso: " + evento.ticketId() + " no cartão " + evento.cartaoToken());
-
-    try {
-        Thread.sleep(3000);
+        log.info("[CONSUMER] Iniciando cobranca do ingresso: {}", evento.ticketId());
 
         Ticket ticket = ticketRepository.findById(evento.ticketId())
-                .orElseThrow(() -> new RuntimeException("Ingresso inexistente"));
+                .orElseThrow(() -> new org.springframework.amqp.AmqpRejectAndDontRequeueException("Ingresso inexistente"));
 
-        ticket.setStatus(TicketStatus.APPROVED);
-        ticketRepository.save(ticket);
+        if (ticket.getStatus() != TicketStatus.PENDING) {
+            log.info("[CONSUMER] Pagamento ja processado para o ingresso: {} (Status atual: {})", evento.ticketId(), ticket.getStatus());
+            return;
+        }
 
-        System.out.println("[CONSUMER] Pagamento APROVADO! Ingresso " + evento.ticketId() + " liberado para uso.");
-    } catch (InterruptedException e) {
-        System.out.println("Falha na simulação de tempo.");
-    }
+        try {
+            Thread.sleep(3000);
+
+            ticket.setStatus(TicketStatus.APPROVED);
+            ticketRepository.save(ticket);
+
+            log.info("[CONSUMER] Pagamento APROVADO! Ingresso {} liberado para uso.", evento.ticketId());
+        } catch (InterruptedException e) {
+            log.error("Falha na simulacao de tempo.");
+            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException("Erro interno no processamento", e);
+        } catch (Exception e) {
+            log.error("Erro ao processar pagamento", e);
+            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException("Erro ao processar pagamento", e);
+        }
     }
 
 }
