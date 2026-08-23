@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: cineticket
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -22,13 +22,22 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    container_name: cineticket-rabbitmq
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    container_name: rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - cine-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -38,19 +47,32 @@ services:
   api:
     build: .
     container_name: cineticket-api
-    env_file:
-      - .env
     ports:
       - "8080:8080"
     environment:
-      - DB_HOST=postgres
+      - DB_URL=jdbc:postgresql://{DB_HOST}:{DB_PORT}/cineticket
+      - DB_USERNAME={DB_USERNAME}
+      - DB_PASSWORD={DB_PASSWORD}
       - SPRING_RABBITMQ_HOST=rabbitmq
-      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - SPRING_RABBITMQ_PASSWORD=${RABBITMQ_PASS}
+      - SPRING_PROFILES_ACTIVE=${PROFILE:-dev}
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - cine-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
 
 volumes:
   pgdata:
+  rabbitmq_data:
+
+networks:
+  cine-network:
