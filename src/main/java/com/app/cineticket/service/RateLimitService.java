@@ -1,19 +1,22 @@
 package com.app.cineticket.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bucket;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class RateLimitService {
 
-    private final Map<String, Bucket> cacheBuckets = new ConcurrentHashMap<>();
+    private final Cache<String, Bucket> cacheBuckets = Caffeine.newBuilder()
+            .expireAfterAccess(1, TimeUnit.HOURS)
+            .build();
 
     public Bucket getUserBucket(String email) {
-        return cacheBuckets.computeIfAbsent(email, this::createBucket);
+        return cacheBuckets.get(email, this::createBucket);
     }
 
     private Bucket createBucket(String email) {
