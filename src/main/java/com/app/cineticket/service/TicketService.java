@@ -58,20 +58,16 @@ public class TicketService {
 
     @Transactional
     public TicketResponseDTO buyTicket(TicketRequestDTO request) {
-        // 1. Bloqueia a cadeira no banco (Trava Pessimista) para evitar Overbooking
         var seat = seatRepository.findByIdWithLock(request.seatId())
                 .orElseThrow(() -> new BusinessException("Cadeira não encontrada"));
 
-        // 2. Busca a Sessão
         var session = sessionRepository.findById(request.sessionId())
                 .orElseThrow(() -> new BusinessException("Sessão não encontrada"));
 
-        // 3. Valida se a Cadeira pertence à Sala da Sessão (AUD-023)
         if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
             throw new BusinessException("FRAUDE: A cadeira solicitada não pertence à sala desta sessão.");
         }
 
-        // 4. Verifica se a Cadeira já foi vendida (agora seguro pela trava da cadeira)
         List<TicketStatus> statusAtivos = List.of(TicketStatus.APPROVED, TicketStatus.PENDING);
         if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(request.sessionId(), request.seatId(), statusAtivos)) {
             throw new BusinessException("OVERBOOKING: Esta cadeira já está ocupada para esta sessão.");
