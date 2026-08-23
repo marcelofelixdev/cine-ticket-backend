@@ -10,7 +10,7 @@ import lombok.*;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_cinema")
-public class Cinema {
+public class Cinema extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

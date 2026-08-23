@@ -11,7 +11,7 @@ import lombok.*;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_room")
-public class Room {
+public class Room extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

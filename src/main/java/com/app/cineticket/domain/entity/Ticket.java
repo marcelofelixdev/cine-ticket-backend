@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_ticket")
-public class Ticket {
+public class Ticket extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,6 +39,6 @@ public class Ticket {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "ticketType", nullable = false)
+    @Column(name = "ticket_type", nullable = false)
     private TicketType ticketType;
 }

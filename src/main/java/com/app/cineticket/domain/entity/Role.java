@@ -10,7 +10,7 @@ import lombok.*;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_role")
-public class Role {
+public class Role extends AuditableEntity implements org.springframework.security.core.GrantedAuthority {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -18,4 +18,9 @@ public class Role {
 
     @Column(nullable = false, unique = true, length = 50)
     private String nome;
+
+    @Override
+    public String getAuthority() {
+        return nome;
+    }
 }

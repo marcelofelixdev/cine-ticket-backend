@@ -12,7 +12,7 @@ import lombok.*;
 @Table(name = "tb_seat", uniqueConstraints = {
         @UniqueConstraint(columnNames = {"room_id", "fila", "numero"})
 })
-public class Seat {
+public class Seat extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

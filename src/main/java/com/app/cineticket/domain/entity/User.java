@@ -13,7 +13,7 @@ import java.util.Set;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_user")
-public class User implements org.springframework.security.core.userdetails.UserDetails {
+public class User extends AuditableEntity implements org.springframework.security.core.userdetails.UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
