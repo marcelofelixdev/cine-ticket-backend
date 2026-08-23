@@ -5,14 +5,18 @@ import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.dto.request.TicketRequestDTO;
 import com.app.cineticket.dto.response.TicketResponseDTO;
 import com.app.cineticket.repository.TicketRepository;
+import com.app.cineticket.service.RateLimitService;
 import com.app.cineticket.service.TicketService;
 import com.app.cineticket.service.PdfService;
+import io.github.bucket4j.Bucket;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -23,11 +27,24 @@ public class TicketController {
 
     private final TicketService ticketService;
     private final TicketRepository ticketRepository;
+    private final RateLimitService rateLimitService;
     private final PdfService pdfService;
 
     @PostMapping
     public ResponseEntity<TicketResponseDTO> buyTicket(@RequestBody @Valid TicketRequestDTO requestDTO) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ticketService.buyTicket(requestDTO));
+
+        String emailUsuario = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        Bucket bucket = rateLimitService.getUserBucket(emailUsuario);
+
+        if(!bucket.tryConsume(1)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Você atingiu o limite de compras por minuto. " +
+                    "Tente novamente mais tarde."
+            );
+        }
+
+        TicketResponseDTO responseDTO = ticketService.buyTicket(requestDTO);
+        return ResponseEntity.ok(responseDTO);
     }
 
     @GetMapping("/{id}/pdf")

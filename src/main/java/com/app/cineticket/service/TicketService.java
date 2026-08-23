@@ -40,7 +40,7 @@ public class TicketService {
         List<TicketStatus> statusAtivos = List.of(TicketStatus.APPROVED, TicketStatus.PENDING);
 
         if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(request.sessionId(), request.seatId(), statusAtivos)) {
-            throw new BusinessException("OVERBOOKING: Esta cadeira já está ocupada para está sessão");
+            throw new BusinessException("OVERBOOKING: Esta cadeira já está ocupada para esta sessão.");
         }
 
         var auth = SecurityContextHolder.getContext().getAuthentication();
