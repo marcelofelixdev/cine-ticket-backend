@@ -13,13 +13,13 @@ import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -30,16 +30,32 @@ public class SessionService {
     private final RoomRepository roomRepository;
     private final TicketRepository ticketRepository;
     private final SessionMapper sessionMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public SessionResponseDTO create(SessionRequestDTO requestDTO) {
         Movie movie = movieRepository.findById(requestDTO.movieId())
-                .orElseThrow(() -> new RuntimeException("Filme não encontrado."));
+                .orElseThrow(() -> new BusinessException("Filme não encontrado."));
 
         Room room = roomRepository.findById(requestDTO.roomId())
-                .orElseThrow(() -> new RuntimeException("Sala não encontrada"));
+                .orElseThrow(() -> new BusinessException("Sala não encontrada"));
 
         Session session = sessionMapper.toEntity(requestDTO);
+
+        List<Session> sessoesNaSala = sessionRepository.findByRoomId(requestDTO.roomId());
+
+        LocalDateTime novoInicio = requestDTO.horarioInicio();
+        LocalDateTime novoFim = novoInicio.plusMinutes(movie.getDuracaoEmMinutos() + 30);
+
+        for (Session sessaoExistente : sessoesNaSala) {
+            LocalDateTime existenteInicio = sessaoExistente.getHorarioInicio();
+            LocalDateTime existenteFim = existenteInicio.plusMinutes(sessaoExistente.getMovie().getDuracaoEmMinutos() + 30);
+
+            if (novoInicio.isBefore(existenteFim) && novoFim.isAfter(existenteInicio)) {
+                throw new BusinessException("Conflito de horário! A sala já estará ocupada neste período.");
+            }
+        }
+
         session.setMovie(movie);
         session.setRoom(room);
 
@@ -59,15 +75,18 @@ public class SessionService {
 
         for (Ticket ticket : ingressosDeSessao) {
             ticket.setStatus(TicketStatus.EMERGENCY_CANCELLED);
+            eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
+                    ticket.getId(),
+                    ticket.getValorPago()
+            ));
         }
 
         ticketRepository.saveAll(ingressosDeSessao);
     }
 
     @Transactional(readOnly = true)
-    public List<SessionResponseDTO> findAll() {
-        return sessionRepository.findAll().stream()
-                .map(sessionMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public org.springframework.data.domain.Page<SessionResponseDTO> findAll(org.springframework.data.domain.Pageable pageable) {
+        return sessionRepository.findByAtivoTrue(pageable)
+                .map(sessionMapper::toResponseDTO);
     }
 }

@@ -1,17 +1,17 @@
 package com.app.cineticket.exception;
 
-import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
 
+import lombok.extern.slf4j.Slf4j;
+
 @RestControllerAdvice
+@Slf4j
 public class ResourceExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
@@ -50,18 +50,30 @@ public class ResourceExceptionHandler {
         return ResponseEntity.status(status).body(err);
     }
 
+    // Tratamento para ResponseStatusException (ex: Rate Limiter)
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<StandardError> handleResponseStatusException(org.springframework.web.server.ResponseStatusException e, HttpServletRequest request) {
+        StandardError err = new StandardError(
+                Instant.now(),
+                e.getStatusCode().value(),
+                e.getReason(),
+                e.getReason(),
+                request.getRequestURI()
+        );
+        return ResponseEntity.status(e.getStatusCode()).body(err);
+    }
+
     // A ARMA SECRETA PARA O CONSOLE!
     @ExceptionHandler(Exception.class)
     public ResponseEntity<StandardError> handleGenericException(Exception e, HttpServletRequest request) {
-        // ISSO VAI PINTAR O SEU CONSOLE DO INTELLIJ DE VERMELHO COM O ERRO REAL!
-        e.printStackTrace(); 
+        log.error("Erro interno não tratado: {}", e.getMessage(), e);
         
         org.springframework.http.HttpStatus status = org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
         StandardError err = new StandardError(
                 Instant.now(),
                 status.value(),
-                "ERRO INTERNO GRAVE",
-                e.getMessage() != null ? e.getMessage() : e.toString(),
+                "Erro interno no servidor",
+                "Ocorreu um erro inesperado. Tente novamente mais tarde.",
                 request.getRequestURI()
         );
         return ResponseEntity.status(status).body(err);

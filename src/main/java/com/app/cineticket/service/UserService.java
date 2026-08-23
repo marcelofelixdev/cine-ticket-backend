@@ -39,13 +39,9 @@ public class UserService {
         user.setSenha(passwordEncoder.encode(requestDTO.senha()));
 
         Set<Role> roles = new HashSet<>();
-        if (requestDTO.roleIds() != null) {
-            for (Long roleId : requestDTO.roleIds()) {
-                Role role = roleRepository.findById(roleId)
-                        .orElseThrow(() -> new RuntimeException("Role não encontrado. ID: " + roleId));
-                roles.add(role);
-            }
-        }
+        Role defaultRole = roleRepository.findByNome("ROLE_USER")
+                .orElseThrow(() -> new BusinessException("Role ROLE_USER não encontrada no sistema."));
+        roles.add(defaultRole);
         user.setRoles(roles);
 
         return userMapper.toResponseDTO(userRepository.save(user));

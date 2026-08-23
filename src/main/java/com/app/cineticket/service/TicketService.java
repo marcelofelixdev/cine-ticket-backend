@@ -13,10 +13,11 @@ import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.app.cineticket.messaging.PaymentProducer;
+
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -26,19 +27,52 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TicketService {
 
     private final TicketRepository ticketRepository;
     private final SessionRepository sessionRepository;
     private final SeatRepository seatRepository;
-    private final PaymentProducer paymentProducer;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final TicketMapper ticketMapper;
+    private final com.app.cineticket.service.PdfService pdfService;
+
+    @Transactional(readOnly = true)
+    public byte[] downloadPdf(Long ticketId) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        User loggedUser = (User) auth.getPrincipal();
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new BusinessException("Ingresso não encontrado"));
+
+        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+            throw new BusinessException("IDOR PREVENTED: Você não tem permissão para baixar o ingresso de outra pessoa.");
+        }
+
+        if (ticket.getStatus() != TicketStatus.APPROVED) {
+            throw new BusinessException("Ingresso não aprovado ainda.");
+        }
+
+        return pdfService.generateTicketPdf(ticket);
+    }
 
     @Transactional
     public TicketResponseDTO buyTicket(TicketRequestDTO request) {
+        // 1. Bloqueia a cadeira no banco (Trava Pessimista) para evitar Overbooking
+        var seat = seatRepository.findByIdWithLock(request.seatId())
+                .orElseThrow(() -> new BusinessException("Cadeira não encontrada"));
 
+        // 2. Busca a Sessão
+        var session = sessionRepository.findById(request.sessionId())
+                .orElseThrow(() -> new BusinessException("Sessão não encontrada"));
+
+        // 3. Valida se a Cadeira pertence à Sala da Sessão (AUD-023)
+        if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
+            throw new BusinessException("FRAUDE: A cadeira solicitada não pertence à sala desta sessão.");
+        }
+
+        // 4. Verifica se a Cadeira já foi vendida (agora seguro pela trava da cadeira)
         List<TicketStatus> statusAtivos = List.of(TicketStatus.APPROVED, TicketStatus.PENDING);
-
         if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(request.sessionId(), request.seatId(), statusAtivos)) {
             throw new BusinessException("OVERBOOKING: Esta cadeira já está ocupada para esta sessão.");
         }
@@ -47,16 +81,9 @@ public class TicketService {
         User loggedUser = (User) auth.getPrincipal();
 
         Ticket ticket = ticketMapper.toEntity(request);
-
         ticket.setUser(loggedUser);
-
-        var session = sessionRepository.findById(request.sessionId())
-                .orElseThrow(() -> new BusinessException("Sessão não encontrada"));
-
         ticket.setSession(session);
-
-        ticket.setSeat(seatRepository.findById(request.seatId())
-                .orElseThrow(() -> new BusinessException("Cadeira não encontrada")));
+        ticket.setSeat(seat);
 
         BigDecimal valorSessao = session.getValorBase();
 
@@ -73,7 +100,7 @@ public class TicketService {
 
         Ticket savedTicket = ticketRepository.save(ticket);
 
-        paymentProducer.enviarParaFilaDePagamento(new PaymentEventDTO(
+        eventPublisher.publishEvent(new PaymentEventDTO(
                 savedTicket.getId(),
                 request.cartaoToken(),
                 savedTicket.getValorPago()
@@ -83,27 +110,22 @@ public class TicketService {
     }
 
     @Transactional(readOnly = true)
-    public List<TicketResponseDTO> getMyTickets() {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        User loggedUser = (User) auth.getPrincipal();
-
-        List<Ticket> meusIngressos = ticketRepository.findByUserId(loggedUser.getId());
-
-        return meusIngressos.stream()
-                .map(ticketMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public org.springframework.data.domain.Page<TicketResponseDTO> findMyTickets(User loggedUser, org.springframework.data.domain.Pageable pageable) {
+        return ticketRepository.findByUserId(loggedUser.getId(), pageable)
+                .map(ticketMapper::toResponseDTO);
     }
 
     @Transactional
-    public void cancelMyTicket(Long ticketId) {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        User loggedUser = (User) auth.getPrincipal();
-
-        Ticket ticket = ticketRepository.findById(ticketId)
+    public TicketResponseDTO cancelTicket(Long id, User loggedUser) {
+        Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Ingresso não encontrado"));
 
         if (!ticket.getUser().getId().equals(loggedUser.getId())) {
-            throw new BusinessException("Você não tem permissão para cancelar um ingresso que não é seu.");
+            throw new BusinessException("Ingresso não pertence ao usuário logado");
+        }
+
+        if (ticket.getStatus() == TicketStatus.CANCELLED) {
+            throw new BusinessException("Ingresso já está cancelado");
         }
 
         LocalDateTime deadlineCancelamento = ticket.getSession().getHorarioInicio().minusMinutes(30);
@@ -115,5 +137,14 @@ public class TicketService {
 
         ticket.setStatus(TicketStatus.CANCELLED);
         ticketRepository.save(ticket);
+
+        log.info("Ticket {} cancelado. Preparando para notificar sistema de reembolso...", ticket.getId());
+
+        eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
+                ticket.getId(),
+                ticket.getValorPago()
+        ));
+
+        return ticketMapper.toResponseDTO(ticket);
     }
 }

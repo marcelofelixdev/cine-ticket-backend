@@ -4,7 +4,8 @@ import java.util.List;
 
 public record TmdbSearchResponseDTO(List<TmdbMovieDTO> results) {
     public record TmdbMovieDTO(
-            String movie,
+            Long id,
+            String title,
             String overview,
             String poster_path
     ) {}

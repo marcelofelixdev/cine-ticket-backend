@@ -5,5 +5,7 @@ public record TicketResponseDTO (
     String status,
     String filmeTitulo,
     String salaNome,
-    String cadeiraAssento
+    String cadeiraAssento,
+    java.math.BigDecimal valorPago,
+    com.app.cineticket.domain.enums.TicketType ticketType
 ){}

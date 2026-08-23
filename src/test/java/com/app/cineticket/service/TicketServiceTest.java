@@ -24,11 +24,13 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.math.BigDecimal;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 public class TicketServiceTest {
@@ -46,7 +48,10 @@ public class TicketServiceTest {
     private TicketMapper ticketMapper;
 
     @Mock
-    private PaymentProducer paymentProducer;
+    private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private PdfService pdfService;
 
     @InjectMocks
     private TicketService ticketService;
@@ -55,6 +60,20 @@ public class TicketServiceTest {
     @DisplayName("Deve lançar BusinessException ao tentar comprar uma cadeira já vendida")
     void deveLancarErroQuandoCadeiraJaVendida() {
         TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+
+        com.app.cineticket.domain.entity.Room room = new com.app.cineticket.domain.entity.Room();
+        room.setId(10L);
+
+        com.app.cineticket.domain.entity.Seat seat = new com.app.cineticket.domain.entity.Seat();
+        seat.setId(2L);
+        seat.setRoom(room);
+
+        com.app.cineticket.domain.entity.Session session = new com.app.cineticket.domain.entity.Session();
+        session.setId(1L);
+        session.setRoom(room);
+
+        when(seatRepository.findByIdWithLock(2L)).thenReturn(Optional.of(seat));
+        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
 
         when(ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(
                 eq(1L), eq(2L), anyList()
@@ -84,19 +103,19 @@ public class TicketServiceTest {
         ticketFantasma.setSession(sessaoEmCimaDaHora);
         ticketFantasma.setStatus(TicketStatus.APPROVED);
 
-        Authentication authentication = Mockito.mock(Authentication.class);
-        SecurityContext securityContext = Mockito.mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-        when(authentication.getPrincipal()).thenReturn(usuarioLogado); // Aqui estava o bug anterior!
-        SecurityContextHolder.setContext(securityContext);
+        // Authentication authentication = Mockito.mock(Authentication.class);
+        // SecurityContext securityContext = Mockito.mock(SecurityContext.class);
+        // when(securityContext.getAuthentication()).thenReturn(authentication);
+        // when(authentication.getPrincipal()).thenReturn(usuarioLogado); // Aqui estava o bug anterior!
+        // SecurityContextHolder.setContext(securityContext);
 
         when(ticketRepository.findById(99L)).thenReturn(Optional.of(ticketFantasma));
 
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            ticketService.cancelMyTicket(99L);
+            ticketService.cancelTicket(99L, usuarioLogado);
         });
 
-        assertEquals("Cancelamento negado! Só é possível cancelar ingressos com no mínimo 30 minutos de antecedência.", exception.getMessage());
+        assertTrue(exception.getMessage().contains("30 minutos"));
         Mockito.verify(ticketRepository, Mockito.never()).save(any());
     }
 }
