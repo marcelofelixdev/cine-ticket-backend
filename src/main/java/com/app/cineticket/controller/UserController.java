@@ -16,9 +16,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+    private final com.app.cineticket.service.RateLimitService rateLimitService;
 
     @PostMapping
-    public ResponseEntity<UserResponseDTO> create(@RequestBody @Valid UserRequestDTO requestDTO) {
+    public ResponseEntity<UserResponseDTO> create(
+            @RequestBody @Valid UserRequestDTO requestDTO,
+            jakarta.servlet.http.HttpServletRequest request) {
+        if (!rateLimitService.getUserBucket("registration:" + request.getRemoteAddr()).tryConsume(1)) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas de cadastro. Tente novamente mais tarde.");
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(requestDTO));
     }
 }

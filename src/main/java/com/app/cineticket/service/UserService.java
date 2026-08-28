@@ -30,11 +30,13 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO create(UserRequestDTO requestDTO) {
-        if (userRepository.existsByEmail(requestDTO.email())) {
+        String normalizedEmail = requestDTO.email().trim().toLowerCase(java.util.Locale.ROOT);
+        if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
             throw new BusinessException("Email já cadastrado");
         }
 
         User user = userMapper.toEntity(requestDTO);
+        user.setEmail(normalizedEmail);
 
         user.setSenha(passwordEncoder.encode(requestDTO.senha()));
 

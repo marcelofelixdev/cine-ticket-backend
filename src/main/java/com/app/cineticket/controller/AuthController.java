@@ -30,11 +30,12 @@ public class AuthController {
     public ResponseEntity<LoginResponseDTO> login(@RequestBody @Valid LoginRequestDTO requestDTO, HttpServletRequest request) {
 
         String ip = request.getRemoteAddr();
-        if (!rateLimitService.getUserBucket(ip).tryConsume(1)) {
+        if (!rateLimitService.getUserBucket("login:" + ip).tryConsume(1)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Muitas tentativas de login. Tente novamente mais tarde.");
         }
 
-        var usernamePassword = new UsernamePasswordAuthenticationToken(requestDTO.email(), requestDTO.senha());
+        var usernamePassword = new UsernamePasswordAuthenticationToken(
+                requestDTO.email().trim().toLowerCase(java.util.Locale.ROOT), requestDTO.senha());
 
         var auth = authenticationManager.authenticate(usernamePassword);
 

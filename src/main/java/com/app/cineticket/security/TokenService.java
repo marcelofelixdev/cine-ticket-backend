@@ -9,22 +9,33 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.Duration;
+import java.util.UUID;
 
 @Service
 public class TokenService {
 
-    @Value("${api.security.token.secret:${JWT_SECRET}}")
-    private String secret;
+    private static final String ISSUER = "cine-ticket-api";
+    private static final String AUDIENCE = "cine-ticket-web";
+
+    private final String secret;
+
+    public TokenService(@Value("${api.security.token.secret}") String secret) {
+        if (secret == null || secret.length() < 32) {
+            throw new IllegalStateException("JWT_SECRET deve possuir pelo menos 32 caracteres");
+        }
+        this.secret = secret;
+    }
 
     public String generateToken(User user) {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.create()
-                    .withIssuer("cine-ticket-api")
+                    .withIssuer(ISSUER)
+                    .withAudience(AUDIENCE)
                     .withSubject(user.getEmail())
+                    .withIssuedAt(Instant.now())
+                    .withJWTId(UUID.randomUUID().toString())
                     .withExpiresAt(genExpirationDate())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {
@@ -36,7 +47,8 @@ public class TokenService {
         try {
             Algorithm algorithm = Algorithm.HMAC256(secret);
             return JWT.require(algorithm)
-                    .withIssuer("cine-ticket-api")
+                    .withIssuer(ISSUER)
+                    .withAudience(AUDIENCE)
                     .build()
                     .verify(token)
                     .getSubject();
@@ -46,7 +58,7 @@ public class TokenService {
     }
 
     private Instant genExpirationDate() {
-        return LocalDateTime.now().plusHours(2).toInstant(ZoneOffset.of("-03:00"));
+        return Instant.now().plus(Duration.ofHours(2));
     }
 
 }

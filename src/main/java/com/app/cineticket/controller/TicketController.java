@@ -30,7 +30,7 @@ public class TicketController {
 
         String emailUsuario = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        Bucket bucket = rateLimitService.getUserBucket(emailUsuario);
+        Bucket bucket = rateLimitService.getUserBucket("purchase:" + emailUsuario);
 
         if(!bucket.tryConsume(1)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Você atingiu o limite de compras por minuto. " +
@@ -44,6 +44,11 @@ public class TicketController {
 
     @GetMapping("/{id}/pdf")
     public ResponseEntity<byte[]> downloadPdf(@PathVariable Long id) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (!rateLimitService.getUserBucket("pdf:" + email).tryConsume(1)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Limite de geração de ingressos atingido. Tente novamente mais tarde.");
+        }
         byte[] pdfBytes = ticketService.downloadPdf(id);
 
         HttpHeaders headers = new HttpHeaders();

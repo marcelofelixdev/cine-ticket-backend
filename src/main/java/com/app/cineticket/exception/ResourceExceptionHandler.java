@@ -63,6 +63,26 @@ public class ResourceExceptionHandler {
         return ResponseEntity.status(e.getStatusCode()).body(err);
     }
 
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<StandardError> handleAuthenticationException(
+            org.springframework.security.core.AuthenticationException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.UNAUTHORIZED;
+        StandardError err = new StandardError(
+                Instant.now(), status.value(), "Não autenticado",
+                "Credenciais inválidas", request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<StandardError> handleDataIntegrityViolation(
+            org.springframework.dao.DataIntegrityViolationException e, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.CONFLICT;
+        StandardError err = new StandardError(
+                Instant.now(), status.value(), "Conflito de dados",
+                "A operação viola uma restrição de integridade", request.getRequestURI());
+        return ResponseEntity.status(status).body(err);
+    }
+
     // A ARMA SECRETA PARA O CONSOLE!
     @ExceptionHandler(Exception.class)
     public ResponseEntity<StandardError> handleGenericException(Exception e, HttpServletRequest request) {

@@ -1,7 +1,6 @@
 package com.app.cineticket.security;
 
 import com.app.cineticket.repository.UserRepository;
-import jakarta.persistence.Column;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +31,7 @@ public class SecurityFilter extends OncePerRequestFilter {
             var email = tokenService.validateToken(token);
 
             if (!email.isEmpty()) {
-                var user = userRepository.findByEmail(email).orElse(null);
+                var user = userRepository.findByEmailIgnoreCase(email).orElse(null);
 
                 if (user != null) {
                     var authentication = new UsernamePasswordAuthenticationToken(
@@ -48,8 +47,9 @@ public class SecurityFilter extends OncePerRequestFilter {
 
     private String recoverToken(HttpServletRequest request) {
         var authHeader = request.getHeader("Authorization");
-        if (authHeader == null) return null;
-        return authHeader.replace("Bearer ", "");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
+        String token = authHeader.substring(7).trim();
+        return token.isEmpty() ? null : token;
     }
 
 }

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 import java.util.Set;
 
 public record UserRequestDTO (
-        @NotBlank String nome,
-        @NotBlank @Email String email,
-        @NotBlank @Size(min = 6) String senha
+        @NotBlank @Size(max = 150) String nome,
+        @NotBlank @Email @Size(max = 150) String email,
+        @NotBlank @Size(min = 12, max = 72) String senha
 ) {}
