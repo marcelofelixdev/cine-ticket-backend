@@ -6,7 +6,7 @@ COPY src ./src
 RUN mvn --batch-mode clean package
 
 # Estágio 2: Runtime
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 # Criar usuário não-root para segurança
 RUN addgroup -S spring && adduser -S spring -G spring
