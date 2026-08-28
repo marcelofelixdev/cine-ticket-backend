@@ -26,7 +26,6 @@ public class MovieService {
     private final TmdbClient tmdbClient;
     private final MovieMapper movieMapper;
 
-    @Transactional
     public MovieResponseDTO create(MovieRequestDTO requestDTO) {
         Movie movie = movieMapper.toEntity(requestDTO);
 
