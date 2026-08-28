@@ -71,6 +71,8 @@ public class TicketServiceTest {
         com.app.cineticket.domain.entity.Session session = new com.app.cineticket.domain.entity.Session();
         session.setId(1L);
         session.setRoom(room);
+        session.setAtivo(true);
+        session.setHorarioInicio(java.time.LocalDateTime.now().plusHours(2));
 
         when(seatRepository.findByIdWithLock(2L)).thenReturn(Optional.of(seat));
         when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
@@ -109,13 +111,81 @@ public class TicketServiceTest {
         // when(authentication.getPrincipal()).thenReturn(usuarioLogado); // Aqui estava o bug anterior!
         // SecurityContextHolder.setContext(securityContext);
 
-        when(ticketRepository.findById(99L)).thenReturn(Optional.of(ticketFantasma));
+        when(ticketRepository.findByIdForUpdate(99L)).thenReturn(Optional.of(ticketFantasma));
 
         BusinessException exception = assertThrows(BusinessException.class, () -> {
             ticketService.cancelTicket(99L, usuarioLogado);
         });
 
         assertTrue(exception.getMessage().contains("30 minutos"));
+        Mockito.verify(ticketRepository, Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve cancelar reserva pendente sem publicar reembolso")
+    void deveCancelarPendenteSemReembolso() {
+        var user = new com.app.cineticket.domain.entity.User();
+        user.setId(10L);
+        var session = new Session();
+        session.setHorarioInicio(java.time.LocalDateTime.now().plusHours(2));
+        var ticket = new Ticket();
+        ticket.setId(20L);
+        ticket.setUser(user);
+        ticket.setSession(session);
+        ticket.setStatus(TicketStatus.PENDING);
+
+        when(ticketRepository.findByIdForUpdate(20L)).thenReturn(Optional.of(ticket));
+
+        ticketService.cancelTicket(20L, user);
+
+        assertEquals(TicketStatus.CANCELLED, ticket.getStatus());
+        Mockito.verify(eventPublisher, Mockito.never())
+                .publishEvent(any(com.app.cineticket.dto.request.RefundEventDTO.class));
+    }
+
+    @Test
+    @DisplayName("Deve publicar reembolso apenas ao cancelar ingresso aprovado")
+    void deveReembolsarIngressoAprovado() {
+        var user = new com.app.cineticket.domain.entity.User();
+        user.setId(10L);
+        var session = new Session();
+        session.setHorarioInicio(java.time.LocalDateTime.now().plusHours(2));
+        var ticket = new Ticket();
+        ticket.setId(21L);
+        ticket.setUser(user);
+        ticket.setSession(session);
+        ticket.setStatus(TicketStatus.APPROVED);
+        ticket.setValorPago(new BigDecimal("30.00"));
+
+        when(ticketRepository.findByIdForUpdate(21L)).thenReturn(Optional.of(ticket));
+
+        ticketService.cancelTicket(21L, user);
+
+        assertEquals(TicketStatus.CANCELLED, ticket.getStatus());
+        Mockito.verify(eventPublisher).publishEvent(
+                new com.app.cineticket.dto.request.RefundEventDTO(21L, new BigDecimal("30.00")));
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar compra para sessão inativa")
+    void deveRejeitarCompraParaSessaoInativa() {
+        var room = new com.app.cineticket.domain.entity.Room();
+        room.setId(10L);
+        var seat = new com.app.cineticket.domain.entity.Seat();
+        seat.setRoom(room);
+        var session = new Session();
+        session.setRoom(room);
+        session.setAtivo(false);
+        session.setHorarioInicio(java.time.LocalDateTime.now().plusHours(2));
+        var request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+
+        when(seatRepository.findByIdWithLock(2L)).thenReturn(Optional.of(seat));
+        when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> ticketService.buyTicket(request));
+
+        assertTrue(exception.getMessage().contains("não está ativa"));
         Mockito.verify(ticketRepository, Mockito.never()).save(any());
     }
 }
