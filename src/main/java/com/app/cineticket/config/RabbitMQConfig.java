@@ -25,12 +25,17 @@ public class RabbitMQConfig {
         return org.springframework.amqp.core.QueueBuilder.durable(FILA_PAGAMENTOS)
                 .withArgument("x-dead-letter-exchange", DLX_CINETICKET)
                 .withArgument("x-dead-letter-routing-key", ROUTING_KEY_DLQ)
+                .withArgument("x-message-ttl", 900_000)
+                .withArgument("x-max-length", 10_000)
                 .build();
     }
 
     @Bean
     public Queue pagamentosDlq() {
-        return org.springframework.amqp.core.QueueBuilder.durable(DLQ_PAGAMENTOS).build();
+        return org.springframework.amqp.core.QueueBuilder.durable(DLQ_PAGAMENTOS)
+                .withArgument("x-message-ttl", 604_800_000)
+                .withArgument("x-max-length", 100_000)
+                .build();
     }
 
     @Bean
@@ -50,7 +55,10 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue reembolsosQueue() {
-        return org.springframework.amqp.core.QueueBuilder.durable(FILA_REEMBOLSOS).build();
+        return org.springframework.amqp.core.QueueBuilder.durable(FILA_REEMBOLSOS)
+                .withArgument("x-message-ttl", 604_800_000)
+                .withArgument("x-max-length", 100_000)
+                .build();
     }
 
     @Bean

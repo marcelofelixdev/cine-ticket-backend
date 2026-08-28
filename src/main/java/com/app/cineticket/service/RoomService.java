@@ -50,8 +50,14 @@ public class RoomService {
         Room room = roomRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Sala não encontrada. ID: " + id));
 
+        if (!java.util.Objects.equals(room.getCapacidade(), requestDTO.capacidade())) {
+            throw new BusinessException("A capacidade da sala não pode ser alterada após a criação");
+        }
+        if (!java.util.Objects.equals(room.getCinema().getId(), requestDTO.cinemaId())) {
+            throw new BusinessException("Uma sala não pode ser transferida para outro cinema");
+        }
+
         room.setNome(requestDTO.nome());
-        room.setCapacidade(requestDTO.capacidade());
 
         return roomMapper.toResponseDTO(roomRepository.save(room));
     }

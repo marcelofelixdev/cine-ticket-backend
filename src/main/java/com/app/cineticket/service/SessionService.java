@@ -37,12 +37,12 @@ public class SessionService {
         Movie movie = movieRepository.findById(requestDTO.movieId())
                 .orElseThrow(() -> new BusinessException("Filme não encontrado."));
 
-        Room room = roomRepository.findById(requestDTO.roomId())
+        Room room = roomRepository.findByIdWithLock(requestDTO.roomId())
                 .orElseThrow(() -> new BusinessException("Sala não encontrada"));
 
         Session session = sessionMapper.toEntity(requestDTO);
 
-        List<Session> sessoesNaSala = sessionRepository.findByRoomId(requestDTO.roomId());
+        List<Session> sessoesNaSala = sessionRepository.findByRoomIdAndAtivoTrue(requestDTO.roomId());
 
         LocalDateTime novoInicio = requestDTO.horarioInicio();
         LocalDateTime novoFim = novoInicio.plusMinutes(movie.getDuracaoEmMinutos() + 30);
@@ -65,23 +65,29 @@ public class SessionService {
 
     @Transactional
     public void deleteEmergency(Long sessionId) {
-        Session session = sessionRepository.findById(sessionId)
+        Session session = sessionRepository.findByIdWithLock(sessionId)
                 .orElseThrow(() -> new BusinessException("Sessão não encontrada"));
+
+        if (!Boolean.TRUE.equals(session.getAtivo())) {
+            return;
+        }
 
         session.setAtivo(false);
         sessionRepository.save(session);
 
-        List<Ticket> ingressosDeSessao = ticketRepository.findBySessionId(sessionId);
+        List<Ticket> ingressosDeSessao = ticketRepository.findBySessionIdForUpdate(sessionId);
 
         for (Ticket ticket : ingressosDeSessao) {
+            TicketStatus previousStatus = ticket.getStatus();
+            if (previousStatus != TicketStatus.PENDING && previousStatus != TicketStatus.APPROVED) {
+                continue;
+            }
             ticket.setStatus(TicketStatus.EMERGENCY_CANCELLED);
-            eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
-                    ticket.getId(),
-                    ticket.getValorPago()
-            ));
+            if (previousStatus == TicketStatus.APPROVED) {
+                eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
+                        ticket.getId(), ticket.getValorPago()));
+            }
         }
-
-        ticketRepository.saveAll(ingressosDeSessao);
     }
 
     @Transactional(readOnly = true)

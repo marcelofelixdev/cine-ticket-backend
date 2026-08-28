@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
 
 
 import java.math.BigDecimal;
@@ -36,6 +37,9 @@ public class TicketService {
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final TicketMapper ticketMapper;
     private final com.app.cineticket.service.PdfService pdfService;
+
+    @Value("${payments.enabled:false}")
+    private boolean paymentsEnabled;
 
     @Transactional(readOnly = true)
     public byte[] downloadPdf(Long ticketId) {
@@ -64,6 +68,14 @@ public class TicketService {
         var session = sessionRepository.findById(request.sessionId())
                 .orElseThrow(() -> new BusinessException("Sessão não encontrada"));
 
+        if (!Boolean.TRUE.equals(session.getAtivo())) {
+            throw new BusinessException("Esta sessão não está ativa");
+        }
+
+        if (!session.getHorarioInicio().isAfter(LocalDateTime.now())) {
+            throw new BusinessException("Não é possível comprar ingresso para uma sessão iniciada ou encerrada");
+        }
+
         if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
             throw new BusinessException("FRAUDE: A cadeira solicitada não pertence à sala desta sessão.");
         }
@@ -71,6 +83,10 @@ public class TicketService {
         List<TicketStatus> statusAtivos = List.of(TicketStatus.APPROVED, TicketStatus.PENDING);
         if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(request.sessionId(), request.seatId(), statusAtivos)) {
             throw new BusinessException("OVERBOOKING: Esta cadeira já está ocupada para esta sessão.");
+        }
+
+        if (!paymentsEnabled) {
+            throw new BusinessException("Compra de ingressos indisponível até a configuração de um gateway de pagamento seguro");
         }
 
         var auth = SecurityContextHolder.getContext().getAuthentication();
@@ -113,14 +129,15 @@ public class TicketService {
 
     @Transactional
     public TicketResponseDTO cancelTicket(Long id, User loggedUser) {
-        Ticket ticket = ticketRepository.findById(id)
+        Ticket ticket = ticketRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new BusinessException("Ingresso não encontrado"));
 
         if (!ticket.getUser().getId().equals(loggedUser.getId())) {
             throw new BusinessException("Ingresso não pertence ao usuário logado");
         }
 
-        if (ticket.getStatus() == TicketStatus.CANCELLED) {
+        TicketStatus previousStatus = ticket.getStatus();
+        if (previousStatus != TicketStatus.PENDING && previousStatus != TicketStatus.APPROVED) {
             throw new BusinessException("Ingresso já está cancelado");
         }
 
@@ -134,12 +151,11 @@ public class TicketService {
         ticket.setStatus(TicketStatus.CANCELLED);
         ticketRepository.save(ticket);
 
-        log.info("Ticket {} cancelado. Preparando para notificar sistema de reembolso...", ticket.getId());
-
-        eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
-                ticket.getId(),
-                ticket.getValorPago()
-        ));
+        if (previousStatus == TicketStatus.APPROVED) {
+            log.info("Ticket {} cancelado. Preparando reembolso...", ticket.getId());
+            eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
+                    ticket.getId(), ticket.getValorPago()));
+        }
 
         return ticketMapper.toResponseDTO(ticket);
     }
