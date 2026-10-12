@@ -13,7 +13,8 @@ import org.springframework.boot.test.context.SpringBootTest;
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration",
         "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
         "JWT_SECRET=test",
-        "TMDB_API_KEY=test_tmdb_key"
+        "TMDB_API_KEY=test_tmdb_key",
+        "app.bootstrap.admin.enabled=false"
 })
 class CineTicketApplicationTests {
 
