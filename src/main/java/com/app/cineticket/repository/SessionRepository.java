@@ -16,6 +16,8 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
 
     List<Session> findByRoomId(Long roomId);
 
+    boolean existsByRoomId(Long roomId);
+
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"movie"})
     List<Session> findByRoomIdAndAtivoTrue(Long roomId);
 
