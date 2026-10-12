@@ -4,5 +4,6 @@ public record RoomResponseDTO (
         Long id,
         String nome,
         Integer capacidade,
+        Long cinemaId,
         String cinemaNome
 ) {}

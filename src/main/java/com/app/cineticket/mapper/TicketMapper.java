@@ -17,6 +17,9 @@ public interface TicketMapper {
     @Mapping(target = "expiresAt", ignore = true)
     Ticket toEntity(TicketRequestDTO requestDTO);
 
+    @Mapping(source = "session.id", target = "sessionId")
+    @Mapping(source = "session.horarioInicio", target = "horarioSessao")
+    @Mapping(source = "seat.id", target = "seatId")
     @Mapping(source = "session.movie.titulo", target = "filmeTitulo")
     @Mapping(source = "session.room.nome", target = "salaNome")
     @Mapping(target = "cadeiraAssento", expression = "java(entity.getSeat().getFila() + \"-\" + entity.getSeat().getNumero())")

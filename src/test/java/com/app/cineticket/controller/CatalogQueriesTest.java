@@ -37,7 +37,10 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -123,34 +126,34 @@ class CatalogQueriesTest {
     void listaPorPadraoSoSessoesAtivasEFuturas() throws Exception {
         mockMvc.perform(auth(get(SESSIONS), ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(2));
+                .andExpect(jsonPath("$.page.totalElements").value(2));
     }
 
     @Test
     void incluiSessoesPassadasQuandoPedido() throws Exception {
         mockMvc.perform(auth(get(SESSIONS).param("includePast", "true"), ownerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalElements").value(3));
+                .andExpect(jsonPath("$.page.totalElements").value(3));
     }
 
     @Test
     void filtraPorFilme() throws Exception {
         mockMvc.perform(auth(get(SESSIONS).param("movieId", movieA.getId().toString()), ownerToken))
-                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].movieTitulo").value("Filme A"));
     }
 
     @Test
     void filtraPorCinema() throws Exception {
         mockMvc.perform(auth(get(SESSIONS).param("cinemaId", cinema2.getId().toString()), ownerToken))
-                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].cinemaNome").value("Cine Shopping"));
     }
 
     @Test
     void filtraPorData() throws Exception {
         mockMvc.perform(auth(get(SESSIONS).param("date", LocalDate.now().plusDays(1).toString()), ownerToken))
-                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(sessionAmanhaFilmeA.getId()));
     }
 
@@ -158,7 +161,10 @@ class CatalogQueriesTest {
     void detalheDaSessaoAtivaENaoMostraSessaoCancelada() throws Exception {
         mockMvc.perform(auth(get(SESSIONS + "/" + sessionAmanhaFilmeA.getId()), ownerToken))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.movieId").value(movieA.getId()))
                 .andExpect(jsonPath("$.movieTitulo").value("Filme A"))
+                .andExpect(jsonPath("$.roomId").value(room1.getId()))
+                .andExpect(jsonPath("$.cinemaId").value(cinema1.getId()))
                 .andExpect(jsonPath("$.cinemaNome").value("Cine Centro"));
 
         mockMvc.perform(auth(get(SESSIONS + "/" + sessionInativa.getId()), ownerToken))
@@ -170,6 +176,7 @@ class CatalogQueriesTest {
         mockMvc.perform(auth(get("/api/v1/rooms/" + room1.getId()), ownerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Sala 1"))
+                .andExpect(jsonPath("$.cinemaId").value(cinema1.getId()))
                 .andExpect(jsonPath("$.cinemaNome").value("Cine Centro"));
     }
 
@@ -187,6 +194,42 @@ class CatalogQueriesTest {
     }
 
     @Test
+    void paginacaoUsaFormatoEstavel() throws Exception {
+        mockMvc.perform(auth(get(SESSIONS).param("size", "1"), ownerToken))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.page.size").value(1))
+                .andExpect(jsonPath("$.page.number").value(0))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.page.totalPages").value(2))
+                .andExpect(jsonPath("$.pageable").doesNotExist());
+    }
+
+    @Test
+    void compraResponde201ComLocationEIdsDaSessaoEDoAssento() throws Exception {
+        Seat seat = seat();
+        String body = "{\"sessionId\":" + sessionAmanhaFilmeA.getId() + ",\"seatId\":" + seat.getId()
+                + ",\"ticketType\":\"INTEIRA\",\"cartaoToken\":\"tok_test\"}";
+
+        mockMvc.perform(auth(post("/api/v1/tickets"), ownerToken)
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location",
+                        org.hamcrest.Matchers.matchesPattern(".*/api/v1/tickets/\\d+$")))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.sessionId").value(sessionAmanhaFilmeA.getId()))
+                .andExpect(jsonPath("$.seatId").value(seat.getId()))
+                .andExpect(jsonPath("$.horarioSessao").exists());
+    }
+
+    @Test
+    void cancelamentoDuplicadoViaDeleteFoiRemovido() throws Exception {
+        Long ticketId = ticket().getId();
+
+        mockMvc.perform(auth(delete("/api/v1/tickets/" + ticketId), ownerToken))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
     void retornaOUsuarioLogado() throws Exception {
         mockMvc.perform(auth(get("/api/v1/users/me"), ownerToken))
                 .andExpect(status().isOk())
@@ -199,12 +242,16 @@ class CatalogQueriesTest {
         return request.header("Authorization", "Bearer " + token);
     }
 
-    private Ticket ticket() {
+    private Seat seat() {
         Seat seat = new Seat();
         seat.setFila("A");
         seat.setNumero(1);
         seat.setRoom(room1);
-        seat = seatRepository.save(seat);
+        return seatRepository.save(seat);
+    }
+
+    private Ticket ticket() {
+        Seat seat = seat();
 
         Ticket ticket = new Ticket();
         ticket.setStatus(TicketStatus.PENDING);

@@ -39,7 +39,9 @@ public class TicketController {
         }
 
         TicketResponseDTO responseDTO = ticketService.buyTicket(requestDTO);
-        return ResponseEntity.ok(responseDTO);
+        java.net.URI location = org.springframework.web.servlet.support.ServletUriComponentsBuilder
+                .fromCurrentRequest().path("/{id}").buildAndExpand(responseDTO.id()).toUri();
+        return ResponseEntity.created(location).body(responseDTO);
     }
 
     @GetMapping("/{id}/pdf")
@@ -87,12 +89,5 @@ public class TicketController {
         return ResponseEntity.ok(responseDTO);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> cancelMyTicket(@PathVariable Long id) {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        var loggedUser = (User) auth.getPrincipal();
-        ticketService.cancelTicket(id, loggedUser);
-        return ResponseEntity.noContent().build();
-    }
 
 }

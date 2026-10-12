@@ -14,7 +14,10 @@ public interface SessionMapper {
     @Mapping(target = "room", ignore = true)
     Session toEntity(SessionRequestDTO requestDTO);
 
+    @Mapping(source = "movie.id", target = "movieId")
     @Mapping(source = "movie.titulo", target = "movieTitulo")
+    @Mapping(source = "room.id", target = "roomId")
+    @Mapping(source = "room.cinema.id", target = "cinemaId")
     @Mapping(source = "room.nome", target = "roomNome")
     @Mapping(source = "room.cinema.nome", target = "cinemaNome")
     SessionResponseDTO toResponseDTO(Session entity);
