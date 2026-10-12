@@ -14,6 +14,7 @@ public interface TicketMapper {
     @Mapping(target = "session", ignore = true)
     @Mapping(target = "seat", ignore = true)
     @Mapping(target = "status", ignore = true)
+    @Mapping(target = "expiresAt", ignore = true)
     Ticket toEntity(TicketRequestDTO requestDTO);
 
     @Mapping(source = "session.movie.titulo", target = "filmeTitulo")

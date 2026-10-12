@@ -7,5 +7,6 @@ public record TicketResponseDTO (
     String salaNome,
     String cadeiraAssento,
     java.math.BigDecimal valorPago,
-    com.app.cineticket.domain.enums.TicketType ticketType
+    com.app.cineticket.domain.enums.TicketType ticketType,
+    java.time.LocalDateTime expiresAt
 ){}

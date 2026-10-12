@@ -85,7 +85,7 @@ public class TicketServiceTest {
             ticketService.buyTicket(request);
         });
 
-        assertEquals("OVERBOOKING: Esta cadeira já está ocupada para esta sessão.", exception.getMessage());
+        assertEquals("Esta cadeira já está ocupada para esta sessão.", exception.getMessage());
 
         Mockito.verify(ticketRepository, Mockito.never()).save(any());
     }
@@ -187,5 +187,86 @@ public class TicketServiceTest {
 
         assertTrue(exception.getMessage().contains("não está ativa"));
         Mockito.verify(ticketRepository, Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve reservar o assento com prazo de pagamento de 10 minutos")
+    void deveDefinirPrazoDeExpiracaoNaCompra() {
+        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+        prepararCompraValida(request, 0L);
+        when(ticketMapper.toEntity(request)).thenReturn(new Ticket());
+        when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        java.time.LocalDateTime antes = java.time.LocalDateTime.now();
+        ticketService.buyTicket(request);
+
+        org.mockito.ArgumentCaptor<Ticket> captor = org.mockito.ArgumentCaptor.forClass(Ticket.class);
+        Mockito.verify(ticketRepository).save(captor.capture());
+        Ticket salvo = captor.getValue();
+        assertEquals(TicketStatus.PENDING, salvo.getStatus());
+        assertTrue(!salvo.getExpiresAt().isBefore(antes.plusMinutes(10)));
+        assertTrue(salvo.getExpiresAt().isBefore(antes.plusMinutes(11)));
+    }
+
+    @Test
+    @DisplayName("Deve bloquear nova reserva quando o usuário atingiu o limite de pendentes")
+    void deveBloquearCompraAcimaDoLimiteDePendentes() {
+        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+        prepararCompraValida(request, 4L);
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> ticketService.buyTicket(request));
+
+        assertTrue(exception.getMessage().contains("aguardando pagamento"));
+        Mockito.verify(ticketRepository, Mockito.never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Não deve cancelar um ingresso expirado")
+    void naoDeveCancelarIngressoExpirado() {
+        com.app.cineticket.domain.entity.User dono = new com.app.cineticket.domain.entity.User();
+        dono.setId(7L);
+        Ticket ticket = new Ticket();
+        ticket.setId(30L);
+        ticket.setUser(dono);
+        ticket.setStatus(TicketStatus.EXPIRED);
+        when(ticketRepository.findByIdForUpdate(30L)).thenReturn(Optional.of(ticket));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> ticketService.cancelTicket(30L, dono));
+
+        assertEquals("O ingresso expirou por falta de pagamento.", exception.getMessage());
+        Mockito.verifyNoInteractions(eventPublisher);
+    }
+
+    private void prepararCompraValida(TicketRequestDTO request, long pendentesDoUsuario) {
+        com.app.cineticket.domain.entity.Room room = new com.app.cineticket.domain.entity.Room();
+        room.setId(10L);
+        com.app.cineticket.domain.entity.Seat seat = new com.app.cineticket.domain.entity.Seat();
+        seat.setId(request.seatId());
+        seat.setRoom(room);
+        com.app.cineticket.domain.entity.Session session = new com.app.cineticket.domain.entity.Session();
+        session.setId(request.sessionId());
+        session.setRoom(room);
+        session.setAtivo(true);
+        session.setValorBase(new BigDecimal("30.00"));
+        session.setHorarioInicio(java.time.LocalDateTime.now().plusHours(2));
+        com.app.cineticket.domain.entity.User comprador = new com.app.cineticket.domain.entity.User();
+        comprador.setId(7L);
+
+        when(seatRepository.findByIdWithLock(request.seatId())).thenReturn(Optional.of(seat));
+        when(sessionRepository.findById(request.sessionId())).thenReturn(Optional.of(session));
+        when(ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(eq(request.sessionId()), eq(request.seatId()), anyList()))
+                .thenReturn(false);
+        when(ticketRepository.countByUserIdAndStatus(7L, TicketStatus.PENDING)).thenReturn(pendentesDoUsuario);
+        org.springframework.test.util.ReflectionTestUtils.setField(ticketService, "paymentsEnabled", true);
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        comprador, null, java.util.List.of()));
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void limparContextoDeSeguranca() {
+        SecurityContextHolder.clearContext();
     }
 }

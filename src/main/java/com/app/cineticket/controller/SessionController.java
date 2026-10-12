@@ -1,6 +1,7 @@
 package com.app.cineticket.controller;
 
 import com.app.cineticket.dto.request.SessionRequestDTO;
+import com.app.cineticket.dto.response.SeatMapResponseDTO;
 import com.app.cineticket.dto.response.SessionResponseDTO;
 import com.app.cineticket.service.SessionService;
 import jakarta.validation.Valid;
@@ -27,6 +28,12 @@ public class SessionController {
     public ResponseEntity<org.springframework.data.domain.Page<SessionResponseDTO>> findAll(
             @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "horarioInicio") org.springframework.data.domain.Pageable pageable) {
         return ResponseEntity.ok(sessionService.findAll(pageable));
+    }
+
+    /** Mapa de assentos da sessão (público). */
+    @GetMapping("/{id}/seats")
+    public ResponseEntity<SeatMapResponseDTO> getSeatMap(@PathVariable Long id) {
+        return ResponseEntity.ok(sessionService.getSeatMap(id));
     }
 
     @DeleteMapping("/{id}")

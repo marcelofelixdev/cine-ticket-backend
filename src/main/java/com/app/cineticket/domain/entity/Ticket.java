@@ -5,6 +5,7 @@ import com.app.cineticket.domain.enums.TicketType;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -41,4 +42,8 @@ public class Ticket extends AuditableEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "ticket_type", nullable = false)
     private TicketType ticketType;
+
+    /** Prazo para o pagamento de um ingresso PENDING. Depois dele, o ingresso expira. */
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
 }

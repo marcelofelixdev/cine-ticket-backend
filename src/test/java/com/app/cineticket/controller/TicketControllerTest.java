@@ -42,7 +42,7 @@ public class TicketControllerTest {
             new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(fakeUser, null, java.util.List.of());
         org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
 
-        TicketResponseDTO t1 = new TicketResponseDTO(1L, "APPROVED", "Matrix", "Sala 1", "A1", new java.math.BigDecimal("25.00"), com.app.cineticket.domain.enums.TicketType.INTEIRA);
+        TicketResponseDTO t1 = new TicketResponseDTO(1L, "APPROVED", "Matrix", "Sala 1", "A1", new java.math.BigDecimal("25.00"), com.app.cineticket.domain.enums.TicketType.INTEIRA, null);
         org.springframework.data.domain.Page<TicketResponseDTO> page = new org.springframework.data.domain.PageImpl<>(List.of(t1));
         when(ticketService.findMyTickets(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any())).thenReturn(page);
 

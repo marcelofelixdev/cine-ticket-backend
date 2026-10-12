@@ -6,10 +6,13 @@ import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.dto.request.RoomRequestDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
 import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.exception.ConflictException;
+import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.RoomMapper;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
+import com.app.cineticket.repository.SessionRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,12 +31,13 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final CinemaRepository cinemaRepository;
     private final SeatRepository seatRepository;
+    private final SessionRepository sessionRepository;
     private final RoomMapper roomMapper;
 
     @Transactional
     public RoomResponseDTO create(RoomRequestDTO requestDTO) {
         Cinema cinema = cinemaRepository.findById(requestDTO.cinemaId())
-                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + requestDTO.cinemaId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Cinema não encontrado. ID: " + requestDTO.cinemaId()));
 
         Room room = roomMapper.toEntity(requestDTO);
         room.setCinema(cinema);
@@ -48,7 +52,7 @@ public class RoomService {
     @Transactional
     public RoomResponseDTO update(Long id, RoomRequestDTO requestDTO) {
         Room room = roomRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Sala não encontrada. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Sala não encontrada. ID: " + id));
 
         if (!java.util.Objects.equals(room.getCapacidade(), requestDTO.capacidade())) {
             throw new BusinessException("A capacidade da sala não pode ser alterada após a criação");
@@ -62,14 +66,24 @@ public class RoomService {
         return roomMapper.toResponseDTO(roomRepository.save(room));
     }
 
+    /**
+     * Exclui a sala e os assentos gerados para ela.
+     * <p>
+     * Só é permitido quando a sala não tem sessões: sem sessão não existe ingresso,
+     * então nenhum histórico de venda é apagado. O lock na sala impede que uma sessão
+     * seja criada nela enquanto a exclusão acontece (a criação de sessão usa o mesmo lock).
+     */
     @Transactional
     public void delete(Long id) {
-        if (!roomRepository.existsById(id)) {
-            throw new BusinessException("Sala não encontrada. ID: " + id);
+        Room room = roomRepository.findByIdWithLock(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Sala não encontrada. ID: " + id));
+
+        if (sessionRepository.existsByRoomId(id)) {
+            throw new ConflictException("A sala possui sessões cadastradas e não pode ser excluída.");
         }
 
-        roomRepository.deleteById(id);
-
+        seatRepository.deleteByRoomId(id);
+        roomRepository.delete(room);
     }
 
     private void gerarAssentoParaSala(Room room) {

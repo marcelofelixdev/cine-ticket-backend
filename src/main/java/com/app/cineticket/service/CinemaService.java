@@ -3,9 +3,13 @@ package com.app.cineticket.service;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.dto.request.CinemaRequestDTO;
 import com.app.cineticket.dto.response.CinemaResponseDTO;
-import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.exception.ConflictException;
+import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.CinemaMapper;
 import com.app.cineticket.repository.CinemaRepository;
+import com.app.cineticket.repository.RoomRepository;
+import com.app.cineticket.repository.SeatRepository;
+import com.app.cineticket.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,13 +22,16 @@ import java.util.stream.Collectors;
 public class CinemaService {
 
     private final CinemaRepository cinemaRepository;
+    private final RoomRepository roomRepository;
+    private final SeatRepository seatRepository;
+    private final SessionRepository sessionRepository;
     private final CinemaMapper cinemaMapper;
 
     @Transactional
     public CinemaResponseDTO create(CinemaRequestDTO requestDTO) {
 
         if (cinemaRepository.existsByCnpj(requestDTO.cnpj())) {
-            throw new BusinessException("Já existe um cinema cadastrado com esse CNPJ.");
+            throw new ConflictException("Já existe um cinema cadastrado com esse CNPJ.");
         }
 
         Cinema cinema = cinemaMapper.toEntity(requestDTO);
@@ -42,7 +49,7 @@ public class CinemaService {
     @Transactional(readOnly = true)
     public CinemaResponseDTO findById(Long id) {
         Cinema cinema = cinemaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cinema não encontrado. ID: " + id));
 
         return cinemaMapper.toResponseDTO(cinema);
     }
@@ -50,7 +57,7 @@ public class CinemaService {
     @Transactional
     public CinemaResponseDTO update(Long id, CinemaRequestDTO requestDTO) {
         Cinema cinema = cinemaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cinema não encontrado. ID: " + id));
 
         cinema.setCnpj(requestDTO.cnpj());
         cinema.setNome(requestDTO.nome());
@@ -59,12 +66,24 @@ public class CinemaService {
         return cinemaMapper.toResponseDTO(cinemaRepository.save(cinema));
     }
 
+    /**
+     * Exclui o cinema junto com as salas e os assentos dele.
+     * <p>
+     * Só é permitido quando nenhuma sala do cinema tem sessões: sem sessão não existe
+     * ingresso, então nenhum histórico de venda é apagado (mesma regra da exclusão de sala).
+     */
     @Transactional
     public void delete(Long id) {
         if (!cinemaRepository.existsById(id)) {
-            throw new BusinessException("Cinema não encontrado. ID: " + id);
+            throw new ResourceNotFoundException("Cinema não encontrado. ID: " + id);
         }
 
+        if (sessionRepository.existsByRoomCinemaId(id)) {
+            throw new ConflictException("O cinema possui salas com sessões cadastradas e não pode ser excluído.");
+        }
+
+        seatRepository.deleteByCinemaId(id);
+        roomRepository.deleteByCinemaId(id);
         cinemaRepository.deleteById(id);
     }
 }

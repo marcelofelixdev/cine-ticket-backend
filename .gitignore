@@ -38,3 +38,6 @@ replay_pid*
 # OS Files
 .DS_Store
 Thumbs.db
+
+# Documentos locais (fora do git)
+docs/

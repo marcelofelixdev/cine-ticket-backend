@@ -4,6 +4,10 @@ values:
     value: 'http://localhost:8080'
   - key: token
     secret: true
+  - key: adminEmail
+    value: ''
+  - key: adminPassword
+    secret: true
   - key: movieId
     value: ''
   - key: sessionId
