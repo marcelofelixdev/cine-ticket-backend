@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,6 +44,14 @@ public class TicketService {
 
     @Value("${payments.enabled:false}")
     private boolean paymentsEnabled;
+
+    /** Prazo para pagar um ingresso PENDING antes de ele expirar e liberar o assento. */
+    @Value("${tickets.pending.ttl:10m}")
+    private Duration pendingTtl = Duration.ofMinutes(10);
+
+    /** Máximo de ingressos aguardando pagamento por usuário (evita travar a sala inteira). */
+    @Value("${tickets.pending.max-per-user:4}")
+    private int maxPendingPerUser = 4;
 
     @Transactional(readOnly = true)
     public byte[] downloadPdf(Long ticketId) {
@@ -95,6 +104,12 @@ public class TicketService {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         User loggedUser = (User) auth.getPrincipal();
 
+        long pendingTickets = ticketRepository.countByUserIdAndStatus(loggedUser.getId(), TicketStatus.PENDING);
+        if (pendingTickets >= maxPendingPerUser) {
+            throw new BusinessException("Você já tem " + pendingTickets + " ingresso(s) aguardando pagamento. "
+                    + "Conclua o pagamento ou aguarde a expiração antes de reservar outro.");
+        }
+
         Ticket ticket = ticketMapper.toEntity(request);
         ticket.setUser(loggedUser);
         ticket.setSession(session);
@@ -112,6 +127,7 @@ public class TicketService {
         ticket.setTicketType(request.ticketType());
 
         ticket.setStatus(TicketStatus.PENDING);
+        ticket.setExpiresAt(LocalDateTime.now().plus(pendingTtl));
 
         Ticket savedTicket = ticketRepository.save(ticket);
 
@@ -140,6 +156,9 @@ public class TicketService {
         }
 
         TicketStatus previousStatus = ticket.getStatus();
+        if (previousStatus == TicketStatus.EXPIRED) {
+            throw new ConflictException("O ingresso expirou por falta de pagamento.");
+        }
         if (previousStatus != TicketStatus.PENDING && previousStatus != TicketStatus.APPROVED) {
             throw new ConflictException("O ingresso já está cancelado.");
         }
