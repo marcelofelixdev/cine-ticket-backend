@@ -4,6 +4,7 @@ import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.dto.request.LoginRequestDTO;
 import com.app.cineticket.dto.response.LoginResponseDTO;
 import com.app.cineticket.exception.ForbiddenException;
+import com.app.cineticket.security.LoginAttemptService;
 import com.app.cineticket.security.RefreshTokenCookies;
 import com.app.cineticket.security.RefreshTokenService;
 import com.app.cineticket.security.TokenService;
@@ -15,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +47,7 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final RefreshTokenCookies refreshTokenCookies;
     private final RateLimitService rateLimitService;
+    private final LoginAttemptService loginAttemptService;
     private final List<String> allowedOrigins;
 
     public AuthController(AuthenticationManager authenticationManager,
@@ -52,12 +55,14 @@ public class AuthController {
                           RefreshTokenService refreshTokenService,
                           RefreshTokenCookies refreshTokenCookies,
                           RateLimitService rateLimitService,
+                          LoginAttemptService loginAttemptService,
                           @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
         this.authenticationManager = authenticationManager;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.refreshTokenCookies = refreshTokenCookies;
         this.rateLimitService = rateLimitService;
+        this.loginAttemptService = loginAttemptService;
         this.allowedOrigins = allowedOrigins;
     }
 
@@ -70,10 +75,17 @@ public class AuthController {
                     "Muitas tentativas de login. Tente novamente mais tarde.");
         }
 
-        var usernamePassword = new UsernamePasswordAuthenticationToken(
-                requestDTO.email().trim().toLowerCase(Locale.ROOT), requestDTO.senha());
-        var auth = authenticationManager.authenticate(usernamePassword);
+        String email = requestDTO.email().trim().toLowerCase(Locale.ROOT);
+        var usernamePassword = new UsernamePasswordAuthenticationToken(email, requestDTO.senha());
+        org.springframework.security.core.Authentication auth;
+        try {
+            auth = authenticationManager.authenticate(usernamePassword);
+        } catch (BadCredentialsException e) {
+            loginAttemptService.recordFailure(email);
+            throw e;
+        }
         User user = (User) auth.getPrincipal();
+        loginAttemptService.recordSuccess(user);
 
         return tokenResponse(user, refreshTokenService.issue(user));
     }
