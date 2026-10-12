@@ -115,6 +115,13 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
+    public RoomResponseDTO findById(Long id) {
+        return roomRepository.findWithCinemaById(id)
+                .map(roomMapper::toResponseDTO)
+                .orElseThrow(() -> new ResourceNotFoundException("Sala não encontrada. ID: " + id));
+    }
+
+    @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<RoomResponseDTO> findAll(org.springframework.data.domain.Pageable pageable) {
         return roomRepository.findAll(pageable)
                 .map(roomMapper::toResponseDTO);

@@ -7,7 +7,17 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface SessionRepository extends JpaRepository<Session, Long> {
+public interface SessionRepository extends JpaRepository<Session, Long>,
+        org.springframework.data.jpa.repository.JpaSpecificationExecutor<Session> {
+
+    @Override
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"movie", "room", "room.cinema"})
+    org.springframework.data.domain.Page<Session> findAll(
+            org.springframework.data.jpa.domain.Specification<Session> spec,
+            org.springframework.data.domain.Pageable pageable);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"movie", "room", "room.cinema"})
+    java.util.Optional<Session> findWithDetailsById(Long id);
 
     List<Session> findByAtivoTrue();
 

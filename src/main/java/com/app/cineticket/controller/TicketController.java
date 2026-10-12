@@ -72,6 +72,12 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.findMyTickets(loggedUser, pageable));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<TicketResponseDTO> findById(@PathVariable Long id) {
+        var loggedUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(ticketService.findById(id, loggedUser));
+    }
+
     @PutMapping("/{id}/cancel")
     public ResponseEntity<TicketResponseDTO> cancelTicket(@PathVariable Long id) {
         var auth = SecurityContextHolder.getContext().getAuthentication();

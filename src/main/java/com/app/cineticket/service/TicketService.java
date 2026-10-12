@@ -146,6 +146,19 @@ public class TicketService {
                 .map(ticketMapper::toResponseDTO);
     }
 
+    /** Detalhe de um ingresso do próprio usuário (ex.: acompanhar a aprovação do pagamento). */
+    @Transactional(readOnly = true)
+    public TicketResponseDTO findById(Long id, User loggedUser) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
+
+        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+            throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
+        }
+
+        return ticketMapper.toResponseDTO(ticket);
+    }
+
     @Transactional
     public TicketResponseDTO cancelTicket(Long id, User loggedUser) {
         Ticket ticket = ticketRepository.findByIdForUpdate(id)

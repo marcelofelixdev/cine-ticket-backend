@@ -30,6 +30,11 @@ public class RoomController {
         return ResponseEntity.ok(roomService.findAll(pageable));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<RoomResponseDTO> findById(@PathVariable Long id) {
+        return ResponseEntity.ok(roomService.findById(id));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<RoomResponseDTO> update(@PathVariable Long id, @RequestBody @Valid RoomRequestDTO requestDTO) {
         return ResponseEntity.ok(roomService.update(id, requestDTO));

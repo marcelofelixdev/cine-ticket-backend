@@ -7,6 +7,7 @@ import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.enums.SeatAvailability;
 import com.app.cineticket.domain.enums.TicketStatus;
+import com.app.cineticket.dto.request.SessionFilter;
 import com.app.cineticket.dto.request.SessionRequestDTO;
 import com.app.cineticket.dto.response.SeatMapResponseDTO;
 import com.app.cineticket.dto.response.SeatStatusDTO;
@@ -18,6 +19,7 @@ import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
+import com.app.cineticket.repository.SessionSpecifications;
 import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -128,8 +131,38 @@ public class SessionService {
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<SessionResponseDTO> findAll(org.springframework.data.domain.Pageable pageable) {
-        return sessionRepository.findByAtivoTrue(pageable)
+    public org.springframework.data.domain.Page<SessionResponseDTO> findAll(
+            SessionFilter filter, org.springframework.data.domain.Pageable pageable) {
+        List<org.springframework.data.jpa.domain.Specification<Session>> specs = new ArrayList<>();
+        specs.add(SessionSpecifications.active());
+
+        if (filter.movieId() != null) {
+            specs.add(SessionSpecifications.movieId(filter.movieId()));
+        }
+        if (filter.cinemaId() != null) {
+            specs.add(SessionSpecifications.cinemaId(filter.cinemaId()));
+        }
+
+        LocalDateTime from = filter.includePast() ? null : LocalDateTime.now();
+        if (filter.date() != null) {
+            LocalDateTime startOfDay = filter.date().atStartOfDay();
+            from = (from == null || startOfDay.isAfter(from)) ? startOfDay : from;
+            specs.add(SessionSpecifications.startsBefore(filter.date().plusDays(1).atStartOfDay()));
+        }
+        if (from != null) {
+            specs.add(SessionSpecifications.startsFrom(from));
+        }
+
+        return sessionRepository.findAll(org.springframework.data.jpa.domain.Specification.allOf(specs), pageable)
                 .map(sessionMapper::toResponseDTO);
+    }
+
+    /** Detalhe de uma sessão ativa. Sessão inexistente ou cancelada responde 404. */
+    @Transactional(readOnly = true)
+    public SessionResponseDTO findById(Long id) {
+        return sessionRepository.findWithDetailsById(id)
+                .filter(session -> Boolean.TRUE.equals(session.getAtivo()))
+                .map(sessionMapper::toResponseDTO)
+                .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
     }
 }
