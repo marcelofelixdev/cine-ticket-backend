@@ -11,8 +11,8 @@ body:
   type: json
   content: |-
     {
-      "email": "marcelo@admin.com",
-      "senha": "password123"
+      "email": "{{adminEmail}}",
+      "senha": "{{adminPassword}}"
     }
 scripts:
   - type: afterResponse
