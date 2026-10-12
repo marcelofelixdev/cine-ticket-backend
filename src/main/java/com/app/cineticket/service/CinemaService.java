@@ -7,6 +7,9 @@ import com.app.cineticket.exception.ConflictException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.CinemaMapper;
 import com.app.cineticket.repository.CinemaRepository;
+import com.app.cineticket.repository.RoomRepository;
+import com.app.cineticket.repository.SeatRepository;
+import com.app.cineticket.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,9 @@ import java.util.stream.Collectors;
 public class CinemaService {
 
     private final CinemaRepository cinemaRepository;
+    private final RoomRepository roomRepository;
+    private final SeatRepository seatRepository;
+    private final SessionRepository sessionRepository;
     private final CinemaMapper cinemaMapper;
 
     @Transactional
@@ -60,12 +66,24 @@ public class CinemaService {
         return cinemaMapper.toResponseDTO(cinemaRepository.save(cinema));
     }
 
+    /**
+     * Exclui o cinema junto com as salas e os assentos dele.
+     * <p>
+     * Só é permitido quando nenhuma sala do cinema tem sessões: sem sessão não existe
+     * ingresso, então nenhum histórico de venda é apagado (mesma regra da exclusão de sala).
+     */
     @Transactional
     public void delete(Long id) {
         if (!cinemaRepository.existsById(id)) {
             throw new ResourceNotFoundException("Cinema não encontrado. ID: " + id);
         }
 
+        if (sessionRepository.existsByRoomCinemaId(id)) {
+            throw new ConflictException("O cinema possui salas com sessões cadastradas e não pode ser excluído.");
+        }
+
+        seatRepository.deleteByCinemaId(id);
+        roomRepository.deleteByCinemaId(id);
         cinemaRepository.deleteById(id);
     }
 }

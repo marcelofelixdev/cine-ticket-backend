@@ -13,6 +13,11 @@ public interface SeatRepository extends JpaRepository<Seat, Long> {
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("delete from Seat s where s.room.id = :roomId")
     int deleteByRoomId(@org.springframework.data.repository.query.Param("roomId") Long roomId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "delete from Seat s where s.room.id in (select r.id from Room r where r.cinema.id = :cinemaId)")
+    int deleteByCinemaId(@org.springframework.data.repository.query.Param("cinemaId") Long cinemaId);
 }
 
 

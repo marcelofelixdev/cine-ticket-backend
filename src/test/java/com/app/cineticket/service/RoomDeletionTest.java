@@ -29,8 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Exclusão de sala contra o banco H2: os assentos têm FK para a sala, então
- * antes desta correção o DELETE sempre falhava.
+ * Exclusão de sala e de cinema contra o banco H2: os assentos têm FK para a sala
+ * (e a sala para o cinema), então antes desta correção o DELETE de sala sempre falhava.
  */
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:securitytest;DB_CLOSE_DELAY=-1",
@@ -47,6 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RoomDeletionTest {
 
     @Autowired private RoomService roomService;
+    @Autowired private CinemaService cinemaService;
     @Autowired private RoomRepository roomRepository;
     @Autowired private SeatRepository seatRepository;
     @Autowired private SessionRepository sessionRepository;
@@ -101,6 +102,31 @@ class RoomDeletionTest {
     @Test
     void salaInexistenteRetornaNaoEncontrada() {
         assertThrows(ResourceNotFoundException.class, () -> roomService.delete(999_999L));
+    }
+
+    @Test
+    void excluiCinemaSemSessoesJuntoComSalasEAssentos() {
+        roomService.create(new RoomRequestDTO("Sala 1", 10, cinemaId));
+        roomService.create(new RoomRequestDTO("Sala 2", 15, cinemaId));
+
+        cinemaService.delete(cinemaId);
+
+        assertFalse(cinemaRepository.existsById(cinemaId));
+        assertEquals(0, roomRepository.count());
+        assertEquals(0, seatRepository.count());
+    }
+
+    @Test
+    void naoExcluiCinemaComSessoesEmAlgumaSala() {
+        roomService.create(new RoomRequestDTO("Sala 1", 10, cinemaId));
+        Long roomComSessao = roomService.create(new RoomRequestDTO("Sala 2", 10, cinemaId)).id();
+        criarSessao(roomRepository.findById(roomComSessao).orElseThrow());
+
+        assertThrows(ConflictException.class, () -> cinemaService.delete(cinemaId));
+
+        assertTrue(cinemaRepository.existsById(cinemaId));
+        assertEquals(2, roomRepository.count());
+        assertEquals(20, seatRepository.count());
     }
 
     private void criarSessao(Room room) {
