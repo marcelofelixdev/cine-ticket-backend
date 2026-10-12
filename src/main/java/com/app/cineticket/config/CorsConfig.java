@@ -24,7 +24,9 @@ public class CorsConfig implements WebMvcConfigurer {
                 // Sem isso o navegador esconde esses cabeçalhos do JavaScript do frontend:
                 // nome do arquivo do PDF, ID de rastreio dos erros e URL do recurso criado (201).
                 .exposedHeaders(HttpHeaders.CONTENT_DISPOSITION, CorrelationIdFilter.HEADER, HttpHeaders.LOCATION)
-                .allowCredentials(false)
+                // Necessário para o navegador enviar o cookie HttpOnly do refresh token.
+                // Seguro porque as origens são uma lista explícita (nunca "*").
+                .allowCredentials(true)
                 .maxAge(3600);
     }
 }
