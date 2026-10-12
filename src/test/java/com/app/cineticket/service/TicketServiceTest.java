@@ -85,7 +85,7 @@ public class TicketServiceTest {
             ticketService.buyTicket(request);
         });
 
-        assertEquals("OVERBOOKING: Esta cadeira já está ocupada para esta sessão.", exception.getMessage());
+        assertEquals("Esta cadeira já está ocupada para esta sessão.", exception.getMessage());
 
         Mockito.verify(ticketRepository, Mockito.never()).save(any());
     }

@@ -3,7 +3,8 @@ package com.app.cineticket.service;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.dto.request.CinemaRequestDTO;
 import com.app.cineticket.dto.response.CinemaResponseDTO;
-import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.exception.ConflictException;
+import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.CinemaMapper;
 import com.app.cineticket.repository.CinemaRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class CinemaService {
     public CinemaResponseDTO create(CinemaRequestDTO requestDTO) {
 
         if (cinemaRepository.existsByCnpj(requestDTO.cnpj())) {
-            throw new BusinessException("Já existe um cinema cadastrado com esse CNPJ.");
+            throw new ConflictException("Já existe um cinema cadastrado com esse CNPJ.");
         }
 
         Cinema cinema = cinemaMapper.toEntity(requestDTO);
@@ -42,7 +43,7 @@ public class CinemaService {
     @Transactional(readOnly = true)
     public CinemaResponseDTO findById(Long id) {
         Cinema cinema = cinemaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cinema não encontrado. ID: " + id));
 
         return cinemaMapper.toResponseDTO(cinema);
     }
@@ -50,7 +51,7 @@ public class CinemaService {
     @Transactional
     public CinemaResponseDTO update(Long id, CinemaRequestDTO requestDTO) {
         Cinema cinema = cinemaRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Cinema não encontrado. ID: " + id));
 
         cinema.setCnpj(requestDTO.cnpj());
         cinema.setNome(requestDTO.nome());
@@ -62,7 +63,7 @@ public class CinemaService {
     @Transactional
     public void delete(Long id) {
         if (!cinemaRepository.existsById(id)) {
-            throw new BusinessException("Cinema não encontrado. ID: " + id);
+            throw new ResourceNotFoundException("Cinema não encontrado. ID: " + id);
         }
 
         cinemaRepository.deleteById(id);

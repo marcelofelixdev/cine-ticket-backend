@@ -6,6 +6,7 @@ import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.dto.request.RoomRequestDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
 import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.RoomMapper;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.RoomRepository;
@@ -33,7 +34,7 @@ public class RoomService {
     @Transactional
     public RoomResponseDTO create(RoomRequestDTO requestDTO) {
         Cinema cinema = cinemaRepository.findById(requestDTO.cinemaId())
-                .orElseThrow(() -> new BusinessException("Cinema não encontrado. ID: " + requestDTO.cinemaId()));
+                .orElseThrow(() -> new ResourceNotFoundException("Cinema não encontrado. ID: " + requestDTO.cinemaId()));
 
         Room room = roomMapper.toEntity(requestDTO);
         room.setCinema(cinema);
@@ -48,7 +49,7 @@ public class RoomService {
     @Transactional
     public RoomResponseDTO update(Long id, RoomRequestDTO requestDTO) {
         Room room = roomRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Sala não encontrada. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Sala não encontrada. ID: " + id));
 
         if (!java.util.Objects.equals(room.getCapacidade(), requestDTO.capacidade())) {
             throw new BusinessException("A capacidade da sala não pode ser alterada após a criação");
@@ -65,7 +66,7 @@ public class RoomService {
     @Transactional
     public void delete(Long id) {
         if (!roomRepository.existsById(id)) {
-            throw new BusinessException("Sala não encontrada. ID: " + id);
+            throw new ResourceNotFoundException("Sala não encontrada. ID: " + id);
         }
 
         roomRepository.deleteById(id);

@@ -4,7 +4,7 @@ import com.app.cineticket.client.TmdbClient;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.dto.request.MovieRequestDTO;
 import com.app.cineticket.dto.response.MovieResponseDTO;
-import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.MovieMapper;
 import com.app.cineticket.repository.MovieRepository;
 import lombok.RequiredArgsConstructor;
@@ -59,14 +59,14 @@ public class MovieService {
     @Transactional(readOnly = true)
     public MovieResponseDTO findById(Long id) {
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Filme não encontrado. ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Filme não encontrado. ID: " + id));
         return movieMapper.toResponseDTO(movie);
     }
 
     @Transactional
     public MovieResponseDTO update(Long id, MovieRequestDTO requestDTO) {
         Movie movie = movieRepository.findById(id)
-                .orElseThrow(() -> new BusinessException("Filme não encontrado. ID:" + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Filme não encontrado. ID: " + id));
 
         movie.setTitulo(requestDTO.titulo());
         movie.setDuracaoEmMinutos(requestDTO.duracaoEmMinutos());
@@ -77,7 +77,7 @@ public class MovieService {
     @Transactional
     public void delete(Long id) {
         if (!movieRepository.existsById(id)) {
-            throw new BusinessException("Filme não encontrado. ID: " + id);
+            throw new ResourceNotFoundException("Filme não encontrado. ID: " + id);
         }
 
         movieRepository.deleteById(id);

@@ -8,6 +8,9 @@ import com.app.cineticket.dto.request.PaymentEventDTO;
 import com.app.cineticket.dto.request.TicketRequestDTO;
 import com.app.cineticket.dto.response.TicketResponseDTO;
 import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.exception.ForbiddenException;
+import com.app.cineticket.exception.ConflictException;
+import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.TicketMapper;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
@@ -47,10 +50,10 @@ public class TicketService {
         User loggedUser = (User) auth.getPrincipal();
 
         Ticket ticket = ticketRepository.findById(ticketId)
-                .orElseThrow(() -> new BusinessException("Ingresso não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
         if (!ticket.getUser().getId().equals(loggedUser.getId())) {
-            throw new BusinessException("IDOR PREVENTED: Você não tem permissão para baixar o ingresso de outra pessoa.");
+            throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
 
         if (ticket.getStatus() != TicketStatus.APPROVED) {
@@ -63,10 +66,10 @@ public class TicketService {
     @Transactional
     public TicketResponseDTO buyTicket(TicketRequestDTO request) {
         var seat = seatRepository.findByIdWithLock(request.seatId())
-                .orElseThrow(() -> new BusinessException("Cadeira não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Cadeira não encontrada."));
 
         var session = sessionRepository.findById(request.sessionId())
-                .orElseThrow(() -> new BusinessException("Sessão não encontrada"));
+                .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
 
         if (!Boolean.TRUE.equals(session.getAtivo())) {
             throw new BusinessException("Esta sessão não está ativa");
@@ -77,12 +80,12 @@ public class TicketService {
         }
 
         if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
-            throw new BusinessException("FRAUDE: A cadeira solicitada não pertence à sala desta sessão.");
+            throw new BusinessException("A cadeira solicitada não pertence à sala desta sessão.");
         }
 
         List<TicketStatus> statusAtivos = List.of(TicketStatus.APPROVED, TicketStatus.PENDING);
         if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(request.sessionId(), request.seatId(), statusAtivos)) {
-            throw new BusinessException("OVERBOOKING: Esta cadeira já está ocupada para esta sessão.");
+            throw new ConflictException("Esta cadeira já está ocupada para esta sessão.");
         }
 
         if (!paymentsEnabled) {
@@ -130,15 +133,15 @@ public class TicketService {
     @Transactional
     public TicketResponseDTO cancelTicket(Long id, User loggedUser) {
         Ticket ticket = ticketRepository.findByIdForUpdate(id)
-                .orElseThrow(() -> new BusinessException("Ingresso não encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
         if (!ticket.getUser().getId().equals(loggedUser.getId())) {
-            throw new BusinessException("Ingresso não pertence ao usuário logado");
+            throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
 
         TicketStatus previousStatus = ticket.getStatus();
         if (previousStatus != TicketStatus.PENDING && previousStatus != TicketStatus.APPROVED) {
-            throw new BusinessException("Ingresso já está cancelado");
+            throw new ConflictException("O ingresso já está cancelado.");
         }
 
         LocalDateTime deadlineCancelamento = ticket.getSession().getHorarioInicio().minusMinutes(30);

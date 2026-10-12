@@ -4,7 +4,7 @@ import com.app.cineticket.domain.entity.Role;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.dto.request.UserRequestDTO;
 import com.app.cineticket.dto.response.UserResponseDTO;
-import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.exception.ConflictException;
 import com.app.cineticket.mapper.UserMapper;
 import com.app.cineticket.repository.RoleRepository;
 import com.app.cineticket.repository.UserRepository;
@@ -32,7 +32,7 @@ public class UserService {
     public UserResponseDTO create(UserRequestDTO requestDTO) {
         String normalizedEmail = requestDTO.email().trim().toLowerCase(java.util.Locale.ROOT);
         if (userRepository.existsByEmailIgnoreCase(normalizedEmail)) {
-            throw new BusinessException("Email já cadastrado");
+            throw new ConflictException("E-mail já cadastrado.");
         }
 
         User user = userMapper.toEntity(requestDTO);
@@ -42,7 +42,7 @@ public class UserService {
 
         Set<Role> roles = new HashSet<>();
         Role defaultRole = roleRepository.findByNome("ROLE_USER")
-                .orElseThrow(() -> new BusinessException("Role ROLE_USER não encontrada no sistema."));
+                .orElseThrow(() -> new IllegalStateException("Role ROLE_USER não encontrada no sistema."));
         roles.add(defaultRole);
         user.setRoles(roles);
 
