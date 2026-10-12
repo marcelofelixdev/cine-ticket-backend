@@ -7,7 +7,10 @@ public record SessionResponseDTO (
         Long id,
         LocalDateTime horarioInicio,
         BigDecimal valorBase,
+        Long movieId,
         String movieTitulo,
+        Long roomId,
         String roomNome,
+        Long cinemaId,
         String cinemaNome
 ) {}

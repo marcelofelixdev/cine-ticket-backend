@@ -50,6 +50,11 @@ public class UserService {
 
     }
 
+    /** Dados do usuário logado. */
+    public UserResponseDTO me(User loggedUser) {
+        return userMapper.toResponseDTO(loggedUser);
+    }
+
     @Transactional
     public List<UserResponseDTO> findAll() {
         return userRepository.findAll().stream().map(userMapper::toResponseDTO)

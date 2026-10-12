@@ -39,7 +39,9 @@ public class TicketController {
         }
 
         TicketResponseDTO responseDTO = ticketService.buyTicket(requestDTO);
-        return ResponseEntity.ok(responseDTO);
+        java.net.URI location = org.springframework.web.servlet.support.ServletUriComponentsBuilder
+                .fromCurrentRequest().path("/{id}").buildAndExpand(responseDTO.id()).toUri();
+        return ResponseEntity.created(location).body(responseDTO);
     }
 
     @GetMapping("/{id}/pdf")
@@ -72,6 +74,12 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.findMyTickets(loggedUser, pageable));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<TicketResponseDTO> findById(@PathVariable Long id) {
+        var loggedUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(ticketService.findById(id, loggedUser));
+    }
+
     @PutMapping("/{id}/cancel")
     public ResponseEntity<TicketResponseDTO> cancelTicket(@PathVariable Long id) {
         var auth = SecurityContextHolder.getContext().getAuthentication();
@@ -81,12 +89,5 @@ public class TicketController {
         return ResponseEntity.ok(responseDTO);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> cancelMyTicket(@PathVariable Long id) {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        var loggedUser = (User) auth.getPrincipal();
-        ticketService.cancelTicket(id, loggedUser);
-        return ResponseEntity.noContent().build();
-    }
 
 }

@@ -2,6 +2,7 @@ package com.app.cineticket.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -19,7 +20,10 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("Authorization", "Content-Type", "Accept")
+                .allowedHeaders("Authorization", "Content-Type", "Accept", CorrelationIdFilter.HEADER)
+                // Sem isso o navegador esconde esses cabeçalhos do JavaScript do frontend:
+                // nome do arquivo do PDF, ID de rastreio dos erros e URL do recurso criado (201).
+                .exposedHeaders(HttpHeaders.CONTENT_DISPOSITION, CorrelationIdFilter.HEADER, HttpHeaders.LOCATION)
                 .allowCredentials(false)
                 .maxAge(3600);
     }

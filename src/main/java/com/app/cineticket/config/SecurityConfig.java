@@ -49,7 +49,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/users").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/health").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/sessions/*/seats").permitAll()
+                        // Catálogo público: visitantes navegam por filmes, cinemas e sessões sem login.
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/movies", "/api/v1/movies/*",
+                                "/api/v1/cinemas", "/api/v1/cinemas/*",
+                                "/api/v1/sessions", "/api/v1/sessions/*", "/api/v1/sessions/*/seats").permitAll()
+                        // Documentação da API (contrato oficial para o frontend).
+                        .requestMatchers(HttpMethod.GET,
+                                "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cinemas", "/api/v1/movies", "/api/v1/rooms", "/api/v1/sessions").hasRole("ADMIN")

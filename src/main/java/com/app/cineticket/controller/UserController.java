@@ -18,6 +18,14 @@ public class UserController {
     private final UserService userService;
     private final com.app.cineticket.service.RateLimitService rateLimitService;
 
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDTO> me() {
+        var loggedUser = (com.app.cineticket.domain.entity.User)
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication().getPrincipal();
+        return ResponseEntity.ok(userService.me(loggedUser));
+    }
+
     @PostMapping
     public ResponseEntity<UserResponseDTO> create(
             @RequestBody @Valid UserRequestDTO requestDTO,

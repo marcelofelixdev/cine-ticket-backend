@@ -13,6 +13,7 @@ public interface RoomMapper {
     @Mapping(target = "cinema", ignore = true)
     Room toEntity(RoomRequestDTO requestDTO);
 
+    @Mapping(source = "cinema.id", target = "cinemaId")
     @Mapping(source = "cinema.nome", target = "cinemaNome")
     RoomResponseDTO toResponseDTO(Room entity);
 

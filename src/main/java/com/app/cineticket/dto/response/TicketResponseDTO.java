@@ -8,5 +8,8 @@ public record TicketResponseDTO (
     String cadeiraAssento,
     java.math.BigDecimal valorPago,
     com.app.cineticket.domain.enums.TicketType ticketType,
-    java.time.LocalDateTime expiresAt
+    java.time.LocalDateTime expiresAt,
+    Long sessionId,
+    java.time.LocalDateTime horarioSessao,
+    Long seatId
 ){}
