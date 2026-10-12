@@ -41,6 +41,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     long countByUserIdAndStatus(Long userId, TicketStatus status);
 
+    @Query("select t.seat.id from Ticket t where t.session.id = :sessionId and t.status in :statuses")
+    List<Long> findSeatIdsBySessionIdAndStatusIn(@Param("sessionId") Long sessionId,
+                                                 @Param("statuses") List<TicketStatus> statuses);
+
     @Modifying
     @Query("update Ticket t set t.status = com.app.cineticket.domain.enums.TicketStatus.EXPIRED, " +
             "t.updatedAt = :now " +
