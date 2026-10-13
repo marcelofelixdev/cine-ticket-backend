@@ -20,11 +20,10 @@ public class TestcontainersConfiguration {
     @Bean
     @ServiceConnection
     PostgreSQLContainer<?> postgresContainer() {
-        // Usuário "postgres": a migração V1 (pg_dump) faz ALTER ... OWNER TO postgres.
+        // Usuário padrão do Testcontainers (não se chama "postgres"): prova que as migrações
+        // não dependem do nome do usuário do banco, como acontece no Neon e em outros serviços.
         return new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
-                .withDatabaseName("cineticket")
-                .withUsername("postgres")
-                .withPassword("postgres");
+                .withDatabaseName("cineticket");
     }
 
     @Bean
