@@ -1,0 +1,33 @@
+$kind: http-request
+name: Login Admin
+method: POST
+url: '{{baseUrl}}/api/v1/auth/login'
+order: 1000
+auth:
+  type: noauth
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{adminEmail}}",
+      "senha": "{{adminPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test("Devolve access token de 15 minutos", () => {
+          pm.expect(json.token).to.be.a("string").and.not.empty;
+          pm.expect(json.expiresIn).to.eql(900);
+      });
+      pm.test("Grava o refresh token em cookie HttpOnly", () => {
+          const setCookie = pm.response.headers.get("Set-Cookie") || "";
+          pm.expect(setCookie).to.include("cineticket_refresh=");
+          pm.expect(setCookie).to.include("HttpOnly");
+      });
+      pm.collectionVariables.set("adminToken", json.token);

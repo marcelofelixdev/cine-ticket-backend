@@ -1,0 +1,15 @@
+$kind: http-request
+name: List Sessions (filtro por filme)
+description: |-
+  Outros filtros: cinemaId, date (yyyy-MM-dd) e includePast=true. Sem filtros, lista só sessões ativas e futuras.
+method: GET
+url: '{{baseUrl}}/api/v1/sessions?movieId={{movieId}}'
+order: 2000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200 sem login", () => pm.response.to.have.status(200));
+      pm.test("Encontra a sessão do filme", () => pm.expect(pm.response.json().page.totalElements).to.be.at.least(1));

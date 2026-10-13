@@ -1,0 +1,12 @@
+$kind: http-request
+name: Get Session
+method: GET
+url: '{{baseUrl}}/api/v1/sessions/{{sessionId}}'
+order: 3000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", () => pm.response.to.have.status(200));

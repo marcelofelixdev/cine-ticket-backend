@@ -1,0 +1,25 @@
+$kind: http-request
+name: Health Check
+description: |-
+  Primeira etapa: confere se a API está no ar e prepara dados únicos para esta execução.
+method: GET
+url: '{{baseUrl}}/health'
+order: 1000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", () => pm.response.to.have.status(200));
+
+      // Prepara dados únicos desta execução (permite rodar a coleção várias vezes).
+      const run = Date.now();
+      const pad = n => String(n).padStart(2, "0");
+      const d = new Date(run + 2 * 24 * 60 * 60 * 1000);
+      pm.collectionVariables.set("userEmail", `cliente${run}@teste.com`);
+      pm.collectionVariables.set("userPassword", "senha-de-teste-123");
+      pm.collectionVariables.set("cnpj", String(run).padStart(14, "0"));
+      pm.collectionVariables.set("movieTitle", `Filme Postman ${run}`);
+      pm.collectionVariables.set("sessionStart",
+          `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T20:00:00`);

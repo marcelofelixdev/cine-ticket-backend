@@ -1,0 +1,23 @@
+$kind: http-request
+name: Delete Room With Sessions (409)
+method: DELETE
+url: '{{baseUrl}}/api/v1/rooms/{{roomId}}'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 409: sala com sessões não pode ser excluída", () => pm.response.to.have.status(409));
+
+      pm.test("Erro no formato ProblemDetail", () => {
+          pm.expect(pm.response.headers.get("Content-Type")).to.include("application/problem+json");
+          const p = pm.response.json();
+          pm.expect(p).to.have.property("title");
+          pm.expect(p.status).to.eql(pm.response.code);
+          pm.expect(p).to.have.property("correlationId");
+      });

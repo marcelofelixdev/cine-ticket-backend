@@ -1,5 +1,6 @@
 package com.app.cineticket.client;
 
+import com.app.cineticket.dto.client.TmdbMovieDetailsDTO;
 import com.app.cineticket.dto.client.TmdbSearchResponseDTO;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -37,5 +38,17 @@ public class TmdbClient {
                         .build())
                 .retrieve()
                 .body(TmdbSearchResponseDTO.class);
+    }
+
+    /** Detalhes de um filme pelo ID do TMDB (título e sinopse em português, pôster e duração). */
+    public TmdbMovieDetailsDTO getMovieDetails(long tmdbId) {
+        return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/movie/{id}")
+                        .queryParam("api_key", apiKey)
+                        .queryParam("language", "pt-BR")
+                        .build(tmdbId))
+                .retrieve()
+                .body(TmdbMovieDetailsDTO.class);
     }
 }

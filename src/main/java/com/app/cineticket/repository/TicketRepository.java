@@ -21,8 +21,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     boolean existsBySessionIdAndSeatIdAndStatusIn(Long sessionId, Long seatId, List<TicketStatus> statuses);
 
-    List<Ticket> findBySessionId(Long sessionId);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @EntityGraph(attributePaths = {"user", "session.movie", "session.room", "seat"})
     @Query("select t from Ticket t where t.id = :id")

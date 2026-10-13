@@ -1,0 +1,30 @@
+$kind: http-request
+name: Malformed JSON (400)
+method: POST
+url: '{{baseUrl}}/api/v1/cinemas'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    { "nome": 
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 400", () => pm.response.to.have.status(400));
+
+      pm.test("Erro no formato ProblemDetail", () => {
+          pm.expect(pm.response.headers.get("Content-Type")).to.include("application/problem+json");
+          const p = pm.response.json();
+          pm.expect(p).to.have.property("title");
+          pm.expect(p.status).to.eql(pm.response.code);
+          pm.expect(p).to.have.property("correlationId");
+      });

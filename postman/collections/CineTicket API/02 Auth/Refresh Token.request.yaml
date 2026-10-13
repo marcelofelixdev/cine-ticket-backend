@@ -1,0 +1,17 @@
+$kind: http-request
+name: Refresh Token
+description: |-
+  Troca o refresh token do cookie por um novo par (rotação). Usa o cookie gravado no login.
+method: POST
+url: '{{baseUrl}}/api/v1/auth/refresh'
+order: 2000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200 (o Postman envia o cookie cineticket_refresh sozinho)", () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test("Novo access token", () => pm.expect(json.token).to.be.a("string").and.not.empty);
+      pm.collectionVariables.set("adminToken", json.token);

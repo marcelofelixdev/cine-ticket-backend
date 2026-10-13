@@ -1,0 +1,19 @@
+$kind: http-request
+name: Seat Map
+method: GET
+url: '{{baseUrl}}/api/v1/sessions/{{sessionId}}/seats'
+order: 4000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200 sem login", () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test("30 assentos, todos livres", () => {
+          pm.expect(json.totalAssentos).to.eql(30);
+          pm.expect(json.assentosLivres).to.eql(30);
+      });
+      const livre = json.assentos.find(a => a.status === "LIVRE");
+      pm.collectionVariables.set("seatId", livre.id);

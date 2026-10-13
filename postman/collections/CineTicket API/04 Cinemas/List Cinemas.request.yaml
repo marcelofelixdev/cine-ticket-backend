@@ -1,0 +1,17 @@
+$kind: http-request
+name: List Cinemas
+method: GET
+url: '{{baseUrl}}/api/v1/cinemas?size=5'
+order: 2000
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200 sem login (catálogo público)", () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test("Paginação no formato {content, page}", () => {
+          pm.expect(json.content).to.be.an("array");
+          pm.expect(json.page).to.have.all.keys("size", "number", "totalElements", "totalPages");
+      });

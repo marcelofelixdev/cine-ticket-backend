@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Bloqueio temporário por conta contra força bruta (complementa o limite por IP).
@@ -24,18 +26,31 @@ public class LoginAttemptService {
     private final UserRepository userRepository;
     private final int maxAttempts;
     private final Duration lockDuration;
+    /**
+     * Contas que nunca são bloqueadas. No demo, o visitante tem login público:
+     * sem isso, qualquer pessoa poderia bloqueá-lo errando a senha de propósito.
+     */
+    private final List<String> exemptEmails;
 
     public LoginAttemptService(UserRepository userRepository,
                                @Value("${app.auth.login.max-attempts:5}") int maxAttempts,
-                               @Value("${app.auth.login.lock-duration:15m}") Duration lockDuration) {
+                               @Value("${app.auth.login.lock-duration:15m}") Duration lockDuration,
+                               @Value("${app.auth.login.lockout-exempt-emails:}") List<String> exemptEmails) {
         this.userRepository = userRepository;
         this.maxAttempts = maxAttempts;
         this.lockDuration = lockDuration;
+        this.exemptEmails = exemptEmails.stream()
+                .filter(email -> !email.isBlank())
+                .map(email -> email.trim().toLowerCase(Locale.ROOT))
+                .toList();
     }
 
     /** Senha errada para um e-mail. E-mail inexistente é ignorado (não há conta a proteger). */
     @Transactional
     public void recordFailure(String email) {
+        if (exemptEmails.contains(email.toLowerCase(Locale.ROOT))) {
+            return;
+        }
         userRepository.findByEmailIgnoreCase(email).ifPresent(user -> {
             LocalDateTime now = LocalDateTime.now();
             if (user.isLockedAt(now)) {

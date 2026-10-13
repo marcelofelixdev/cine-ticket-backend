@@ -2,13 +2,7 @@ name: CineTicket Local
 values:
   - key: baseUrl
     value: 'http://localhost:8080'
-  - key: token
-    secret: true
   - key: adminEmail
-    value: ''
+    value: 'marcelo@admin.com'
   - key: adminPassword
     secret: true
-  - key: movieId
-    value: ''
-  - key: sessionId
-    value: ''

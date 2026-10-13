@@ -1,0 +1,32 @@
+$kind: http-request
+name: Create Room
+description: |-
+  Os 30 assentos são gerados automaticamente (filas A a C, 10 por fila).
+method: POST
+url: '{{baseUrl}}/api/v1/rooms'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Sala Postman",
+      "capacidade": 30,
+      "cinemaId": {{cinemaId}}
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 201", () => pm.response.to.have.status(201));
+      const json = pm.response.json();
+      pm.test("Sala ligada ao cinema", () =>
+          pm.expect(String(json.cinemaId)).to.eql(String(pm.collectionVariables.get("cinemaId"))));
+      pm.collectionVariables.set("roomId", json.id);

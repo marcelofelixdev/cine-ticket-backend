@@ -1,0 +1,17 @@
+$kind: http-request
+name: Emergency Cancel Session
+description: |-
+  Cancela a sessão (soft delete), marca os ingressos como EMERGENCY_CANCELLED e reembolsa os aprovados.
+method: DELETE
+url: '{{baseUrl}}/api/v1/sessions/{{sessionId}}'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 204", () => pm.response.to.have.status(204));
