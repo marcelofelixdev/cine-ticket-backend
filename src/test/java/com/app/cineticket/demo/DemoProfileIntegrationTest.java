@@ -1,6 +1,5 @@
 package com.app.cineticket.demo;
 
-import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;

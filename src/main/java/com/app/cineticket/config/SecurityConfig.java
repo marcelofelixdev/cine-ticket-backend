@@ -41,11 +41,11 @@ public class SecurityConfig {
                 .cors(org.springframework.security.config.Customizer.withDefaults())
                 // CSRF do Spring desligado de propósito (revisado no SonarQube Cloud, regra java:S4502):
                 // - a API é stateless e se autentica pelo header Authorization: Bearer, que o navegador
-                //   não envia sozinho em requisições de outro site;
-                // - as únicas rotas que usam cookie (/api/v1/auth/refresh e /logout) validam o header
-                //   Origin contra a lista do CORS (AuthController.rejectForeignOrigin, coberto no AuthFlowTest);
-                // - o token CSRF em cookie não funcionaria com o frontend em outro domínio, que não lê
-                //   cookies da API.
+                //   não envia sozinho em requisições de outro site.
+                // - As únicas rotas que usam cookie, refresh e logout, validam o header Origin contra
+                //   a lista do CORS. Veja o método rejectForeignOrigin do AuthController e o AuthFlowTest.
+                // - O token CSRF em cookie não funcionaria com o frontend em outro domínio, que não
+                //   consegue ler os cookies da API.
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
