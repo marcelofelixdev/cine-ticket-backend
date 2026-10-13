@@ -1,0 +1,29 @@
+$kind: http-request
+name: Create User
+method: POST
+url: '{{baseUrl}}/api/v1/users'
+order: 1000
+auth:
+  type: noauth
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Cliente Postman",
+      "email": "{{userEmail}}",
+      "senha": "{{userPassword}}"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 201", () => pm.response.to.have.status(201));
+      const json = pm.response.json();
+      pm.test("Cria com ROLE_USER e sem expor a senha", () => {
+          pm.expect(json.email).to.eql(pm.collectionVariables.get("userEmail"));
+          pm.expect(json.roles).to.include("ROLE_USER");
+          pm.expect(json).to.not.have.property("senha");
+      });

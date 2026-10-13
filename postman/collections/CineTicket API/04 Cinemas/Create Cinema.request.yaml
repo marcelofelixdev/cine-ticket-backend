@@ -1,0 +1,27 @@
+$kind: http-request
+name: Create Cinema
+method: POST
+url: '{{baseUrl}}/api/v1/cinemas'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Cine Postman",
+      "cnpj": "{{cnpj}}",
+      "endereco": "Rua dos Testes, 100 - São Paulo/SP"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 201", () => pm.response.to.have.status(201));
+      pm.collectionVariables.set("cinemaId", pm.response.json().id);

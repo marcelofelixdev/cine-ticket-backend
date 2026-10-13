@@ -1,0 +1,17 @@
+$kind: http-request
+name: Me
+method: GET
+url: '{{baseUrl}}/api/v1/users/me'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{userToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", () => pm.response.to.have.status(200));
+      pm.test("É o usuário logado", () =>
+          pm.expect(pm.response.json().email).to.eql(pm.collectionVariables.get("userEmail")));

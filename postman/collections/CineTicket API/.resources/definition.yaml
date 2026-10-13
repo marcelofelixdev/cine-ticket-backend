@@ -1,17 +1,14 @@
 $kind: collection
 name: CineTicket API
-description: API collection for the CineTicket cinema ticketing system
-auth:
-  type: bearer
-  credentials:
-    - key: token
-      value: '{{token}}'
+description: |-
+  Fluxo completo da API CineTicket. Rode a coleção inteira no Collection Runner, em ordem:
+  cada etapa guarda IDs e tokens em variáveis da coleção para as seguintes.
+
+  Antes: selecione o environment "CineTicket Local" e preencha adminPassword
+  (em dev: admin12345678). A API precisa estar no ar (docker compose up -d).
+
+  Erros seguem o padrão ProblemDetail (RFC 9457): application/problem+json com
+  title, status, detail, instance, timestamp e correlationId.
 variables:
   - key: baseUrl
     value: 'http://localhost:8080'
-  - key: token
-    value: ''
-  - key: cinemaId
-    value: '1'
-  - key: movieId
-    value: '1'

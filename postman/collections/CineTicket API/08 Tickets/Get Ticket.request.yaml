@@ -1,0 +1,17 @@
+$kind: http-request
+name: Get Ticket
+method: GET
+url: '{{baseUrl}}/api/v1/tickets/{{ticketId}}'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{userToken}}'
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 200", () => pm.response.to.have.status(200));
+      pm.test("Pagamento aprovado ou ainda pendente", () =>
+          pm.expect(pm.response.json().status).to.be.oneOf(["PENDING", "APPROVED"]));

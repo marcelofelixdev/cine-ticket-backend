@@ -1,0 +1,34 @@
+$kind: http-request
+name: Create Session
+method: POST
+url: '{{baseUrl}}/api/v1/sessions'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{adminToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "horarioInicio": "{{sessionStart}}",
+      "valorBase": 30.00,
+      "movieId": {{movieId}},
+      "roomId": {{roomId}}
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 201", () => pm.response.to.have.status(201));
+      const json = pm.response.json();
+      pm.test("Traz os IDs de filme, sala e cinema", () => {
+          pm.expect(String(json.movieId)).to.eql(String(pm.collectionVariables.get("movieId")));
+          pm.expect(String(json.roomId)).to.eql(String(pm.collectionVariables.get("roomId")));
+          pm.expect(json).to.have.property("cinemaId");
+      });
+      pm.collectionVariables.set("sessionId", json.id);

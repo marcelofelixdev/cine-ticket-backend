@@ -1,0 +1,39 @@
+$kind: http-request
+name: Buy Ticket
+description: |-
+  O pagamento é simulado no perfil dev: o consumidor do RabbitMQ aprova o ingresso em instantes.
+method: POST
+url: '{{baseUrl}}/api/v1/tickets'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{userToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "sessionId": {{sessionId}},
+      "seatId": {{seatId}},
+      "ticketType": "MEIA_ESTUDANTE",
+      "cartaoToken": "tok_postman"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 201 com Location", () => {
+          pm.response.to.have.status(201);
+          pm.expect(pm.response.headers.get("Location")).to.match(/\/api\/v1\/tickets\/\d+$/);
+      });
+      const json = pm.response.json();
+      pm.test("Nasce PENDING com prazo de pagamento", () => {
+          pm.expect(json.status).to.eql("PENDING");
+          pm.expect(json).to.have.property("expiresAt");
+      });
+      pm.test("Meia-entrada: metade do valor", () => pm.expect(json.valorPago).to.eql(15));
+      pm.collectionVariables.set("ticketId", json.id);
