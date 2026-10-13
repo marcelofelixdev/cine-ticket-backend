@@ -2,8 +2,12 @@
 FROM maven:3.9.9-eclipse-temurin-21-alpine AS build
 WORKDIR /app
 COPY pom.xml .
+# Baixa as dependências numa camada própria: só refaz quando o pom.xml muda.
+RUN mvn --batch-mode dependency:go-offline
 COPY src ./src
-RUN mvn --batch-mode clean package
+# Os testes não rodam aqui: os de integração usam Testcontainers e precisam de Docker,
+# que não existe dentro do build da imagem. Eles rodam no CI e com "mvnw verify".
+RUN mvn --batch-mode clean package -DskipTests
 
 # Estágio 2: Runtime
 FROM eclipse-temurin:21-jre-alpine

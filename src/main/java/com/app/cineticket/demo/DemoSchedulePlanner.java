@@ -39,9 +39,12 @@ public final class DemoSchedulePlanner {
             return slots;
         }
         LocalDateTime start = day.atTime(FIRST_START);
+        // Deslocamento entre salas sempre menor que a quantidade de filmes, para duas
+        // salas nunca começarem o dia com o mesmo filme (quando há mais de um filme).
+        int roomOffset = roomIndex * (durations.size() / 4 + 1);
         int sequence = 0;
         while (start.toLocalDate().equals(day) && !start.toLocalTime().isAfter(LAST_START)) {
-            int movieIndex = Math.floorMod(day.getDayOfYear() * 3 + roomIndex * 5 + sequence, durations.size());
+            int movieIndex = Math.floorMod(day.getDayOfYear() * 3 + roomOffset + sequence, durations.size());
             if (start.isAfter(notBefore)) {
                 slots.add(new Slot(start, movieIndex));
             }
