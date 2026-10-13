@@ -5,6 +5,7 @@ import com.app.cineticket.dto.response.MovieResponseDTO;
 import com.app.cineticket.service.MovieService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -26,7 +27,7 @@ public class MovieController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<MovieResponseDTO>> findAll(@PageableDefault(size = 10, page = 0, sort = "titulo") Pageable pageable) {
+    public ResponseEntity<Page<MovieResponseDTO>> findAll(@ParameterObject @PageableDefault(size = 10, page = 0, sort = "titulo") Pageable pageable) {
         return ResponseEntity.ok(movieService.findAll(pageable));
     }
 

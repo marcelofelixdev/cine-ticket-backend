@@ -34,8 +34,6 @@ CREATE TABLE public.tb_cinema (
 );
 
 
-ALTER TABLE public.tb_cinema OWNER TO postgres;
-
 --
 -- Name: tb_cinema_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
@@ -64,8 +62,6 @@ CREATE TABLE public.tb_movie (
 );
 
 
-ALTER TABLE public.tb_movie OWNER TO postgres;
-
 --
 -- Name: tb_movie_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
@@ -89,8 +85,6 @@ CREATE TABLE public.tb_role (
     nome character varying(50) NOT NULL
 );
 
-
-ALTER TABLE public.tb_role OWNER TO postgres;
 
 --
 -- Name: tb_role_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -118,8 +112,6 @@ CREATE TABLE public.tb_room (
 );
 
 
-ALTER TABLE public.tb_room OWNER TO postgres;
-
 --
 -- Name: tb_room_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
@@ -145,8 +137,6 @@ CREATE TABLE public.tb_seat (
     room_id bigint NOT NULL
 );
 
-
-ALTER TABLE public.tb_seat OWNER TO postgres;
 
 --
 -- Name: tb_seat_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -175,8 +165,6 @@ CREATE TABLE public.tb_session (
     room_id bigint NOT NULL
 );
 
-
-ALTER TABLE public.tb_session OWNER TO postgres;
 
 --
 -- Name: tb_session_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
@@ -209,8 +197,6 @@ CREATE TABLE public.tb_ticket (
 );
 
 
-ALTER TABLE public.tb_ticket OWNER TO postgres;
-
 --
 -- Name: tb_ticket_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
@@ -237,8 +223,6 @@ CREATE TABLE public.tb_user (
 );
 
 
-ALTER TABLE public.tb_user OWNER TO postgres;
-
 --
 -- Name: tb_user_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
@@ -262,8 +246,6 @@ CREATE TABLE public.tb_user_role (
     role_id bigint NOT NULL
 );
 
-
-ALTER TABLE public.tb_user_role OWNER TO postgres;
 
 --
 -- Name: tb_cinema tb_cinema_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres

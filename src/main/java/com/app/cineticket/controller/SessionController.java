@@ -32,7 +32,7 @@ public class SessionController {
             @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
             java.time.LocalDate date,
             @RequestParam(defaultValue = "false") boolean includePast,
-            @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "horarioInicio") org.springframework.data.domain.Pageable pageable) {
+            @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "horarioInicio") org.springframework.data.domain.Pageable pageable) {
         SessionFilter filter = new SessionFilter(movieId, cinemaId, date, includePast);
         return ResponseEntity.ok(sessionService.findAll(filter, pageable));
     }

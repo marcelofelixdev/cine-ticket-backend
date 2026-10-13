@@ -88,6 +88,7 @@ sequenceDiagram
 | **Erros inconsistentes** | `ProblemDetail` (RFC 9457) com `correlationId` | Mesmo formato para validação, regra de negócio, segurança e erros do framework. |
 | **Fuso horário** | Aplicação fixada em `America/Sao_Paulo` | Sessões são horários de parede de Brasília; sem isso, um container em UTC deslocaria as regras em 3 horas. |
 | **Dados de filmes** | Banco próprio como fonte da verdade, enriquecido pelo TMDB | Se a API externa cair, o cinema continua funcionando. |
+| **Migração presa a um usuário** | Removido o `OWNER TO postgres` que o `pg_dump` deixou na V1 | Bancos gerenciados (Neon, RDS) usam outros nomes de usuário. Editar uma migração já aplicada só foi aceitável porque o projeto ainda não estava em produção; depois disso, a correção seria uma nova migração. Os testes rodam com um usuário diferente de `postgres` para garantir. |
 | **Testes que mentem** | Testcontainers com PostgreSQL e RabbitMQ reais | Valida migrações, CHECKs, índice parcial, locks e mensageria — o que o H2 não cobria. |
 
 ## 🛠️ Stack
@@ -212,7 +213,6 @@ src/main/java/com/app/cineticket
 - Pagamento simulado; no perfil `prod` as vendas ficam desligadas até existir um gateway real.
 - Após o logout, o access token continua válido por até 15 minutos (não há lista de revogação de JWT).
 - O rate limit é em memória, por instância.
-- A migração V1 (gerada por `pg_dump`) atribui as tabelas ao usuário `postgres`.
 
 ---
 

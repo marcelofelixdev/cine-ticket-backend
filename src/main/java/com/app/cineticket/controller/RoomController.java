@@ -25,7 +25,7 @@ public class RoomController {
 
     @GetMapping
     public ResponseEntity<org.springframework.data.domain.Page<RoomResponseDTO>> findAll(
-            @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "nome") org.springframework.data.domain.Pageable pageable) {
+            @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "nome") org.springframework.data.domain.Pageable pageable) {
         return ResponseEntity.ok(roomService.findAll(pageable));
     }
 

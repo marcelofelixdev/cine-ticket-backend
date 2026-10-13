@@ -66,7 +66,7 @@ public class TicketController {
 
     @GetMapping("/my-tickets")
     public ResponseEntity<org.springframework.data.domain.Page<TicketResponseDTO>> getMyTickets(
-            @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "id") org.springframework.data.domain.Pageable pageable) {
+            @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "id") org.springframework.data.domain.Pageable pageable) {
         var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
         var loggedUser = (com.app.cineticket.domain.entity.User) auth.getPrincipal();
 
