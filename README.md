@@ -116,6 +116,9 @@ docker compose up -d --build
 
 Login de admin em dev: `marcelo@admin.com` / `admin12345678` (altere com `ADMIN_EMAIL` e `ADMIN_PASSWORD`).
 
+**Imagem pronta:** a cada merge na `main`, o CI publica a imagem no GitHub Container Registry:
+`docker pull ghcr.io/marcelofelixdev/cine-ticket-backend:latest`.
+
 **Com dados de demonstração** (17 filmes, 2 cinemas e sessões para os próximos 7 dias):
 defina `PROFILE=dev,demo` no `.env` e rode o `docker compose up -d --build` de novo.
 
