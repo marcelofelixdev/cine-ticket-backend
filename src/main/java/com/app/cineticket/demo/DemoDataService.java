@@ -1,6 +1,7 @@
 package com.app.cineticket.demo;
 
 import com.app.cineticket.client.TmdbClient;
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Role;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.util.EnumSet;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -45,6 +47,7 @@ import java.util.Set;
 public class DemoDataService {
 
     private static final String TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w500";
+    private static final Set<DayOfWeek> WEEKEND = EnumSet.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
 
     private final MovieRepository movieRepository;
     private final CinemaRepository cinemaRepository;
@@ -96,7 +99,7 @@ public class DemoDataService {
         seedMovies();
         seedCinemas();
         seedVisitor();
-        int created = ensureSessions(LocalDateTime.now());
+        int created = createMissingSessions(LocalDateTime.now(AppTimeZone.ZONE));
         log.info("[DEMO] Ambiente pronto: {} filme(s), {} cinema(s), {} sessão(ões) nova(s).",
                 movieRepository.count(), cinemaRepository.count(), created);
     }
@@ -123,14 +126,16 @@ public class DemoDataService {
             visitor.setLockedUntil(null);
         });
 
-        int created = ensureSessions(LocalDateTime.now());
+        int created = createMissingSessions(LocalDateTime.now(AppTimeZone.ZONE));
         log.info("[DEMO] Reset diário: {} conta(s) de visitantes removida(s), {} sessão(ões) recriada(s).",
                 visitorAccounts.size(), created);
     }
 
-    /** Garante a programação de hoje até {@link DemoCatalog#DAYS_AHEAD} dias à frente. */
-    @Transactional
-    public int ensureSessions(LocalDateTime now) {
+    /**
+     * Garante a programação de hoje até {@link DemoCatalog#DAYS_AHEAD} dias à frente.
+     * Roda dentro da transação de {@link #seed()} ou {@link #reset()}.
+     */
+    private int createMissingSessions(LocalDateTime now) {
         List<Movie> movies = movieRepository.findAll(Sort.by("id"));
         List<Integer> durations = movies.stream().map(Movie::getDuracaoEmMinutos).toList();
         List<Room> rooms = roomRepository.findAll(Sort.by("id"));
@@ -242,8 +247,7 @@ public class DemoDataService {
                 .map(DemoCatalog.DemoRoom::precoBase)
                 .findFirst()
                 .orElse(new BigDecimal("30.00"));
-        boolean weekend = day.getDayOfWeek() == DayOfWeek.SATURDAY || day.getDayOfWeek() == DayOfWeek.SUNDAY;
-        return weekend ? base.add(DemoCatalog.WEEKEND_SURCHARGE) : base;
+        return WEEKEND.contains(day.getDayOfWeek()) ? base.add(DemoCatalog.WEEKEND_SURCHARGE) : base;
     }
 
     private static boolean isAdmin(User user) {

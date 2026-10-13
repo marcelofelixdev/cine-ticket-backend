@@ -9,6 +9,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DemoSchedulePlannerTest {
@@ -54,6 +55,6 @@ class DemoSchedulePlannerTest {
         var room0 = DemoSchedulePlanner.planDay(DAY, DURATIONS, 0, DAY.atStartOfDay());
         var room1 = DemoSchedulePlanner.planDay(DAY, DURATIONS, 1, DAY.atStartOfDay());
 
-        assertFalse(room0.get(0).movieIndex() == room1.get(0).movieIndex());
+        assertNotEquals(room0.get(0).movieIndex(), room1.get(0).movieIndex());
     }
 }

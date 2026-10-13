@@ -48,7 +48,7 @@ public final class DemoSchedulePlanner {
             if (start.isAfter(notBefore)) {
                 slots.add(new Slot(start, movieIndex));
             }
-            start = roundUp(start.plusMinutes(durations.get(movieIndex) + CLEANING_MINUTES));
+            start = roundUp(start.plusMinutes((long) durations.get(movieIndex) + CLEANING_MINUTES));
             sequence++;
         }
         return slots;
@@ -56,7 +56,7 @@ public final class DemoSchedulePlanner {
 
     private static LocalDateTime roundUp(LocalDateTime time) {
         int remainder = time.getMinute() % ROUND_MINUTES;
-        LocalDateTime rounded = remainder == 0 ? time : time.plusMinutes(ROUND_MINUTES - remainder);
+        LocalDateTime rounded = remainder == 0 ? time : time.plusMinutes((long) ROUND_MINUTES - remainder);
         return rounded.withSecond(0).withNano(0);
     }
 }
