@@ -54,7 +54,11 @@ public class ResourceExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ProblemDetail> handleAuthenticationException(AuthenticationException e,
                                                                        HttpServletRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, "Não autenticado", "E-mail ou senha inválidos.", request);
+        // Mesma mensagem para senha errada, e-mail inexistente e conta bloqueada:
+        // não revela se a conta existe nem se está bloqueada.
+        return build(HttpStatus.UNAUTHORIZED, "Não autenticado",
+                "E-mail ou senha inválidos. Após várias tentativas, o acesso fica bloqueado por alguns minutos.",
+                request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

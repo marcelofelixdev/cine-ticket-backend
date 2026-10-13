@@ -36,6 +36,18 @@ public class User extends AuditableEntity implements org.springframework.securit
     )
     private Set<Role> roles = new HashSet<>();
 
+    /** Senhas erradas seguidas desde o último login certo ou bloqueio. */
+    @Column(name = "failed_login_attempts", nullable = false)
+    private int failedLoginAttempts = 0;
+
+    /** Login bloqueado até este instante (proteção contra força bruta). */
+    @Column(name = "locked_until")
+    private java.time.LocalDateTime lockedUntil;
+
+    public boolean isLockedAt(java.time.LocalDateTime instant) {
+        return lockedUntil != null && lockedUntil.isAfter(instant);
+    }
+
     @Override
     public java.util.Collection<? extends org.springframework.security.core.GrantedAuthority> getAuthorities()
     {
@@ -57,7 +69,7 @@ public class User extends AuditableEntity implements org.springframework.securit
     @Override
     public boolean isAccountNonExpired() { return true; }
     @Override
-    public boolean isAccountNonLocked() { return true; }
+    public boolean isAccountNonLocked() { return !isLockedAt(java.time.LocalDateTime.now()); }
     @Override
     public boolean isCredentialsNonExpired() { return true; }
     @Override

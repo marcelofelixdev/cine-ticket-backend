@@ -26,7 +26,7 @@ class TokenServiceTest {
         assertEquals("user@example.com", tokenService.validateToken(token));
         assertTrue(decoded.getAudience().contains("cine-ticket-web"));
         long lifetimeMinutes = Duration.between(Instant.now(), decoded.getExpiresAtAsInstant()).toMinutes();
-        assertTrue(lifetimeMinutes >= 118 && lifetimeMinutes <= 120);
+        assertTrue(lifetimeMinutes >= 14 && lifetimeMinutes <= 15);
     }
 
     @Test
