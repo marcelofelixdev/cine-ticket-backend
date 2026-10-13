@@ -30,6 +30,8 @@ public interface SessionRepository extends JpaRepository<Session, Long>,
 
     boolean existsByRoomCinemaId(Long cinemaId);
 
+    boolean existsByRoomIdAndHorarioInicioBetween(Long roomId, java.time.LocalDateTime start, java.time.LocalDateTime end);
+
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"movie"})
     List<Session> findByRoomIdAndAtivoTrue(Long roomId);
 

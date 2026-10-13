@@ -62,7 +62,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/movies", "/api/v1/movies/*",
                                 "/api/v1/cinemas", "/api/v1/cinemas/*",
-                                "/api/v1/sessions", "/api/v1/sessions/*", "/api/v1/sessions/*/seats").permitAll()
+                                "/api/v1/sessions", "/api/v1/sessions/*", "/api/v1/sessions/*/seats",
+                                "/api/v1/demo/info").permitAll()
                         // Documentação da API (contrato oficial para o frontend).
                         .requestMatchers(HttpMethod.GET,
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
