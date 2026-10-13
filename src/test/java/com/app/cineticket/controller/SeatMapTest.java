@@ -1,5 +1,6 @@
 package com.app.cineticket.controller;
 
+import com.app.cineticket.support.AbstractIntegrationTest;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Seat;
@@ -20,11 +21,7 @@ import com.app.cineticket.service.RoomService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -38,20 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Mapa de assentos ponta a ponta: endpoint público, com H2 e os filtros de segurança ligados.
  */
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:securitytest;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration",
-        "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
-        "TMDB_API_KEY=test_tmdb_key",
-        "app.bootstrap.admin.enabled=false"
-})
-@AutoConfigureMockMvc
-class SeatMapTest {
+class SeatMapTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private RoomService roomService;
@@ -62,8 +46,6 @@ class SeatMapTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
     @Autowired private UserRepository userRepository;
-
-    @MockitoBean private RabbitTemplate rabbitTemplate;
 
     private Session session;
     private List<Seat> seats;

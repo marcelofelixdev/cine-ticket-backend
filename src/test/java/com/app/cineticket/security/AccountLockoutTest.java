@@ -1,18 +1,15 @@
 package com.app.cineticket.security;
 
+import com.app.cineticket.support.AbstractIntegrationTest;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.repository.RefreshTokenRepository;
 import com.app.cineticket.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -30,20 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Bloqueio por conta após senhas erradas seguidas (item 16).
  * Cada requisição usa um IP diferente para não esbarrar no limite por IP.
  */
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:securitytest;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration",
-        "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
-        "TMDB_API_KEY=test_tmdb_key",
-        "app.bootstrap.admin.enabled=false"
-})
-@AutoConfigureMockMvc
-class AccountLockoutTest {
+class AccountLockoutTest extends AbstractIntegrationTest {
 
     private static final String EMAIL = "lockout@teste.com";
     private static final String PASSWORD = "senha-correta-123";
@@ -54,8 +38,6 @@ class AccountLockoutTest {
     @Autowired private UserRepository userRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
     @Autowired private PasswordEncoder passwordEncoder;
-
-    @MockitoBean private RabbitTemplate rabbitTemplate;
 
     @BeforeEach
     void setUp() {
