@@ -1,0 +1,26 @@
+package com.app.cineticket.support;
+
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+
+/**
+ * Base dos testes de integração: aplicação completa (perfil dev) contra PostgreSQL e
+ * RabbitMQ reais, com as migrações do Flyway aplicadas e {@code ddl-auto=validate}.
+ * <p>
+ * Assim os testes cobrem o que o H2 não cobria: CHECKs e índices das migrações
+ * (inclusive o índice parcial anti-overbooking), locks pessimistas do PostgreSQL e o
+ * fluxo de mensageria de verdade.
+ * <p>
+ * Todas as subclasses compartilham o mesmo contexto: não adicione propriedades ou
+ * {@code @MockitoBean} nas subclasses, senão um novo contexto (e novos containers) sobe.
+ */
+@SpringBootTest(properties = {
+        "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
+        "TMDB_API_KEY=test_tmdb_key",
+        "app.bootstrap.admin.enabled=false"
+})
+@AutoConfigureMockMvc
+@Import(TestcontainersConfiguration.class)
+public abstract class AbstractIntegrationTest {
+}

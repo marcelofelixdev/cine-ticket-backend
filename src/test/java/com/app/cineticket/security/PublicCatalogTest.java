@@ -1,5 +1,6 @@
 package com.app.cineticket.security;
 
+import com.app.cineticket.support.AbstractIntegrationTest;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Room;
@@ -12,12 +13,8 @@ import com.app.cineticket.repository.SessionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -31,20 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Catálogo público (item 11): visitantes consultam filmes, cinemas e sessões sem login,
  * mas salas, ingressos e qualquer escrita continuam protegidos.
  */
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:securitytest;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration",
-        "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
-        "TMDB_API_KEY=test_tmdb_key",
-        "app.bootstrap.admin.enabled=false"
-})
-@AutoConfigureMockMvc
-class PublicCatalogTest {
+class PublicCatalogTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private CinemaRepository cinemaRepository;
@@ -52,8 +36,6 @@ class PublicCatalogTest {
     @Autowired private SeatRepository seatRepository;
     @Autowired private MovieRepository movieRepository;
     @Autowired private SessionRepository sessionRepository;
-
-    @MockitoBean private RabbitTemplate rabbitTemplate;
 
     private Long cinemaId;
     private Long movieId;

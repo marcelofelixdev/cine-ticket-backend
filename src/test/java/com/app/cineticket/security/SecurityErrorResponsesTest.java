@@ -1,17 +1,14 @@
 package com.app.cineticket.security;
 
+import com.app.cineticket.support.AbstractIntegrationTest;
 import com.app.cineticket.domain.entity.Role;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.repository.RoleRepository;
 import com.app.cineticket.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.HashSet;
@@ -27,20 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Testa a cadeia de segurança real (filtros ligados): JWT, RBAC e o formato dos erros 401/403.
  */
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:securitytest;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration",
-        "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
-        "TMDB_API_KEY=test_tmdb_key",
-        "app.bootstrap.admin.enabled=false"
-})
-@AutoConfigureMockMvc
-class SecurityErrorResponsesTest {
+class SecurityErrorResponsesTest extends AbstractIntegrationTest {
 
     private static final String PROTECTED_ROUTE = "/api/v1/tickets/my-tickets";
     private static final String ADMIN_ROUTE = "/api/v1/cinemas";
@@ -49,8 +33,6 @@ class SecurityErrorResponsesTest {
     @Autowired private TokenService tokenService;
     @Autowired private UserRepository userRepository;
     @Autowired private RoleRepository roleRepository;
-
-    @MockitoBean private RabbitTemplate rabbitTemplate;
 
     private String userToken;
     private String adminToken;

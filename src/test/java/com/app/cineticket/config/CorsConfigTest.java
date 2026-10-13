@@ -1,11 +1,8 @@
 package com.app.cineticket.config;
 
+import com.app.cineticket.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.allOf;
@@ -18,26 +15,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * CORS para o frontend: origem permitida e cabeçalhos expostos ao JavaScript.
  */
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:securitytest;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration",
-        "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
-        "TMDB_API_KEY=test_tmdb_key",
-        "app.bootstrap.admin.enabled=false"
-})
-@AutoConfigureMockMvc
-class CorsConfigTest {
+class CorsConfigTest extends AbstractIntegrationTest {
 
     private static final String FRONTEND = "http://localhost:3000";
 
     @Autowired private MockMvc mockMvc;
-
-    @MockitoBean private RabbitTemplate rabbitTemplate;
 
     @Test
     void expoeCabecalhosUteisAoFrontend() throws Exception {

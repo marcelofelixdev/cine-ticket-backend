@@ -1,5 +1,6 @@
 package com.app.cineticket.service;
 
+import com.app.cineticket.support.AbstractIntegrationTest;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Room;
@@ -19,10 +20,7 @@ import com.app.cineticket.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -32,19 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /**
  * Roda a query real de expiração (JPQL em lote) contra o banco H2.
  */
-@SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:securitytest;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration",
-        "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
-        "TMDB_API_KEY=test_tmdb_key",
-        "app.bootstrap.admin.enabled=false"
-})
-class PendingTicketExpirationJobTest {
+class PendingTicketExpirationJobTest extends AbstractIntegrationTest {
 
     @Autowired private PendingTicketExpirationJob job;
     @Autowired private TicketRepository ticketRepository;
@@ -54,8 +40,6 @@ class PendingTicketExpirationJobTest {
     @Autowired private CinemaRepository cinemaRepository;
     @Autowired private MovieRepository movieRepository;
     @Autowired private UserRepository userRepository;
-
-    @MockitoBean private RabbitTemplate rabbitTemplate;
 
     private Session session;
     private Room room;

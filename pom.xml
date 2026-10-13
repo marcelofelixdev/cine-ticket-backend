@@ -29,6 +29,14 @@
     <properties>
         <java.version>21</java.version>
         <springdoc.version>2.9.0</springdoc.version>
+        <jacoco.version>0.8.13</jacoco.version>
+
+        <!-- SonarQube Cloud (a análise roda no CI com o secret SONAR_TOKEN) -->
+        <sonar.organization>marcelofelixdev</sonar.organization>
+        <sonar.projectKey>marcelofelixdev_cine-ticket-backend</sonar.projectKey>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.coverage.exclusions>**/dto/**,**/CineTicketApplication.java</sonar.coverage.exclusions>
     </properties>
     <dependencies>
         <dependency>
@@ -126,9 +134,25 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Testes de integração com PostgreSQL e RabbitMQ reais (versões gerenciadas pelo Spring Boot) -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>rabbitmq</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -154,6 +178,34 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!-- Cobertura de testes: relatório em target/site/jacoco (HTML e XML para o Sonar) -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <configuration>
+                    <excludes>
+                        <!-- Código gerado pelo MapStruct e classe de bootstrap -->
+                        <exclude>**/mapper/*Impl.class</exclude>
+                        <exclude>**/CineTicketApplication.class</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
