@@ -103,6 +103,15 @@ class ApiErrorResponsesTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void ordenacaoPorCampoInexistenteRetorna400() throws Exception {
+        mockMvc.perform(get("/api/v1/movies").param("sort", "naoExiste"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.title").value("Parâmetro de ordenação inválido"))
+                .andExpect(jsonPath("$.detail").value("Não é possível ordenar por 'naoExiste'."));
+    }
+
+    @Test
     void rotaInexistenteRetorna404() throws Exception {
         mockMvc.perform(asAdmin(get("/api/v1/rota-que-nao-existe")))
                 .andExpect(status().isNotFound())

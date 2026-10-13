@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -74,6 +75,13 @@ public class ResourceExceptionHandler extends ResponseEntityExceptionHandler {
         log.warn("Violação de integridade: {}", e.getMostSpecificCause().getMessage());
         return build(HttpStatus.CONFLICT, "Conflito",
                 "A operação viola uma restrição de integridade dos dados.", request);
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ProblemDetail> handleInvalidSort(PropertyReferenceException e,
+                                                           HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Parâmetro de ordenação inválido",
+                "Não é possível ordenar por '" + e.getPropertyName() + "'.", request);
     }
 
     @ExceptionHandler(Exception.class)
