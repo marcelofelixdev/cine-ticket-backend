@@ -15,6 +15,7 @@ import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.exception.TmdbUnavailableException;
 import com.app.cineticket.mapper.MovieMapper;
 import com.app.cineticket.repository.MovieRepository;
+import com.app.cineticket.repository.MovieSpecifications;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -63,10 +64,24 @@ public class MovieService {
         }
 
         applyManualFields(movie, request.sinopse(), request.classificacao(), request.dataEstreia());
+        requireTitleAndDuration(movie);
+        return movieMapper.toResponseDTO(movieRepository.save(movie));
+    }
+
+    /** Cadastra só pelo TMDB (aprovação de pedido do gerente). Quem chama garante que o filme ainda não existe. */
+    @Transactional
+    Movie createFromTmdb(long tmdbId) {
+        Movie movie = new Movie();
+        movie.setTmdbId(String.valueOf(tmdbId));
+        applyDetails(movie, fetchDetails(tmdbId));
+        requireTitleAndDuration(movie);
+        return movieRepository.save(movie);
+    }
+
+    private static void requireTitleAndDuration(Movie movie) {
         if (movie.getTitulo() == null || movie.getDuracaoEmMinutos() == null) {
             throw new BusinessException("O TMDB não informou título ou duração deste filme; envie titulo e duracaoEmMinutos.");
         }
-        return movieMapper.toResponseDTO(movieRepository.save(movie));
     }
 
     /** Candidatos do TMDB para o painel, marcando os que já estão no catálogo. */
@@ -111,9 +126,10 @@ public class MovieService {
         return movieMapper.toResponseDTO(movieRepository.save(movie));
     }
 
+    /** Catálogo público: só filmes em cartaz em algum cinema (ou no cinema informado). */
     @Transactional(readOnly = true)
-    public Page<MovieResponseDTO> findAll(Pageable pageable) {
-        return movieRepository.findAll(pageable)
+    public Page<MovieResponseDTO> findAll(Pageable pageable, Long cinemaId) {
+        return movieRepository.findAll(MovieSpecifications.emCartaz(cinemaId), pageable)
                 .map(movieMapper::toResponseDTO);
     }
 
@@ -150,7 +166,7 @@ public class MovieService {
                 .orElseThrow(() -> new ResourceNotFoundException("Filme não encontrado. ID: " + id));
     }
 
-    private TmdbMovieDetailsDTO fetchDetails(long tmdbId) {
+    TmdbMovieDetailsDTO fetchDetails(long tmdbId) {
         try {
             TmdbMovieDetailsDTO details = tmdbClient.getMovieDetails(tmdbId);
             if (details == null) {

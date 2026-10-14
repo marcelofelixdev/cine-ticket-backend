@@ -50,6 +50,7 @@ public class DemoDataService {
     private static final Set<DayOfWeek> WEEKEND = EnumSet.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
 
     private final MovieRepository movieRepository;
+    private final com.app.cineticket.repository.CinemaMovieRepository cinemaMovieRepository;
     private final CinemaRepository cinemaRepository;
     private final RoomRepository roomRepository;
     private final RoomService roomService;
@@ -64,7 +65,9 @@ public class DemoDataService {
     private final String visitorPassword;
     private final Set<String> bootstrapTeamEmails;
 
-    public DemoDataService(MovieRepository movieRepository, CinemaRepository cinemaRepository,
+    public DemoDataService(MovieRepository movieRepository,
+                           com.app.cineticket.repository.CinemaMovieRepository cinemaMovieRepository,
+                           CinemaRepository cinemaRepository,
                            RoomRepository roomRepository, RoomService roomService,
                            SessionRepository sessionRepository, TicketRepository ticketRepository,
                            RefreshTokenRepository refreshTokenRepository, UserRepository userRepository,
@@ -74,6 +77,7 @@ public class DemoDataService {
                            @Value("${app.bootstrap.staff.email:}") String staffEmail,
                            @Value("${app.bootstrap.manager.email:}") String managerEmail) {
         this.movieRepository = movieRepository;
+        this.cinemaMovieRepository = cinemaMovieRepository;
         this.cinemaRepository = cinemaRepository;
         this.roomRepository = roomRepository;
         this.roomService = roomService;
@@ -105,6 +109,7 @@ public class DemoDataService {
     public void seed() {
         seedMovies();
         seedCinemas();
+        seedProgramacao();
         linkTeamWithoutCinema();
         seedVisitor();
         int created = createMissingSessions(LocalDateTime.now(AppTimeZone.ZONE));
@@ -240,6 +245,24 @@ public class DemoDataService {
 
             for (DemoCatalog.DemoRoom demoRoom : demoCinema.salas()) {
                 roomService.create(new RoomRequestDTO(demoRoom.nome(), demoRoom.capacidade(), cinemaId));
+            }
+        }
+    }
+
+    /** No demo, todo filme está em cartaz em todos os cinemas. */
+    private void seedProgramacao() {
+        List<Cinema> cinemas = cinemaRepository.findAll(Sort.by("id"));
+        for (Movie movie : movieRepository.findAll(Sort.by("id"))) {
+            for (Cinema cinema : cinemas) {
+                if (cinemaMovieRepository.findByCinemaIdAndMovieId(cinema.getId(), movie.getId()).isPresent()) {
+                    continue;
+                }
+                com.app.cineticket.domain.entity.CinemaMovie entry = new com.app.cineticket.domain.entity.CinemaMovie();
+                entry.setCinema(cinema);
+                entry.setMovie(movie);
+                entry.setStatus(com.app.cineticket.domain.enums.ProgramacaoStatus.ATIVO);
+                entry.setConfirmedAt(LocalDateTime.now(AppTimeZone.ZONE));
+                cinemaMovieRepository.save(entry);
             }
         }
     }

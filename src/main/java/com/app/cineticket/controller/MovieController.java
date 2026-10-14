@@ -37,9 +37,13 @@ public class MovieController {
         return ResponseEntity.status(HttpStatus.CREATED).body(movieService.create(requestDTO));
     }
 
+    @Operation(summary = "Filmes em cartaz (público)",
+            description = "Só filmes ativos em algum cinema; com cinemaId, só os daquele cinema.")
     @GetMapping
-    public ResponseEntity<Page<MovieResponseDTO>> findAll(@ParameterObject @PageableDefault(size = 10, page = 0, sort = "titulo") Pageable pageable) {
-        return ResponseEntity.ok(movieService.findAll(pageable));
+    public ResponseEntity<Page<MovieResponseDTO>> findAll(
+            @RequestParam(required = false) Long cinemaId,
+            @ParameterObject @PageableDefault(size = 10, page = 0, sort = "titulo") Pageable pageable) {
+        return ResponseEntity.ok(movieService.findAll(pageable, cinemaId));
     }
 
     @GetMapping("/{id}")

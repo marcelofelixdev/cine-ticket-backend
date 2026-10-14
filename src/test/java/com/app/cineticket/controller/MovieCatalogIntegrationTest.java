@@ -45,6 +45,7 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private RoleRepository roleRepository;
     @Autowired private CinemaRepository cinemaRepository;
+    @Autowired private com.app.cineticket.repository.CinemaMovieRepository cinemaMovieRepository;
 
     private Long movieId;
     private String adminToken;
@@ -72,6 +73,12 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
         cinema.setCnpj(CNPJ);
         cinema.setEndereco("Rua do Catálogo, 1");
         cinema = cinemaRepository.save(cinema);
+
+        com.app.cineticket.domain.entity.CinemaMovie emCartaz = new com.app.cineticket.domain.entity.CinemaMovie();
+        emCartaz.setCinema(cinema);
+        emCartaz.setMovie(movieRepository.findById(movieId).orElseThrow());
+        emCartaz.setStatus(com.app.cineticket.domain.enums.ProgramacaoStatus.ATIVO);
+        cinemaMovieRepository.save(emCartaz);
 
         adminToken = token("admin", "ROLE_ADMIN", null);
         managerToken = token("gerente", "ROLE_MANAGER", cinema);

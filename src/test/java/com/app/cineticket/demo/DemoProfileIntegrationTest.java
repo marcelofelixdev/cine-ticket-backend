@@ -70,6 +70,13 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void todosOsFilmesEstaoEmCartazNoCatalogoPublico() throws Exception {
+        mockMvc.perform(get("/api/v1/movies"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements").value(DemoCatalog.MOVIES.size()));
+    }
+
+    @Test
     void seedRepetidoNaoDuplicaNada() {
         long sessions = sessionRepository.count();
 
