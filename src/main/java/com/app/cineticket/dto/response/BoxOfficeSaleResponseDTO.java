@@ -7,7 +7,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/** Resultado da venda no caixa, com o QR de cada ingresso para imprimir. */
+/**
+ * Resultado da venda no caixa, com o QR de cada ingresso para imprimir. Não diz se o e-mail
+ * informado tem conta: o caixa não deve conseguir descobrir quem é cliente cadastrado.
+ */
 public record BoxOfficeSaleResponseDTO(
         Long sessionId,
         String filmeTitulo,
@@ -15,8 +18,6 @@ public record BoxOfficeSaleResponseDTO(
         LocalDateTime horarioSessao,
         FormaPagamento formaPagamento,
         BigDecimal total,
-        /** true se os ingressos foram para a conta do e-mail informado. */
-        boolean vinculadoAConta,
         List<Ingresso> ingressos
 ) {
 

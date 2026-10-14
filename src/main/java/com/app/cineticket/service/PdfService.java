@@ -1,6 +1,7 @@
 package com.app.cineticket.service;
 
 import com.app.cineticket.domain.entity.Ticket;
+import com.app.cineticket.domain.enums.TicketChannel;
 import com.lowagie.text.Document;
 import com.lowagie.text.Font;
 import com.lowagie.text.Paragraph;
@@ -39,7 +40,9 @@ public class PdfService{
             document.add(new Paragraph("Assento: " + ticket.getSeat().label(), titleFont));
 
             document.add(new Paragraph(" "));
-            String comprador = ticket.getUser() != null ? ticket.getUser().getNome() : "Venda no balcão";
+            // Venda de balcão nunca mostra o nome da conta: o PDF é impresso pelo caixa.
+            String comprador = ticket.getCanal() == TicketChannel.BALCAO || ticket.getUser() == null
+                    ? "Venda no balcão" : ticket.getUser().getNome();
             document.add(new Paragraph("Comprador: " + comprador, textFont));
             document.add(new Paragraph("Status: " + ticket.getStatus().name(), textFont));
             document.add(new Paragraph("Tipo: " + ticket.getTicketType().name() + " - R$ " + ticket.getValorPago(), textFont));
