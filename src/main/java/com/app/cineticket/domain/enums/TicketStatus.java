@@ -6,5 +6,8 @@ public enum TicketStatus {
     CANCELLED,
     EMERGENCY_CANCELLED,
     /** Pagamento não confirmado dentro do prazo; o assento foi liberado. */
-    EXPIRED
+    EXPIRED;
+
+    /** Status que ocupam o assento: o mesmo critério do índice anti-overbooking (idx_ticket_no_overbooking). */
+    public static final java.util.List<TicketStatus> OCCUPYING_SEAT = java.util.List.of(PENDING, APPROVED);
 }

@@ -17,19 +17,15 @@ public class UserController {
     private final com.app.cineticket.service.RateLimitService rateLimitService;
 
     @GetMapping("/me")
-    public ResponseEntity<UserResponseDTO> me() {
-        var loggedUser = (com.app.cineticket.domain.entity.User)
-                org.springframework.security.core.context.SecurityContextHolder.getContext()
-                        .getAuthentication().getPrincipal();
+    public ResponseEntity<UserResponseDTO> me(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.app.cineticket.domain.entity.User loggedUser) {
         return ResponseEntity.ok(userService.me(loggedUser));
     }
 
     @PatchMapping("/me")
     public ResponseEntity<UserResponseDTO> updateMe(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.app.cineticket.domain.entity.User loggedUser,
             @RequestBody @Valid com.app.cineticket.dto.request.UserUpdateDTO update) {
-        var loggedUser = (com.app.cineticket.domain.entity.User)
-                org.springframework.security.core.context.SecurityContextHolder.getContext()
-                        .getAuthentication().getPrincipal();
         return ResponseEntity.ok(userService.updateMe(loggedUser, update));
     }
 

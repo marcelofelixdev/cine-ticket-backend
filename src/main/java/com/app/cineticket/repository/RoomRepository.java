@@ -22,6 +22,9 @@ public interface RoomRepository extends JpaRepository<Room, Long> {
     int deleteByCinemaId(@org.springframework.data.repository.query.Param("cinemaId") Long cinemaId);
 
     @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"cinema"})
+    List<Room> findByCinemaIdOrderByNome(Long cinemaId);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"cinema"})
     org.springframework.data.domain.Page<Room> findAll(org.springframework.data.domain.Pageable pageable);
 }
 

@@ -12,7 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,8 +31,7 @@ public class TicketEntryController {
     @Operation(summary = "Conteúdo do QR Code do próprio ingresso",
             description = "Para o frontend desenhar o ingresso digital. Só para ingressos aprovados.")
     @GetMapping("/{id}/qr")
-    public ResponseEntity<TicketQrCodeDTO> qrCode(@PathVariable Long id) {
-        User loggedUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    public ResponseEntity<TicketQrCodeDTO> qrCode(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
         return ResponseEntity.ok(validationService.qrCodeFor(id, loggedUser));
     }
 
@@ -46,8 +45,8 @@ public class TicketEntryController {
     @ApiResponse(responseCode = "409", description = "Ingresso já utilizado, cancelado ou não pago", content = @Content)
     @ApiResponse(responseCode = "422", description = "Fora do horário da sessão", content = @Content)
     @PostMapping("/validate")
-    public ResponseEntity<TicketValidationResponseDTO> validate(@RequestBody @Valid TicketValidationRequestDTO request) {
-        User staff = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    public ResponseEntity<TicketValidationResponseDTO> validate(@AuthenticationPrincipal User staff,
+                                                                @RequestBody @Valid TicketValidationRequestDTO request) {
         return ResponseEntity.ok(validationService.validate(request.qr(), staff));
     }
 }

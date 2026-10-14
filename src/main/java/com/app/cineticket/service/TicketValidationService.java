@@ -49,6 +49,13 @@ public class TicketValidationService {
         Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
+        // O funcionário só libera a entrada no próprio cinema; o admin, em qualquer um.
+        // Checado antes do status para não revelar nada de ingressos de outro cinema.
+        if (!staff.hasRole("ROLE_ADMIN")) {
+            CinemaScope.requireSameCinema(staff, ticket.getSession().getRoom().getCinema().getId(),
+                    "Este ingresso é de outro cinema.");
+        }
+
         if (ticket.getUsedAt() != null) {
             throw new ConflictException("Ingresso já utilizado em " + ticket.getUsedAt().format(TIME) + ".");
         }
@@ -77,7 +84,7 @@ public class TicketValidationService {
                 ticket.getSession().getMovie().getTitulo(),
                 ticket.getSession().getRoom().getCinema().getNome(),
                 ticket.getSession().getRoom().getNome(),
-                ticket.getSeat().getFila() + "-" + ticket.getSeat().getNumero(),
+                ticket.getSeat().label(),
                 start,
                 ticket.getTicketType(),
                 alertFor(ticket),
@@ -89,7 +96,7 @@ public class TicketValidationService {
     public TicketQrCodeDTO qrCodeFor(Long ticketId, User loggedUser) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
-        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+        if (!ticket.isOwnedBy(loggedUser)) {
             throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
         if (ticket.getStatus() != TicketStatus.APPROVED) {

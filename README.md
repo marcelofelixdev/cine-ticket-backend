@@ -18,7 +18,8 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 |---|---|
 | **API (Swagger)** | [cineticket-api.onrender.com/swagger-ui.html](https://cineticket-api.onrender.com/swagger-ui.html) |
 | **Visitante** | `visitante@cineticket.dev` / `visitante123456` |
-| **Funcionário** (só valida ingressos) | `funcionario@cineticket.dev` / `funcionario12345` |
+| **Funcionário** do Cine 1 (só valida ingressos) | `funcionario@cineticket.dev` / `funcionario12345` |
+| **Gerente** do Cine 1 (equipe do próprio cinema) | `gerente@cineticket.dev` / `gerente12345` |
 
 No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília).
 
@@ -31,7 +32,12 @@ No ambiente de demonstração, as compras e as contas criadas são apagadas todo
 
 ## ✨ Funcionalidades
 
-- **Catálogo público:** filmes (enriquecidos pelo [TMDB](https://www.themoviedb.org/)), cinemas e sessões com filtros por filme, cinema e data.
+- **Catálogo público:** filmes com ficha completa do [TMDB](https://www.themoviedb.org/) (direção, elenco, produtora, gêneros, classificação indicativa brasileira, trailer, estreia), cinemas e sessões com filtros por filme, cinema e data.
+- **Cadastro de filmes pelo nome:** o painel pesquisa no TMDB, a pessoa escolhe o filme certo e o resto da ficha é preenchido sozinho.
+- **Cinema de shopping:** cidade dos cinemas, sessões 2D/3D e dubladas, legendadas ou nacionais, "Em breve" pela data de estreia; o gerente monta as sessões do próprio cinema.
+- **Venda no caixa:** o funcionário vende até 10 lugares por vez, pagos na hora (dinheiro, cartão ou Pix); os ingressos saem aprovados, com QR para imprimir, e podem ir para a conta do cliente pelo e-mail.
+- **Painel de ingressos:** lista com filtros (sessão, dia, status, canal, e-mail), resumo da sessão (ocupação, meias, entradas e receita por canal e forma de pagamento) e cancelamento de venda de balcão com devolução registrada.
+- **Programação por cinema:** o gerente pede um filme e o admin aprova ou recusa com motivo; ou o admin envia o filme para os cinemas e cada gerente confirma no seu. Só filmes em cartaz aparecem no site.
 - **Mapa de assentos** por sessão, com status livre ou ocupado.
 - **Compra de ingresso** com inteira e meia: **reserva que expira em 10 minutos** e pagamento pelo **Stripe em modo de teste** (ou simulador), com aprovação assíncrona via webhook assinado, outbox e RabbitMQ.
 - **Ingresso em PDF** com QR Code, cancelamento até 30 minutos antes da sessão e reembolso.
@@ -58,7 +64,7 @@ flowchart LR
     P --> MQ[[RabbitMQ<br/>pagamentos e reembolsos + DLQs]]
     MQ --> CO[Consumers de pagamento e reembolso]
     CO --> DB
-    S -->|título, sinopse e pôster| TMDB[(TMDB API)]
+    S -->|ficha do filme| TMDB[(TMDB API)]
 ```
 
 **Fluxo de compra:**
@@ -99,7 +105,8 @@ sequenceDiagram
 | **Reembolso sem estorno em dobro** | Pedido de reembolso via outbox → `RefundConsumer` → estorno no Stripe com *idempotency key*; tabela `tb_refund` com `UNIQUE(payment_intent_id)`; retry com backoff e DLQ própria | Mensagem repetida não estorna duas vezes; falha do gateway fica registrada (`FAILED`) e a mensagem vai para a DLQ em vez de travar a fila. |
 | **Ingresso falsificado ou usado duas vezes** | QR com `CT1.<id>.<HMAC-SHA256>` (segredo só no servidor, sem dado pessoal); validação com lock pessimista que grava `used_at` uma única vez, dentro da janela da sessão | Trocar o ID invalida a assinatura; dois funcionários lendo o mesmo QR ao mesmo tempo não liberam duas entradas; ingresso usado não pode mais ser cancelado. |
 | **Meia-entrada sem controle** | Idoso: 60+ na data da sessão pela data de nascimento do perfil; estudante: número da carteira gravado no ingresso e exibido ao funcionário na entrada; **cota de 40% dos lugares por sessão** (Lei 12.933/2013) contada com lock na sessão | A regra legal é aplicada no servidor; compras simultâneas de meia não estouram a cota. |
-| **Funcionário da porta com poder demais** | Papel `ROLE_STAFF` que só pode `POST /tickets/validate` | Menor privilégio: quem confere ingresso não cria sessão nem cancela sala. |
+| **Funcionário da porta com poder demais** | Papel `ROLE_STAFF` que só pode `POST /tickets/validate`, e só para sessões do próprio cinema | Menor privilégio: quem confere ingresso não cria sessão nem cancela sala, e não libera entrada em outro cinema. |
+| **Gerente mexendo em outro cinema** | Papel `ROLE_MANAGER` vinculado a um cinema; o cinema do cadastro vem do gerente logado, não do pedido | O gerente cadastra funcionários só no próprio cinema e não cria gerentes nem admins. |
 | **Assentos travados por quem não paga** | `expires_at` + job que marca `EXPIRED` e limite de 4 reservas pendentes por usuário | O índice parcial ignora `EXPIRED`, então o assento volta a ficar livre sozinho. |
 | **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Só o hash SHA-256 fica no banco. |
 | **CSRF com cookie entre domínios** | Validação do header `Origin` nas rotas de refresh e logout | O resto da API usa `Authorization: Bearer`, que o navegador não envia sozinho. |
@@ -160,13 +167,32 @@ defina `PROFILE=dev,demo` no `.env` e rode o `docker compose up -d --build` de n
 
 Sem essas variáveis, o simulador (`PAYMENTS_PROVIDER=mock`) aprova os mesmos IDs de teste sem rede.
 
+## 📈 Observabilidade
+
+Prometheus e Grafana sobem junto com a aplicação num perfil opcional do Docker Compose:
+
+```bash
+docker compose --profile observability up -d --build
+```
+
+| Serviço | Endereço |
+|---|---|
+| Grafana (dashboard **CineTicket — visão geral**, já carregado) | http://localhost:3001 (admin / admin) |
+| Prometheus | http://localhost:9090 |
+
+O dashboard mostra vendas por tipo e status, tentativas de pagamento por resposta, webhooks do Stripe,
+reembolsos, eventos pendentes no outbox (e a idade do mais antigo), profundidade das filas e DLQs,
+latência p95 por rota e erros 5xx. As métricas de negócio (`cineticket_*`) são lidas do banco a cada
+30 s, então batem com a realidade mesmo depois de reiniciar a API. Em produção o `/actuator/prometheus`
+continua exigindo login (`app.metrics.public=false`).
+
 ## 🧪 Testes
 
 ```bash
 ./mvnw verify          # Windows: mvnw.cmd verify
 ```
 
-- **169 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
+- **171 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
 - Destaques: concorrência de compra do mesmo assento, fluxo assíncrono de pagamento, rotação e reuso de refresh token, matriz de autorização (admin e dono do recurso) e perfil de demonstração.
 - Cobertura (JaCoCo): `target/site/jacoco/index.html`.
 
@@ -177,11 +203,17 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Recurso | Público | Usuário | Admin |
 |---|---|---|---|
 | Auth | `POST /auth/login`, `/refresh`, `/logout` · `POST /users` | `GET /users/me`, `PATCH /users/me` | |
-| Filmes e cinemas | `GET` (lista e detalhe) | | `POST`, `PUT`, `DELETE` |
+| Filmes e cinemas | `GET` (lista e detalhe; `GET /movies` só traz filmes em cartaz, com filtros `cinemaId` e `cidade`), `GET /movies/em-breve?cidade=`, `GET /cinemas?cidade=`, `GET /cinemas/cidades` | | `POST` (filme por `tmdbId`), `PUT` (correção parcial), `DELETE`, `POST /movies/{id}/tmdb-sync` |
+| Busca no TMDB | | `GET /tmdb/search?q=` (só `MANAGER`) | `GET /tmdb/search?q=` |
+| Caixa (balcão) | | `STAFF` ou `MANAGER`: `GET /box-office/sessions?date=`, `POST /box-office/sales`, `GET /box-office/tickets/{id}/pdf`, `GET /box-office/refunds/pending`, `POST /box-office/refunds/{ticketId}/confirm` | |
+| Ingressos (painel) | | `MANAGER`: `GET /manager/tickets` (filtros), `GET /manager/sessions/{id}/summary`, `POST /manager/tickets/{id}/cancel` (venda de balcão) | `GET /admin/tickets`, `GET /admin/sessions/{id}/summary` |
+| Sessões do cinema | | `MANAGER`: `GET /manager/sessions?date=` (com ocupação), `POST`, `DELETE /manager/sessions/{id}`, `GET /manager/rooms` | |
+| Pedidos e programação | | `MANAGER`: `POST`, `GET /manager/movie-requests`, `GET /manager/programacao`, `POST /manager/programacao/{movieId}/confirm` | `GET /admin/movie-requests?status=`, `POST /{id}/approve`, `POST /{id}/reject`, `GET /admin/movies`, `POST /admin/movies/{id}/offer` |
 | Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
 | Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `GET /{id}/qr`, `PUT /{id}/cancel` | `POST /validate` (também `STAFF`) |
 | Pagamentos | `POST /payments/webhook` (somente Stripe, com assinatura) | | |
+| Equipe | | `GET`, `POST /manager/staff` (só `MANAGER`, no próprio cinema) | `GET /admin/team?cinemaId=`, `POST /admin/team` |
 
 Exemplo de erro:
 
@@ -211,7 +243,8 @@ Veja o [`.env.example`](.env.example) para a lista completa. As principais:
 | `CORS_ALLOWED_ORIGINS` | Origens do frontend, separadas por vírgula |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_BOOTSTRAP_ENABLED` | Admin criado no boot |
 | `QR_SECRET` | Segredo do HMAC do QR Code dos ingressos (32+ caracteres; obrigatório em `prod`) |
-| `STAFF_BOOTSTRAP_ENABLED`, `STAFF_EMAIL`, `STAFF_PASSWORD` | Funcionário da entrada (`ROLE_STAFF`) criado no boot (padrão em `dev` e `demo`) |
+| `STAFF_BOOTSTRAP_ENABLED`, `STAFF_EMAIL`, `STAFF_PASSWORD` | Funcionário da entrada (`ROLE_STAFF`) criado no boot no primeiro cinema (padrão em `dev` e `demo`) |
+| `MANAGER_BOOTSTRAP_ENABLED`, `MANAGER_EMAIL`, `MANAGER_PASSWORD` | Gerente (`ROLE_MANAGER`) criado no boot no primeiro cinema (padrão em `dev` e `demo`) |
 | `PAYMENTS_PROVIDER` | `mock` (simulador) ou `stripe` (modo de teste) |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Chave `sk_test_...` e signing secret `whsec_...` do Stripe |
 
@@ -240,6 +273,7 @@ src/main/java/com/app/cineticket
 - [x] Consumidor de reembolso idempotente.
 - [x] **QR Code assinado** (HMAC), sem dados pessoais, com validação de uso único na entrada.
 - [x] Comprovação de meia-entrada (idoso pela data de nascimento, estudante pela carteira, cota legal de 40%).
+- [x] **Prometheus + Grafana** com dashboard de vendas, pagamentos, filas e latência.
 - [ ] Frontend.
 
 ## ⚠️ Limitações conhecidas

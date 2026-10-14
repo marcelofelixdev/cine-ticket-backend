@@ -12,6 +12,8 @@ public interface SessionMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "movie", ignore = true)
     @Mapping(target = "room", ignore = true)
+    @Mapping(target = "formato", source = "formato", defaultValue = "2D")
+    @Mapping(target = "audio", source = "audio", defaultValue = "LEGENDADO")
     Session toEntity(SessionRequestDTO requestDTO);
 
     @Mapping(source = "movie.id", target = "movieId")

@@ -17,7 +17,8 @@ import java.util.Optional;
 import java.util.List;
 
 @Repository
-public interface TicketRepository extends JpaRepository<Ticket, Long> {
+public interface TicketRepository extends JpaRepository<Ticket, Long>,
+        org.springframework.data.jpa.repository.JpaSpecificationExecutor<Ticket> {
 
     boolean existsBySessionIdAndSeatIdAndStatusIn(Long sessionId, Long seatId, List<TicketStatus> statuses);
 
@@ -41,6 +42,14 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     long countByUserIdAndStatus(Long userId, TicketStatus status);
 
+    /** Linhas [status, tipo, quantidade] para as métricas de negócio. */
+    @Query("select t.status, t.ticketType, count(t) from Ticket t group by t.status, t.ticketType")
+    List<Object[]> countGroupedByStatusAndType();
+
+    long countByUsedAtIsNotNull();
+
+    long countBySessionIdAndStatusIn(Long sessionId, java.util.Collection<TicketStatus> statuses);
+
     long countBySessionIdAndTicketTypeInAndStatusIn(Long sessionId,
                                                      java.util.Collection<com.app.cineticket.domain.enums.TicketType> types,
                                                      java.util.Collection<TicketStatus> statuses);
@@ -55,6 +64,14 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             "where t.status = com.app.cineticket.domain.enums.TicketStatus.PENDING " +
             "and t.expiresAt < :now")
     int expirePendingTickets(@Param("now") LocalDateTime now);
+
+    /** Lista do painel com o que o DTO mostra já carregado. */
+    @EntityGraph(attributePaths = {"session.movie", "session.room", "seat", "user", "vendidoPor"})
+    org.springframework.data.domain.Page<Ticket> findAll(
+            org.springframework.data.jpa.domain.Specification<Ticket> spec, org.springframework.data.domain.Pageable pageable);
+
+    /** Ingressos de uma sessão para o resumo (status, canal, forma, tipo, valor, uso). */
+    List<Ticket> findBySessionId(Long sessionId);
 
     @EntityGraph(attributePaths = {"session.movie", "session.room", "seat"})
     org.springframework.data.domain.Page<Ticket> findByUserId(Long userId, org.springframework.data.domain.Pageable pageable);

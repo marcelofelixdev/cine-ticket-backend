@@ -27,4 +27,9 @@ public class Seat extends AuditableEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "room_id", nullable = false)
     private Room room;
+
+    /** Identificação do assento para o cliente e a equipe: fila-número (ex.: D-7). */
+    public String label() {
+        return fila + "-" + numero;
+    }
 }

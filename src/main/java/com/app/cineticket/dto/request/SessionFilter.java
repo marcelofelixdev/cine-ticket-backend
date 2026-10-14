@@ -9,6 +9,9 @@ import java.time.LocalDate;
  * @param cinemaId    só sessões deste cinema
  * @param date        só sessões deste dia (horário de Brasília)
  * @param includePast inclui sessões que já começaram (padrão: false)
+ * @param formato     só sessões 2D ou 3D
+ * @param audio       só sessões dubladas, legendadas ou nacionais
  */
-public record SessionFilter(Long movieId, Long cinemaId, LocalDate date, boolean includePast) {
+public record SessionFilter(Long movieId, Long cinemaId, LocalDate date, boolean includePast,
+                            String formato, com.app.cineticket.domain.enums.SessionAudio audio) {
 }

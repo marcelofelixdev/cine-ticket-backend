@@ -35,8 +35,9 @@ public class Ticket extends AuditableEntity {
     @JoinColumn(name = "seat_id", nullable = false)
     private Seat seat;
 
+    /** Dono do ingresso. Vazio em venda de balcão para cliente sem conta. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User user;
 
     @Enumerated(EnumType.STRING)
@@ -68,4 +69,27 @@ public class Ticket extends AuditableEntity {
     @OneToMany(mappedBy = "ticket")
     @OrderBy("id DESC")
     private java.util.List<Refund> refunds = new java.util.ArrayList<>();
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private com.app.cineticket.domain.enums.TicketChannel canal = com.app.cineticket.domain.enums.TicketChannel.ONLINE;
+
+    /** Só em venda de balcão. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "forma_pagamento", length = 10)
+    private com.app.cineticket.domain.enums.FormaPagamento formaPagamento;
+
+    /** Funcionário ou gerente que vendeu no balcão. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendido_por")
+    private User vendidoPor;
+
+    /** E-mail informado no balcão (opcional). */
+    @Column(name = "cliente_email", length = 150)
+    private String clienteEmail;
+
+    /** Ingresso sem dono (balcão, cliente sem conta) não pertence a ninguém. */
+    public boolean isOwnedBy(User candidate) {
+        return user != null && candidate != null && user.getId().equals(candidate.getId());
+    }
 }

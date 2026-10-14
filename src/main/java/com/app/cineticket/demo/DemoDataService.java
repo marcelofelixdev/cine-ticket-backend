@@ -18,6 +18,7 @@ import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
 import com.app.cineticket.repository.UserRepository;
+import com.app.cineticket.service.MovieTmdbEnricher;
 import com.app.cineticket.service.RoomService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,10 +47,10 @@ import java.util.Set;
 @Profile("demo")
 public class DemoDataService {
 
-    private static final String TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w500";
     private static final Set<DayOfWeek> WEEKEND = EnumSet.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
 
     private final MovieRepository movieRepository;
+    private final com.app.cineticket.repository.CinemaMovieRepository cinemaMovieRepository;
     private final CinemaRepository cinemaRepository;
     private final RoomRepository roomRepository;
     private final RoomService roomService;
@@ -62,15 +63,21 @@ public class DemoDataService {
     private final TmdbClient tmdbClient;
     private final String visitorEmail;
     private final String visitorPassword;
+    private final Set<String> bootstrapTeamEmails;
 
-    public DemoDataService(MovieRepository movieRepository, CinemaRepository cinemaRepository,
+    public DemoDataService(MovieRepository movieRepository,
+                           com.app.cineticket.repository.CinemaMovieRepository cinemaMovieRepository,
+                           CinemaRepository cinemaRepository,
                            RoomRepository roomRepository, RoomService roomService,
                            SessionRepository sessionRepository, TicketRepository ticketRepository,
                            RefreshTokenRepository refreshTokenRepository, UserRepository userRepository,
                            RoleRepository roleRepository, PasswordEncoder passwordEncoder, TmdbClient tmdbClient,
                            @Value("${app.demo.visitor.email}") String visitorEmail,
-                           @Value("${app.demo.visitor.password}") String visitorPassword) {
+                           @Value("${app.demo.visitor.password}") String visitorPassword,
+                           @Value("${app.bootstrap.staff.email:}") String staffEmail,
+                           @Value("${app.bootstrap.manager.email:}") String managerEmail) {
         this.movieRepository = movieRepository;
+        this.cinemaMovieRepository = cinemaMovieRepository;
         this.cinemaRepository = cinemaRepository;
         this.roomRepository = roomRepository;
         this.roomService = roomService;
@@ -83,6 +90,10 @@ public class DemoDataService {
         this.tmdbClient = tmdbClient;
         this.visitorEmail = visitorEmail.trim().toLowerCase(Locale.ROOT);
         this.visitorPassword = visitorPassword;
+        this.bootstrapTeamEmails = java.util.stream.Stream.of(staffEmail, managerEmail)
+                .map(email -> email.trim().toLowerCase(Locale.ROOT))
+                .filter(email -> !email.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     public String getVisitorEmail() {
@@ -98,6 +109,8 @@ public class DemoDataService {
     public void seed() {
         seedMovies();
         seedCinemas();
+        seedProgramacao();
+        linkTeamWithoutCinema();
         seedVisitor();
         int created = createMissingSessions(LocalDateTime.now(AppTimeZone.ZONE));
         log.info("[DEMO] Ambiente pronto: {} filme(s), {} cinema(s), {} sessão(ões) nova(s).",
@@ -105,8 +118,9 @@ public class DemoDataService {
     }
 
     /**
-     * Reset diário: apaga ingressos, sessões e as contas criadas por visitantes,
-     * mantém filmes, cinemas, admins, funcionários e o visitante, e recria a programação.
+     * Reset diário: apaga ingressos, sessões e as contas criadas por visitantes (inclusive
+     * funcionários cadastrados pelo gerente público), mantém filmes, cinemas, admins, a equipe
+     * de exemplo e o visitante, e recria a programação.
      */
     @Transactional
     public void reset() {
@@ -114,7 +128,9 @@ public class DemoDataService {
         sessionRepository.deleteAllInBatch();
 
         List<User> visitorAccounts = userRepository.findAll().stream()
-                .filter(user -> !isAdmin(user) && !isStaff(user) && !visitorEmail.equalsIgnoreCase(user.getEmail()))
+                .filter(user -> !isAdmin(user)
+                        && !bootstrapTeamEmails.contains(user.getEmail().toLowerCase(Locale.ROOT))
+                        && !visitorEmail.equalsIgnoreCase(user.getEmail()))
                 .toList();
         if (!visitorAccounts.isEmpty()) {
             refreshTokenRepository.deleteByUserIdIn(visitorAccounts.stream().map(User::getId).toList());
@@ -150,13 +166,17 @@ public class DemoDataService {
                 if (alreadyScheduled) {
                     continue;
                 }
+                int slotIndex = 0;
                 for (DemoSchedulePlanner.Slot slot : DemoSchedulePlanner.planDay(day, durations, r, now)) {
+                    Movie movie = movies.get(slot.movieIndex());
                     Session session = new Session();
-                    session.setMovie(movies.get(slot.movieIndex()));
+                    session.setMovie(movie);
                     session.setRoom(room);
                     session.setHorarioInicio(slot.start());
                     session.setValorBase(priceFor(room, day));
                     session.setAtivo(true);
+                    session.setFormato(room.getNome().contains("IMAX") ? "3D" : "2D");
+                    session.setAudio(audioFor(movie, slotIndex++));
                     sessionRepository.save(session);
                     created++;
                 }
@@ -165,18 +185,24 @@ public class DemoDataService {
         return created;
     }
 
+    /**
+     * Cria os filmes que faltam e completa a ficha dos que nunca foram sincronizados com o TMDB
+     * (inclusive os criados antes da V14). Sem TMDB, usa o plano B do catálogo local.
+     */
     private void seedMovies() {
         boolean tmdbAvailable = true;
         for (DemoCatalog.DemoMovie demoMovie : DemoCatalog.MOVIES) {
             String tmdbId = String.valueOf(demoMovie.tmdbId());
-            if (movieRepository.existsByTmdbId(tmdbId)) {
+            Movie movie = movieRepository.findByTmdbIdIn(List.of(tmdbId)).stream().findFirst().orElse(null);
+            if (movie != null && movie.getTmdbSincronizadoEm() != null) {
                 continue;
             }
-
-            Movie movie = new Movie();
-            movie.setTmdbId(tmdbId);
-            movie.setTitulo(demoMovie.titulo());
-            movie.setDuracaoEmMinutos(demoMovie.duracaoMinutos());
+            if (movie == null) {
+                movie = new Movie();
+                movie.setTmdbId(tmdbId);
+                movie.setTitulo(demoMovie.titulo());
+                movie.setDuracaoEmMinutos(demoMovie.duracaoMinutos());
+            }
 
             if (tmdbAvailable) {
                 try {
@@ -184,9 +210,14 @@ public class DemoDataService {
                 } catch (Exception e) {
                     // Se o TMDB não responde, não insiste filme a filme: usa o plano B para todos.
                     tmdbAvailable = false;
-                    log.warn("[DEMO] TMDB indisponível ({}). Usando título e duração do catálogo local.",
-                            e.getMessage());
+                    log.warn("[DEMO] TMDB indisponível ({}). Usando os dados do catálogo local.", e.getMessage());
                 }
+            }
+            if (movie.getDiretor() == null) {
+                movie.setDiretor(demoMovie.diretor());
+            }
+            if (movie.getGeneros() == null) {
+                movie.setGeneros(demoMovie.generos());
             }
             movieRepository.save(movie);
         }
@@ -196,33 +227,66 @@ public class DemoDataService {
         if (details == null) {
             return;
         }
-        if (details.title() != null && !details.title().isBlank()) {
-            movie.setTitulo(details.title().length() > 150 ? details.title().substring(0, 150) : details.title());
+        // No demo, título e duração do TMDB substituem o plano B do catálogo local.
+        String title = MovieTmdbEnricher.title(details);
+        if (title != null) {
+            movie.setTitulo(title);
         }
-        movie.setSinopse(details.overview());
-        if (details.poster_path() != null) {
-            movie.setPosterUrl(TMDB_POSTER_BASE + details.poster_path());
+        Integer runtime = MovieTmdbEnricher.runtime(details);
+        if (runtime != null) {
+            movie.setDuracaoEmMinutos(runtime);
         }
-        if (details.runtime() != null && details.runtime() > 0) {
-            movie.setDuracaoEmMinutos(details.runtime());
-        }
+        MovieTmdbEnricher.apply(movie, details, LocalDateTime.now(AppTimeZone.ZONE));
     }
 
     private void seedCinemas() {
         for (DemoCatalog.DemoCinema demoCinema : DemoCatalog.CINEMAS) {
             if (cinemaRepository.existsByCnpj(demoCinema.cnpj())) {
+                // Cinemas criados antes da V16 ganham cidade e UF.
+                cinemaRepository.findAll().stream()
+                        .filter(existing -> demoCinema.cnpj().equals(existing.getCnpj()) && existing.getCidade() == null)
+                        .forEach(existing -> {
+                            existing.setCidade(demoCinema.cidade());
+                            existing.setUf(demoCinema.uf());
+                        });
                 continue;
             }
             Cinema cinema = new Cinema();
             cinema.setNome(demoCinema.nome());
             cinema.setCnpj(demoCinema.cnpj());
             cinema.setEndereco(demoCinema.endereco());
+            cinema.setCidade(demoCinema.cidade());
+            cinema.setUf(demoCinema.uf());
             Long cinemaId = cinemaRepository.save(cinema).getId();
 
             for (DemoCatalog.DemoRoom demoRoom : demoCinema.salas()) {
                 roomService.create(new RoomRequestDTO(demoRoom.nome(), demoRoom.capacidade(), cinemaId));
             }
         }
+    }
+
+    /** No demo, cada filme está em cartaz em todos os cinemas. */
+    private void seedProgramacao() {
+        List<Cinema> cinemas = cinemaRepository.findAll(Sort.by("id"));
+        for (Movie movie : movieRepository.findAll(Sort.by("id"))) {
+            for (Cinema cinema : cinemas) {
+                if (cinemaMovieRepository.findByCinemaIdAndMovieId(cinema.getId(), movie.getId()).isPresent()) {
+                    continue;
+                }
+                com.app.cineticket.domain.entity.CinemaMovie entry = new com.app.cineticket.domain.entity.CinemaMovie();
+                entry.setCinema(cinema);
+                entry.setMovie(movie);
+                entry.setStatus(com.app.cineticket.domain.enums.ProgramacaoStatus.ATIVO);
+                entry.setConfirmedAt(LocalDateTime.now(AppTimeZone.ZONE));
+                cinemaMovieRepository.save(entry);
+            }
+        }
+    }
+
+    /** A equipe criada no boot antes dos cinemas existirem passa a pertencer ao primeiro cinema. */
+    private void linkTeamWithoutCinema() {
+        cinemaRepository.findFirstByOrderByIdAsc().ifPresent(cinema ->
+                userRepository.findTeamWithoutCinema().forEach(user -> user.setCinema(cinema)));
     }
 
     private void seedVisitor() {
@@ -250,11 +314,20 @@ public class DemoDataService {
         return WEEKEND.contains(day.getDayOfWeek()) ? base.add(DemoCatalog.WEEKEND_SURCHARGE) : base;
     }
 
-    private static boolean isAdmin(User user) {
-        return user.getRoles().stream().anyMatch(role -> "ROLE_ADMIN".equals(role.getNome()));
+    /** Animação dublada, filme brasileiro nacional, os demais alternando dublado e legendado. */
+    private static com.app.cineticket.domain.enums.SessionAudio audioFor(Movie movie, int slotIndex) {
+        if (movie.getTmdbId() != null && DemoCatalog.NATIONAL_MOVIES.contains(Long.parseLong(movie.getTmdbId()))) {
+            return com.app.cineticket.domain.enums.SessionAudio.NACIONAL;
+        }
+        if (movie.getGeneros() != null && movie.getGeneros().contains("Animação")) {
+            return com.app.cineticket.domain.enums.SessionAudio.DUBLADO;
+        }
+        return slotIndex % 2 == 0
+                ? com.app.cineticket.domain.enums.SessionAudio.DUBLADO
+                : com.app.cineticket.domain.enums.SessionAudio.LEGENDADO;
     }
 
-    private static boolean isStaff(User user) {
-        return user.getRoles().stream().anyMatch(role -> "ROLE_STAFF".equals(role.getNome()));
+    private static boolean isAdmin(User user) {
+        return user.getRoles().stream().anyMatch(role -> "ROLE_ADMIN".equals(role.getNome()));
     }
 }

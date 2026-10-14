@@ -92,7 +92,7 @@ public class RefundService {
         return RefundStatus.NOT_APPLICABLE;
     }
 
-    private static Refund newRefund(Ticket ticket, RefundEventDTO event, RefundStatus status) {
+    static Refund newRefund(Ticket ticket, RefundEventDTO event, RefundStatus status) {
         Refund refund = new Refund();
         refund.setTicket(ticket);
         refund.setPaymentIntentId(event.paymentIntentId());

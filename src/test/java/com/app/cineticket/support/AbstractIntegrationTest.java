@@ -1,5 +1,6 @@
 package com.app.cineticket.support;
 
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -20,6 +21,7 @@ import org.springframework.context.annotation.Import;
         "TMDB_API_KEY=test_tmdb_key",
         "app.bootstrap.admin.enabled=false",
         "app.bootstrap.staff.enabled=false",
+        "app.bootstrap.manager.enabled=false",
         "payments.stripe.webhook-secret=" + AbstractIntegrationTest.WEBHOOK_SECRET,
         // Fixos aqui porque o .env local é importado pela aplicação: com PAYMENTS_PROVIDER=stripe
         // no .env, os testes cobrariam no Stripe de verdade e esperariam um webhook que não vem.
@@ -27,7 +29,10 @@ import org.springframework.context.annotation.Import;
         "payments.stripe.secret-key="
 })
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+// Por padrão os testes do Spring Boot desligam a exportação de métricas (o /actuator/prometheus
+// responderia 404). Ligado aqui, na base, para não criar um segundo contexto só para isso.
+@AutoConfigureObservability(tracing = false)
+@Import({TestcontainersConfiguration.class, TestData.class})
 public abstract class AbstractIntegrationTest {
 
     /** Signing secret do webhook do Stripe usado nos testes (o gateway continua simulado). */

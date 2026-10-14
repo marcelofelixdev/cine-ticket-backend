@@ -36,4 +36,12 @@ public class Session extends AuditableEntity {
     @Column(name = "ativo", nullable = false)
     private Boolean ativo = true;
 
+    /** 2D ou 3D. */
+    @Column(nullable = false, length = 2)
+    private String formato = "2D";
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private com.app.cineticket.domain.enums.SessionAudio audio = com.app.cineticket.domain.enums.SessionAudio.LEGENDADO;
+
 }

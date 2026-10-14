@@ -5,7 +5,6 @@ import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RoomRepository;
@@ -22,7 +21,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -54,6 +52,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private com.app.cineticket.support.TestData testData;
 
     @Test
     void bootPopulaCatalogoCinemasSalasEVisitante() {
@@ -62,6 +61,15 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
         assertEquals(4, roomRepository.count());
         assertEquals(120 + 80 + 100 + 40, seatRepository.count());
         assertTrue(userRepository.existsByEmailIgnoreCase(demoDataService.getVisitorEmail()));
+        // TMDB fora do ar neste teste: direção e gêneros vêm do plano B do catálogo local.
+        assertTrue(movieRepository.findAll().stream().allMatch(movie -> movie.getDiretor() != null && movie.getGeneros() != null));
+    }
+
+    @Test
+    void todosOsFilmesEstaoEmCartazNoCatalogoPublico() throws Exception {
+        mockMvc.perform(get("/api/v1/movies"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements").value(DemoCatalog.MOVIES.size()));
     }
 
     @Test
@@ -101,12 +109,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void resetApagaComprasEContasDeVisitantesERecriaAProgramacao() {
-        User extraAccount = new User();
-        extraAccount.setNome("Conta criada no demo");
-        extraAccount.setEmail("criado-no-demo@teste.com");
-        extraAccount.setSenha("hash-irrelevante");
-        extraAccount = userRepository.save(extraAccount);
-        ticketRepository.save(ticketFor(extraAccount));
+        ticketFor(testData.customer("criado-no-demo@teste.com"));
 
         demoDataService.reset();
 
@@ -118,11 +121,30 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void equipeSemCinemaEVinculadaAoPrimeiroCinemaEAEquipeDeExemploSobreviveAoReset() {
+        User exampleManager = testData.user("gerente@cineticket.dev", "ROLE_MANAGER", null);
+        User createdByVisitor = testData.user("funcionario-criado-no-demo@teste.com", "ROLE_STAFF", null);
+
+        demoDataService.seed();
+
+        Long firstCinemaId = cinemaRepository.findFirstByOrderByIdAsc().orElseThrow().getId();
+        assertEquals(firstCinemaId, userRepository.findById(exampleManager.getId()).orElseThrow().getCinema().getId());
+        assertEquals(firstCinemaId, userRepository.findById(createdByVisitor.getId()).orElseThrow().getCinema().getId());
+
+        demoDataService.reset();
+
+        assertTrue(userRepository.existsByEmailIgnoreCase("gerente@cineticket.dev"));
+        assertFalse(userRepository.existsByEmailIgnoreCase("funcionario-criado-no-demo@teste.com"));
+        userRepository.deleteById(exampleManager.getId());
+    }
+
+    @Test
     void infoEPublicaEOVisitanteConsegueEntrar() throws Exception {
         mockMvc.perform(get("/api/v1/demo/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.demo").value(true))
-                .andExpect(jsonPath("$.visitanteEmail").value(demoDataService.getVisitorEmail()));
+                .andExpect(jsonPath("$.visitanteEmail").value(demoDataService.getVisitorEmail()))
+                .andExpect(jsonPath("$.gerenteEmail").value("gerente@cineticket.dev"));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .with(request -> { request.setRemoteAddr("10.9.0.1"); return request; })
@@ -151,14 +173,6 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     private Ticket ticketFor(User user) {
         Session session = sessionRepository.findAll().get(0);
         Seat seat = seatRepository.findByRoomIdOrderByFilaAscNumeroAsc(session.getRoom().getId()).get(0);
-        Ticket ticket = new Ticket();
-        ticket.setUser(user);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setStatus(TicketStatus.PENDING);
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setValorPago(new BigDecimal("30.00"));
-        ticket.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        return ticket;
+        return testData.ticket(session, seat, user, TicketStatus.PENDING);
     }
 }

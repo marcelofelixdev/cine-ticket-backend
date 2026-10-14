@@ -1,11 +1,8 @@
 package com.app.cineticket.security;
 
 import com.app.cineticket.support.AbstractIntegrationTest;
-import com.app.cineticket.domain.entity.Role;
-import com.app.cineticket.domain.entity.User;
+import com.app.cineticket.support.TestData;
 import com.app.cineticket.repository.RefreshTokenRepository;
-import com.app.cineticket.repository.RoleRepository;
-import com.app.cineticket.repository.UserRepository;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
@@ -13,15 +10,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -44,31 +39,19 @@ class AuthFlowTest extends AbstractIntegrationTest {
     private static final AtomicInteger NEXT_IP = new AtomicInteger(1);
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
+    @Autowired private TestData testData;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
-    @Autowired private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
         cleanUp();
-        Role role = roleRepository.findByNome("ROLE_USER").orElseGet(() -> {
-            Role newRole = new Role();
-            newRole.setNome("ROLE_USER");
-            return roleRepository.save(newRole);
-        });
-        User user = new User();
-        user.setNome("Fluxo de Auth");
-        user.setEmail(EMAIL);
-        user.setSenha(passwordEncoder.encode(PASSWORD));
-        user.setRoles(new HashSet<>(Set.of(role)));
-        userRepository.save(user);
+        testData.customerWithPassword(EMAIL, PASSWORD);
     }
 
     @AfterEach
     void cleanUp() {
         refreshTokenRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete);
+        testData.deleteUsers(EMAIL);
     }
 
     @Test
@@ -97,7 +80,7 @@ class AuthFlowTest extends AbstractIntegrationTest {
         String accessToken = JsonPath.read(refreshed.getResponse().getContentAsString(), "$.token");
 
         assertNotEquals(original, rotated);
-        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + accessToken))
+        mockMvc.perform(authed(get("/api/v1/users/me"), accessToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(EMAIL));
     }

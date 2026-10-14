@@ -24,6 +24,12 @@ public class DemoController {
     @Value("${app.bootstrap.staff.password:}")
     private String staffPassword;
 
+    @Value("${app.bootstrap.manager.email:}")
+    private String managerEmail;
+
+    @Value("${app.bootstrap.manager.password:}")
+    private String managerPassword;
+
     @GetMapping("/info")
     public ResponseEntity<DemoInfoDTO> info() {
         return ResponseEntity.ok(new DemoInfoDTO(
@@ -31,11 +37,14 @@ public class DemoController {
                 "Ambiente de demonstração: pagamento em modo de teste, nenhum valor é cobrado. "
                         + "Reserve em POST /api/v1/tickets e pague em POST /api/v1/tickets/{id}/payment "
                         + "com paymentMethodId pm_card_visa (aprovado) ou pm_card_chargeDeclined (recusado). "
-                        + "O funcionário valida ingressos em POST /api/v1/tickets/validate com o QR de GET /api/v1/tickets/{id}/qr.",
+                        + "O funcionário valida ingressos em POST /api/v1/tickets/validate com o QR de GET /api/v1/tickets/{id}/qr. "
+                        + "O gerente cadastra funcionários do próprio cinema em /api/v1/manager/staff.",
                 demoDataService.getVisitorEmail(),
                 demoDataService.getVisitorPassword(),
                 staffEmail,
                 staffPassword,
+                managerEmail,
+                managerPassword,
                 "Compras e contas criadas são apagadas todos os dias às 04:00 (horário de Brasília)."));
     }
 }

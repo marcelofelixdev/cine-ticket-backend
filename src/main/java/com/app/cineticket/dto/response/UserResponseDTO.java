@@ -7,5 +7,7 @@ public record UserResponseDTO (
         String nome,
         String email,
         Set<String> roles,
-        java.time.LocalDate dataNascimento
+        java.time.LocalDate dataNascimento,
+        /** Cinema do gerente ou funcionário; null para clientes e admins. */
+        Long cinemaId
 ) {}

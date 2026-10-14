@@ -9,16 +9,10 @@ import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.OutboxEventRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,13 +48,8 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
     private static final String EMAIL = "webhook@teste.com";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private SessionRepository sessionRepository;
+    @Autowired private TestData testData;
     @Autowired private TicketRepository ticketRepository;
-    @Autowired private UserRepository userRepository;
     @Autowired private OutboxEventRepository outboxRepository;
     @Autowired private com.app.cineticket.repository.RefundRepository refundRepository;
 
@@ -71,53 +60,18 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Webhook");
-        cinema.setCnpj("44444444000144");
-        cinema.setEndereco("Rua W, 4");
-        cinema = cinemaRepository.save(cinema);
-
-        Room room = new Room();
-        room.setNome("Sala W");
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
-
-        seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(1);
-        seat.setRoom(room);
-        seat = seatRepository.save(seat);
-
-        Movie movie = new Movie();
-        movie.setTitulo("Filme Webhook");
-        movie.setDuracaoEmMinutos(100);
-        movie = movieRepository.save(movie);
-
-        session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("40.00"));
-        session.setAtivo(true);
-        session = sessionRepository.save(session);
-
-        user = new User();
-        user.setNome("Pagador");
-        user.setEmail(EMAIL);
-        user.setSenha("hash-irrelevante");
-        user = userRepository.save(user);
+        Cinema cinema = testData.cinema("Cine Webhook", "44444444000144");
+        Room room = testData.room("Sala W", cinema, 10);
+        seat = testData.seat(room, "A", 1);
+        Movie movie = testData.movie("Filme Webhook", 100);
+        session = testData.session(movie, room, LocalDateTime.now().plusDays(1), new BigDecimal("40.00"));
+        user = testData.customer(EMAIL);
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete);
+        testData.deleteCatalog();
+        testData.deleteUsers(EMAIL);
     }
 
     @Test
@@ -185,15 +139,7 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Ticket ticket(TicketStatus status) {
-        Ticket ticket = new Ticket();
-        ticket.setUser(user);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setValorPago(new BigDecimal("40.00"));
-        ticket.setStatus(status);
-        ticket.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        return ticketRepository.save(ticket);
+        return testData.ticket(session, seat, user, status);
     }
 
     /** Evento no formato do Stripe; o valor vem em centavos. */

@@ -14,9 +14,11 @@ public interface UserMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "roles", ignore = true)
+    @Mapping(target = "cinema", ignore = true)
     User toEntity(UserRequestDTO requestDTO);
 
     @Mapping(target = "roles", expression = "java(mapRolesToStrings(entity.getRoles()))")
+    @Mapping(target = "cinemaId", source = "cinema.id")
     UserResponseDTO toResponseDTO(User entity);
 
     default Set<String> mapRolesToStrings(Set<Role> roles) {

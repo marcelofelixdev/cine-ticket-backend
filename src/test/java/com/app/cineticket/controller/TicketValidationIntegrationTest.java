@@ -2,7 +2,6 @@ package com.app.cineticket.controller;
 
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
-import com.app.cineticket.domain.entity.Role;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
@@ -10,56 +9,43 @@ import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoleRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
-import com.app.cineticket.security.TokenService;
 import com.app.cineticket.service.TicketQrCodeService;
 import com.app.cineticket.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Entrada na sala: QR assinado, papel STAFF, janela de horário e uso único. */
+/** Entrada na sala: QR assinado, papel STAFF do próprio cinema, janela de horário e uso único. */
 class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
     private static final String VALIDATE = "/api/v1/tickets/validate";
     private static final String STAFF_EMAIL = "funcionario@teste.com";
     private static final String CLIENT_EMAIL = "cliente-entrada@teste.com";
+    private static final String OTHER_STAFF_EMAIL = "funcionario-outro@teste.com";
+    private static final String ADMIN_EMAIL = "admin-entrada@teste.com";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private TokenService tokenService;
     @Autowired private TicketQrCodeService qrCodeService;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
+    @Autowired private com.app.cineticket.support.TestData testData;
 
+    private Cinema cinema;
     private Room room;
     private Movie movie;
     private Seat seat;
@@ -70,52 +56,42 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Entrada");
-        cinema.setCnpj("66666666000166");
-        cinema.setEndereco("Rua E, 6");
-        cinema = cinemaRepository.save(cinema);
+        cinema = testData.cinema("Cine Entrada", "66666666000166");
+        room = testData.room("Sala E", cinema, 10);
+        seat = testData.seat(room, "B", 7);
+        movie = testData.movie("Filme da Entrada", 120);
 
-        room = new Room();
-        room.setNome("Sala E");
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
+        staffToken = testData.token(STAFF_EMAIL, "ROLE_STAFF", cinema);
 
-        seat = new Seat();
-        seat.setFila("B");
-        seat.setNumero(7);
-        seat.setRoom(room);
-        seat = seatRepository.save(seat);
-
-        movie = new Movie();
-        movie.setTitulo("Filme da Entrada");
-        movie.setDuracaoEmMinutos(120);
-        movie = movieRepository.save(movie);
-
-        Role staffRole = roleRepository.findByNome("ROLE_STAFF").orElseGet(() -> {
-            Role role = new Role();
-            role.setNome("ROLE_STAFF");
-            return roleRepository.save(role);
-        });
-        User staff = user("Funcionário", STAFF_EMAIL);
-        staff.setRoles(new HashSet<>(Set.of(staffRole)));
-        staffToken = tokenService.generateToken(userRepository.save(staff));
-
-        client = userRepository.save(user("Cliente", CLIENT_EMAIL));
-        clientToken = tokenService.generateToken(client);
+        client = testData.customer(CLIENT_EMAIL);
+        clientToken = testData.token(client);
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase(STAFF_EMAIL).ifPresent(userRepository::delete);
-        userRepository.findByEmailIgnoreCase(CLIENT_EMAIL).ifPresent(userRepository::delete);
+        testData.deleteCatalog();
+        testData.deleteUsers(STAFF_EMAIL, CLIENT_EMAIL, OTHER_STAFF_EMAIL, ADMIN_EMAIL);
+    }
+
+    @Test
+    void funcionarioDeOutroCinemaNaoValida() throws Exception {
+        Cinema other = testData.cinema("Cine Vizinho", "77777777000177");
+        String otherStaffToken = testData.token(OTHER_STAFF_EMAIL, "ROLE_STAFF", other);
+
+        Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(20));
+        validate(qrCodeService.payloadFor(ticket.getId()), otherStaffToken)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("Este ingresso é de outro cinema."));
+
+        assertNull(ticketRepository.findById(ticket.getId()).orElseThrow().getUsedAt());
+    }
+
+    @Test
+    void adminValidaEmQualquerCinema() throws Exception {
+        String adminToken = testData.token(ADMIN_EMAIL, "ROLE_ADMIN", null);
+
+        Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(20));
+        validate(qrCodeService.payloadFor(ticket.getId()), adminToken).andExpect(status().isOk());
     }
 
     @Test
@@ -141,8 +117,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
         Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(50));
         validate(qrCodeService.payloadFor(ticket.getId()), staffToken).andExpect(status().isOk());
 
-        mockMvc.perform(put("/api/v1/tickets/" + ticket.getId() + "/cancel")
-                        .header("Authorization", "Bearer " + clientToken))
+        mockMvc.perform(authed(put("/api/v1/tickets/" + ticket.getId() + "/cancel"), clientToken, null))
                 .andExpect(status().isConflict());
     }
 
@@ -182,47 +157,22 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
     void donoObtemOQrDoIngressoAprovado() throws Exception {
         Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusDays(1));
 
-        mockMvc.perform(get("/api/v1/tickets/" + ticket.getId() + "/qr")
-                        .header("Authorization", "Bearer " + clientToken))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticket.getId() + "/qr"), clientToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.qr").value(qrCodeService.payloadFor(ticket.getId())));
 
-        mockMvc.perform(get("/api/v1/tickets/" + ticket.getId() + "/qr")
-                        .header("Authorization", "Bearer " + staffToken))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticket.getId() + "/qr"), staffToken, null))
                 .andExpect(status().isForbidden());
     }
 
     private ResultActions validate(String qr, String token) throws Exception {
-        return mockMvc.perform(post(VALIDATE)
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"qr\":\"" + qr + "\"}"));
+        return mockMvc.perform(authed(post(VALIDATE), token, "{\"qr\":\"" + qr + "\"}"));
     }
 
     private Ticket ticket(TicketStatus status, TicketType type, LocalDateTime sessionStart) {
-        Session session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(sessionStart);
-        session.setValorBase(new BigDecimal("40.00"));
-        session.setAtivo(true);
-        session = sessionRepository.save(session);
-
-        Ticket ticket = new Ticket();
-        ticket.setUser(client);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
+        Session session = testData.session(movie, room, sessionStart, new BigDecimal("40.00"));
+        Ticket ticket = testData.ticket(session, seat, client, status);
         ticket.setTicketType(type);
-        ticket.setValorPago(new BigDecimal("40.00"));
-        ticket.setStatus(status);
         return ticketRepository.save(ticket);
-    }
-
-    private static User user(String nome, String email) {
-        User user = new User();
-        user.setNome(nome);
-        user.setEmail(email);
-        user.setSenha("hash-irrelevante");
-        return user;
     }
 }

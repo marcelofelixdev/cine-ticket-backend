@@ -40,13 +40,18 @@ public class TmdbClient {
                 .body(TmdbSearchResponseDTO.class);
     }
 
-    /** Detalhes de um filme pelo ID do TMDB (título e sinopse em português, pôster e duração). */
+    /**
+     * Ficha completa de um filme pelo ID do TMDB numa chamada só: dados em português, créditos,
+     * classificações por país e vídeos (trailers em português ou inglês).
+     */
     public TmdbMovieDetailsDTO getMovieDetails(long tmdbId) {
         return restClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/movie/{id}")
                         .queryParam("api_key", apiKey)
                         .queryParam("language", "pt-BR")
+                        .queryParam("append_to_response", "credits,release_dates,videos")
+                        .queryParam("include_video_language", "pt,en")
                         .build(tmdbId))
                 .retrieve()
                 .body(TmdbMovieDetailsDTO.class);

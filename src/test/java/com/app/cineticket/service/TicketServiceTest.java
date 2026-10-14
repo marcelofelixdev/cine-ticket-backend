@@ -19,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
 import java.math.BigDecimal;
 import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -83,7 +82,7 @@ public class TicketServiceTest {
         )).thenReturn(true);
 
         BusinessException exception = assertThrows(BusinessException.class, () -> {
-            ticketService.buyTicket(request);
+            ticketService.buyTicket(request, comprador);
         });
 
         assertEquals("Esta cadeira já está ocupada para esta sessão.", exception.getMessage());
@@ -185,7 +184,7 @@ public class TicketServiceTest {
         when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> ticketService.buyTicket(request));
+                () -> ticketService.buyTicket(request, comprador));
 
         assertTrue(exception.getMessage().contains("não está ativa"));
         verify(ticketRepository, never()).save(any());
@@ -200,7 +199,7 @@ public class TicketServiceTest {
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         java.time.LocalDateTime antes = java.time.LocalDateTime.now();
-        ticketService.buyTicket(request);
+        ticketService.buyTicket(request, comprador);
 
         org.mockito.ArgumentCaptor<Ticket> captor = org.mockito.ArgumentCaptor.forClass(Ticket.class);
         verify(ticketRepository).save(captor.capture());
@@ -216,7 +215,7 @@ public class TicketServiceTest {
         TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, null);
         prepararCompraValida(request, 4L);
 
-        BusinessException exception = assertThrows(BusinessException.class, () -> ticketService.buyTicket(request));
+        BusinessException exception = assertThrows(BusinessException.class, () -> ticketService.buyTicket(request, comprador));
 
         assertTrue(exception.getMessage().contains("aguardando pagamento"));
         verify(ticketRepository, never()).save(any());
@@ -240,6 +239,14 @@ public class TicketServiceTest {
         verifyNoInteractions(outboxService);
     }
 
+    private final com.app.cineticket.domain.entity.User comprador = comprador();
+
+    private static com.app.cineticket.domain.entity.User comprador() {
+        com.app.cineticket.domain.entity.User user = new com.app.cineticket.domain.entity.User();
+        user.setId(7L);
+        return user;
+    }
+
     private void prepararCompraValida(TicketRequestDTO request, long pendentesDoUsuario) {
         com.app.cineticket.domain.entity.Room room = new com.app.cineticket.domain.entity.Room();
         room.setId(10L);
@@ -252,23 +259,11 @@ public class TicketServiceTest {
         session.setAtivo(true);
         session.setValorBase(new BigDecimal("30.00"));
         session.setHorarioInicio(java.time.LocalDateTime.now().plusHours(2));
-        com.app.cineticket.domain.entity.User comprador = new com.app.cineticket.domain.entity.User();
-        comprador.setId(7L);
-
         when(seatRepository.findByIdWithLock(request.seatId())).thenReturn(Optional.of(seat));
         when(sessionRepository.findById(request.sessionId())).thenReturn(Optional.of(session));
         when(ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(eq(request.sessionId()), eq(request.seatId()), anyList()))
                 .thenReturn(false);
         when(ticketRepository.countByUserIdAndStatus(7L, TicketStatus.PENDING)).thenReturn(pendentesDoUsuario);
         org.springframework.test.util.ReflectionTestUtils.setField(ticketService, "paymentsEnabled", true);
-
-        SecurityContextHolder.getContext().setAuthentication(
-                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                        comprador, null, java.util.List.of()));
-    }
-
-    @org.junit.jupiter.api.AfterEach
-    void limparContextoDeSeguranca() {
-        SecurityContextHolder.clearContext();
     }
 }

@@ -1,6 +1,7 @@
 package com.app.cineticket.security;
 
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.repository.RefreshTokenRepository;
 import com.app.cineticket.repository.UserRepository;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -35,24 +35,20 @@ class AccountLockoutTest extends AbstractIntegrationTest {
     private static final AtomicInteger NEXT_IP = new AtomicInteger(1);
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private TestData testData;
     @Autowired private UserRepository userRepository;
     @Autowired private RefreshTokenRepository refreshTokenRepository;
-    @Autowired private PasswordEncoder passwordEncoder;
 
     @BeforeEach
     void setUp() {
         cleanUp();
-        User user = new User();
-        user.setNome("Lockout");
-        user.setEmail(EMAIL);
-        user.setSenha(passwordEncoder.encode(PASSWORD));
-        userRepository.save(user);
+        testData.customerWithPassword(EMAIL, PASSWORD);
     }
 
     @AfterEach
     void cleanUp() {
         refreshTokenRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete);
+        testData.deleteUsers(EMAIL);
     }
 
     @Test
