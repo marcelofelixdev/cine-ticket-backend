@@ -84,7 +84,7 @@ public class TicketValidationService {
                 ticket.getSession().getMovie().getTitulo(),
                 ticket.getSession().getRoom().getCinema().getNome(),
                 ticket.getSession().getRoom().getNome(),
-                ticket.getSeat().getFila() + "-" + ticket.getSeat().getNumero(),
+                ticket.getSeat().label(),
                 start,
                 ticket.getTicketType(),
                 alertFor(ticket),

@@ -36,7 +36,7 @@ public class PdfService{
             document.add(new Paragraph("Filme: " + ticket.getSession().getMovie().getTitulo(), titleFont));
             document.add(new Paragraph("Data/Hora: " + ticket.getSession().getHorarioInicio().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), textFont));
             document.add(new Paragraph("Sala: " + ticket.getSession().getRoom().getNome(), textFont));
-            document.add(new Paragraph("Assento: " + ticket.getSeat().getFila() + "-" + ticket.getSeat().getNumero(), titleFont));
+            document.add(new Paragraph("Assento: " + ticket.getSeat().label(), titleFont));
 
             document.add(new Paragraph(" "));
             String comprador = ticket.getUser() != null ? ticket.getUser().getNome() : "Venda no balcão";

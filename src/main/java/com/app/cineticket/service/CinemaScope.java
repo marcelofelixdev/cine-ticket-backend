@@ -19,7 +19,12 @@ public final class CinemaScope {
 
     /** 403 com a mensagem informada se o recurso for de outro cinema. */
     public static void requireSameCinema(User user, Long cinemaId, String message) {
-        if (!cinemaIdOf(user).equals(cinemaId)) {
+        requireWithin(cinemaIdOf(user), cinemaId, message);
+    }
+
+    /** Como {@link #requireSameCinema}, mas com o escopo já resolvido; escopo null = rede toda (admin). */
+    public static void requireWithin(Long cinemaScope, Long cinemaId, String message) {
+        if (cinemaScope != null && !cinemaScope.equals(cinemaId)) {
             throw new ForbiddenException(message);
         }
     }

@@ -31,7 +31,7 @@ public interface TicketMapper {
     @Mapping(source = "seat.id", target = "seatId")
     @Mapping(source = "session.movie.titulo", target = "filmeTitulo")
     @Mapping(source = "session.room.nome", target = "salaNome")
-    @Mapping(target = "cadeiraAssento", expression = "java(entity.getSeat().getFila() + \"-\" + entity.getSeat().getNumero())")
+    @Mapping(target = "cadeiraAssento", expression = "java(entity.getSeat().label())")
     @Mapping(target = "reembolso", expression = "java(refundStatus(entity))")
     @Mapping(source = "usedAt", target = "utilizadoEm")
     TicketResponseDTO toResponseDTO(Ticket entity);

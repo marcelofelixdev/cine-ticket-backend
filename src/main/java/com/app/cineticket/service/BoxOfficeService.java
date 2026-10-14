@@ -89,7 +89,7 @@ public class BoxOfficeService {
         for (BoxOfficeSaleRequestDTO.Item item : itens) {
             Seat seat = seatRepository.findByIdWithLock(item.seatId())
                     .orElseThrow(() -> new ResourceNotFoundException("Cadeira não encontrada. ID: " + item.seatId()));
-            String assento = seat.getFila() + "-" + seat.getNumero();
+            String assento = seat.label();
             if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
                 throw new BusinessException("A cadeira " + assento + " não é da sala desta sessão.");
             }
@@ -130,7 +130,7 @@ public class BoxOfficeService {
                 saved.stream()
                         .map(ticket -> new BoxOfficeSaleResponseDTO.Ingresso(
                                 ticket.getId(),
-                                ticket.getSeat().getFila() + "-" + ticket.getSeat().getNumero(),
+                                ticket.getSeat().label(),
                                 ticket.getTicketType(),
                                 ticket.getValorPago(),
                                 qrCodeService.payloadFor(ticket.getId())))

@@ -8,7 +8,9 @@ import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
+import com.app.cineticket.domain.enums.FormaPagamento;
 import com.app.cineticket.domain.enums.ProgramacaoStatus;
+import com.app.cineticket.domain.enums.TicketChannel;
 import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.repository.CinemaMovieRepository;
@@ -22,6 +24,7 @@ import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
 import com.app.cineticket.repository.UserRepository;
 import com.app.cineticket.security.TokenService;
+import com.app.cineticket.service.HalfPricePolicy;
 import org.springframework.boot.test.context.TestComponent;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -142,11 +145,27 @@ public class TestData {
         ticket.setSeat(seat);
         ticket.setUser(user);
         ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setValorPago(session.getValorBase());
+        ticket.setValorPago(HalfPricePolicy.priceFor(session.getValorBase(), TicketType.INTEIRA));
         ticket.setStatus(status);
         if (status == TicketStatus.PENDING) {
             ticket.setExpiresAt(LocalDateTime.now().plusMinutes(10));
         }
+        return ticketRepository.save(ticket);
+    }
+
+    /** Venda de balcão aprovada (sem conta de cliente, a não ser pelo e-mail informado). */
+    public Ticket counterTicket(Session session, Seat seat, TicketType type, FormaPagamento forma, User seller,
+                                String clienteEmail) {
+        Ticket ticket = new Ticket();
+        ticket.setSession(session);
+        ticket.setSeat(seat);
+        ticket.setTicketType(type);
+        ticket.setValorPago(HalfPricePolicy.priceFor(session.getValorBase(), type));
+        ticket.setStatus(TicketStatus.APPROVED);
+        ticket.setCanal(TicketChannel.BALCAO);
+        ticket.setFormaPagamento(forma);
+        ticket.setVendidoPor(seller);
+        ticket.setClienteEmail(clienteEmail);
         return ticketRepository.save(ticket);
     }
 
