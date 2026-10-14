@@ -75,6 +75,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/cinemas/**", "/api/v1/movies/**", "/api/v1/rooms/**", "/api/v1/sessions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/cinemas/**", "/api/v1/movies/**", "/api/v1/rooms/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/sessions/**").hasRole("ADMIN")
+                        // Entrada na sala: funcionário (STAFF) ou admin. STAFF não tem acesso a mais nada administrativo.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/tickets/validate").hasAnyRole("STAFF", "ADMIN")
                         .anyRequest().authenticated()
                 )
 

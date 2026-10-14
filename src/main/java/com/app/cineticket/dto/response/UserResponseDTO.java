@@ -6,5 +6,6 @@ public record UserResponseDTO (
         Long id,
         String nome,
         String email,
-        Set<String> roles
+        Set<String> roles,
+        java.time.LocalDate dataNascimento
 ) {}

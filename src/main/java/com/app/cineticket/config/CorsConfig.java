@@ -19,7 +19,7 @@ public class CorsConfig implements WebMvcConfigurer {
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
                 .allowedOrigins(allowedOrigins)
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type", "Accept", CorrelationIdFilter.HEADER)
                 // Sem isso o navegador esconde esses cabeçalhos do JavaScript do frontend:
                 // nome do arquivo do PDF, ID de rastreio dos erros e URL do recurso criado (201).

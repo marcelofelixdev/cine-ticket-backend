@@ -15,4 +15,12 @@ public interface PaymentGateway {
      * {@code false} quando o próprio gateway já confirma na hora (simulador).
      */
     boolean confirmsViaWebhook();
+
+    /**
+     * Estorna integralmente um pagamento. Idempotente: chamar de novo para o mesmo
+     * PaymentIntent não gera um segundo estorno.
+     *
+     * @throws com.app.cineticket.exception.PaymentGatewayException se o gateway falhar
+     */
+    RefundResult refund(String paymentIntentId);
 }

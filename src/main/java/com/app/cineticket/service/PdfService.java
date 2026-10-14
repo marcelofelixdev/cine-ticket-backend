@@ -13,6 +13,12 @@ import java.time.format.DateTimeFormatter;
 @Service
 public class PdfService{
 
+    private final TicketQrCodeService qrCodeService;
+
+    public PdfService(TicketQrCodeService qrCodeService) {
+        this.qrCodeService = qrCodeService;
+    }
+
     public byte[] generateTicketPdf(Ticket ticket) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         Document document = new Document();
@@ -41,7 +47,8 @@ public class PdfService{
             document.add(new Paragraph("--------------------------------------------------", textFont));
             document.add(new Paragraph(" "));
 
-            String qrCodeData = "CINETICKET-VALIDATION-ID:" + ticket.getId() + "-USER:" + ticket.getUser().getEmail();
+            // Só o ID e a assinatura: nada de dado pessoal no QR (ver TicketQrCodeService).
+            String qrCodeData = qrCodeService.payloadFor(ticket.getId());
 
             com.google.zxing.qrcode.QRCodeWriter qrCodeWriter = new com.google.zxing.qrcode.QRCodeWriter();
             com.google.zxing.common.BitMatrix bitMatrix = qrCodeWriter.encode(

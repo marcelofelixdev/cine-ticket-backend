@@ -150,7 +150,7 @@ class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
 
     private Long buy() throws Exception {
         String body = "{\"sessionId\":" + session.getId() + ",\"seatId\":" + seat.getId()
-                + ",\"ticketType\":\"MEIA_ESTUDANTE\"}";
+                + ",\"ticketType\":\"MEIA_ESTUDANTE\",\"documentoMeia\":\"CIE-2026-0001\"}";
         String response = mockMvc.perform(post("/api/v1/tickets")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)

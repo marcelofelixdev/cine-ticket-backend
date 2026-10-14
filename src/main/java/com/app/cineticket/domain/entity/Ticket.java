@@ -50,4 +50,22 @@ public class Ticket extends AuditableEntity {
     /** PaymentIntent do Stripe (ou do simulador) que pagou este ingresso. */
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
+
+    /** Número da carteira de estudante (meia-entrada de estudante), conferido na entrada. */
+    @Column(name = "documento_meia", length = 30)
+    private String documentoMeia;
+
+    /** Quando o ingresso foi usado na entrada da sala (null = ainda não usado). */
+    @Column(name = "used_at")
+    private LocalDateTime usedAt;
+
+    /** Funcionário que validou a entrada. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "used_by")
+    private User usedBy;
+
+    /** Estornos dos pagamentos deste ingresso (o mais recente primeiro). */
+    @OneToMany(mappedBy = "ticket")
+    @OrderBy("id DESC")
+    private java.util.List<Refund> refunds = new java.util.ArrayList<>();
 }
