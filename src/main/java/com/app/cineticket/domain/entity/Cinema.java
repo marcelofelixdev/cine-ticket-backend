@@ -24,4 +24,11 @@ public class Cinema extends AuditableEntity {
 
     @Column(nullable = false, length = 200)
     private String endereco;
+
+    @Column(length = 100)
+    private String cidade;
+
+    /** Sigla do estado (SP, RJ...). */
+    @Column(length = 2)
+    private String uf;
 }

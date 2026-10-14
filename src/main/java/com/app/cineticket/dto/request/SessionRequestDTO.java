@@ -22,5 +22,12 @@ public record SessionRequestDTO (
         long movieId,
 
         @Positive(message = "O ID da sala deve ser positivo")
-        long roomId
+        long roomId,
+
+        /** 2D (padrão) ou 3D. */
+        @jakarta.validation.constraints.Pattern(regexp = "2D|3D", message = "Formato deve ser 2D ou 3D")
+        String formato,
+
+        /** DUBLADO, LEGENDADO (padrão) ou NACIONAL. */
+        com.app.cineticket.domain.enums.SessionAudio audio
 ) {}

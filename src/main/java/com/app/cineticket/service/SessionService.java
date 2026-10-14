@@ -16,6 +16,9 @@ import com.app.cineticket.exception.ConflictException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.SessionMapper;
 import com.app.cineticket.messaging.OutboxService;
+import com.app.cineticket.domain.enums.ProgramacaoStatus;
+import com.app.cineticket.exception.BusinessException;
+import com.app.cineticket.repository.CinemaMovieRepository;
 import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
@@ -43,6 +46,7 @@ public class SessionService {
     private final SessionMapper sessionMapper;
     private final OutboxService outboxService;
     private final SeatRepository seatRepository;
+    private final CinemaMovieRepository cinemaMovieRepository;
 
     /** Status que ocupam um assento; é o mesmo critério usado na compra e no índice anti-overbooking. */
     private static final List<TicketStatus> OCCUPYING_STATUSES = List.of(TicketStatus.PENDING, TicketStatus.APPROVED);
@@ -79,6 +83,13 @@ public class SessionService {
 
         Room room = roomRepository.findByIdWithLock(requestDTO.roomId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sala não encontrada."));
+
+        // Sessão só de filme em cartaz no cinema da sala (programação do item 7.3).
+        if (!cinemaMovieRepository.existsByCinemaIdAndMovieIdAndStatus(
+                room.getCinema().getId(), movie.getId(), ProgramacaoStatus.ATIVO)) {
+            throw new BusinessException("O filme não está em cartaz neste cinema: envie o filme para o cinema "
+                    + "e aguarde a confirmação do gerente antes de criar sessões.");
+        }
 
         Session session = sessionMapper.toEntity(requestDTO);
 
@@ -141,6 +152,12 @@ public class SessionService {
         }
         if (filter.cinemaId() != null) {
             specs.add(SessionSpecifications.cinemaId(filter.cinemaId()));
+        }
+        if (filter.formato() != null) {
+            specs.add(SessionSpecifications.formato(filter.formato()));
+        }
+        if (filter.audio() != null) {
+            specs.add(SessionSpecifications.audio(filter.audio()));
         }
 
         LocalDateTime from = filter.includePast() ? null : LocalDateTime.now();

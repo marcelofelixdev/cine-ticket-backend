@@ -34,6 +34,7 @@ No ambiente de demonstração, as compras e as contas criadas são apagadas todo
 
 - **Catálogo público:** filmes com ficha completa do [TMDB](https://www.themoviedb.org/) (direção, elenco, produtora, gêneros, classificação indicativa brasileira, trailer, estreia), cinemas e sessões com filtros por filme, cinema e data.
 - **Cadastro de filmes pelo nome:** o painel pesquisa no TMDB, a pessoa escolhe o filme certo e o resto da ficha é preenchido sozinho.
+- **Cinema de shopping:** cidade dos cinemas, sessões 2D/3D e dubladas, legendadas ou nacionais, "Em breve" pela data de estreia; o gerente monta as sessões do próprio cinema.
 - **Programação por cinema:** o gerente pede um filme e o admin aprova ou recusa com motivo; ou o admin envia o filme para os cinemas e cada gerente confirma no seu. Só filmes em cartaz aparecem no site.
 - **Mapa de assentos** por sessão, com status livre ou ocupado.
 - **Compra de ingresso** com inteira e meia: **reserva que expira em 10 minutos** e pagamento pelo **Stripe em modo de teste** (ou simulador), com aprovação assíncrona via webhook assinado, outbox e RabbitMQ.
@@ -200,8 +201,9 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Recurso | Público | Usuário | Admin |
 |---|---|---|---|
 | Auth | `POST /auth/login`, `/refresh`, `/logout` · `POST /users` | `GET /users/me`, `PATCH /users/me` | |
-| Filmes e cinemas | `GET` (lista e detalhe; `GET /movies` só traz filmes em cartaz, com filtro `cinemaId`) | | `POST` (filme por `tmdbId`), `PUT` (correção parcial), `DELETE`, `POST /movies/{id}/tmdb-sync` |
+| Filmes e cinemas | `GET` (lista e detalhe; `GET /movies` só traz filmes em cartaz, com filtros `cinemaId` e `cidade`), `GET /movies/em-breve?cidade=`, `GET /cinemas?cidade=`, `GET /cinemas/cidades` | | `POST` (filme por `tmdbId`), `PUT` (correção parcial), `DELETE`, `POST /movies/{id}/tmdb-sync` |
 | Busca no TMDB | | `GET /tmdb/search?q=` (só `MANAGER`) | `GET /tmdb/search?q=` |
+| Sessões do cinema | | `MANAGER`: `GET /manager/sessions?date=` (com ocupação), `POST`, `DELETE /manager/sessions/{id}`, `GET /manager/rooms` | |
 | Pedidos e programação | | `MANAGER`: `POST`, `GET /manager/movie-requests`, `GET /manager/programacao`, `POST /manager/programacao/{movieId}/confirm` | `GET /admin/movie-requests?status=`, `POST /{id}/approve`, `POST /{id}/reject`, `GET /admin/movies`, `POST /admin/movies/{id}/offer` |
 | Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |

@@ -38,12 +38,22 @@ public class MovieController {
     }
 
     @Operation(summary = "Filmes em cartaz (público)",
-            description = "Só filmes ativos em algum cinema; com cinemaId, só os daquele cinema.")
+            description = "Ativos em algum cinema e já estreados. Filtros opcionais: cinemaId ou cidade.")
     @GetMapping
     public ResponseEntity<Page<MovieResponseDTO>> findAll(
             @RequestParam(required = false) Long cinemaId,
+            @RequestParam(required = false) String cidade,
             @ParameterObject @PageableDefault(size = 10, page = 0, sort = "titulo") Pageable pageable) {
-        return ResponseEntity.ok(movieService.findAll(pageable, cinemaId));
+        return ResponseEntity.ok(movieService.findAll(pageable, cinemaId, cidade));
+    }
+
+    @Operation(summary = "Em breve (público)",
+            description = "Filmes programados em algum cinema com estreia depois de hoje. Filtro opcional: cidade.")
+    @GetMapping("/em-breve")
+    public ResponseEntity<Page<MovieResponseDTO>> comingSoon(
+            @RequestParam(required = false) String cidade,
+            @ParameterObject @PageableDefault(size = 10, page = 0, sort = "dataEstreia") Pageable pageable) {
+        return ResponseEntity.ok(movieService.findComingSoon(pageable, cidade));
     }
 
     @GetMapping("/{id}")

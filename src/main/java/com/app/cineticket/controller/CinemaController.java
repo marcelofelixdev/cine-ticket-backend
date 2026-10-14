@@ -25,8 +25,15 @@ public class CinemaController {
 
     @GetMapping
     public ResponseEntity<org.springframework.data.domain.Page<CinemaResponseDTO>> findAll(
+            @RequestParam(required = false) String cidade,
             @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "nome") org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(cinemaService.findAll(pageable));
+        return ResponseEntity.ok(cinemaService.findAll(pageable, cidade));
+    }
+
+    /** Cidades com cinema, para o seletor de cidade do site (público). */
+    @GetMapping("/cidades")
+    public ResponseEntity<java.util.List<com.app.cineticket.dto.response.CidadeDTO>> cidades() {
+        return ResponseEntity.ok(cinemaService.cidades());
     }
 
     @GetMapping("/{id}")

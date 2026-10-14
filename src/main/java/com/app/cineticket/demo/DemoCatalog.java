@@ -19,7 +19,7 @@ public final class DemoCatalog {
     public record DemoRoom(String nome, int capacidade, BigDecimal precoBase) {
     }
 
-    public record DemoCinema(String nome, String cnpj, String endereco, List<DemoRoom> salas) {
+    public record DemoCinema(String nome, String cnpj, String endereco, String cidade, String uf, List<DemoRoom> salas) {
     }
 
     /** Quantos dias à frente o demo mantém sessões programadas. */
@@ -27,6 +27,9 @@ public final class DemoCatalog {
 
     /** Acréscimo no preço aos sábados e domingos. */
     public static final BigDecimal WEEKEND_SURCHARGE = new BigDecimal("6.00");
+
+    /** Filmes brasileiros: sessões com áudio NACIONAL. */
+    public static final java.util.Set<Long> NATIONAL_MOVIES = java.util.Set.of(598L, 1000837L);
 
     public static final List<DemoMovie> MOVIES = List.of(
             // Clássicos
@@ -53,11 +56,11 @@ public final class DemoCatalog {
     /** CNPJs fictícios, só para demonstração. */
     public static final List<DemoCinema> CINEMAS = List.of(
             new DemoCinema("CineTicket Paulista", "00.000.000/0001-91",
-                    "Av. Paulista, 1000 - Bela Vista, São Paulo/SP",
+                    "Av. Paulista, 1000 - Bela Vista, São Paulo/SP", "São Paulo", "SP",
                     List.of(new DemoRoom("Sala 1 - IMAX", 120, new BigDecimal("42.00")),
                             new DemoRoom("Sala 2", 80, new BigDecimal("30.00")))),
             new DemoCinema("CineTicket Copacabana", "00.000.000/0002-72",
-                    "Av. Atlântica, 2000 - Copacabana, Rio de Janeiro/RJ",
+                    "Av. Atlântica, 2000 - Copacabana, Rio de Janeiro/RJ", "Rio de Janeiro", "RJ",
                     List.of(new DemoRoom("Sala 1", 100, new BigDecimal("30.00")),
                             new DemoRoom("Sala 2 - VIP", 40, new BigDecimal("50.00"))))
     );

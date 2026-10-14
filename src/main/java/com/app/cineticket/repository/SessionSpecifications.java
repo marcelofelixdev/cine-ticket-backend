@@ -28,6 +28,14 @@ public final class SessionSpecifications {
         return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("horarioInicio"), from);
     }
 
+    public static Specification<Session> formato(String formato) {
+        return (root, query, cb) -> cb.equal(root.get("formato"), formato);
+    }
+
+    public static Specification<Session> audio(com.app.cineticket.domain.enums.SessionAudio audio) {
+        return (root, query, cb) -> cb.equal(root.get("audio"), audio);
+    }
+
     /** Sessões que começam antes deste instante (exclusivo). */
     public static Specification<Session> startsBefore(LocalDateTime to) {
         return (root, query, cb) -> cb.lessThan(root.get("horarioInicio"), to);

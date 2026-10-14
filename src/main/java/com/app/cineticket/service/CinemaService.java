@@ -40,10 +40,20 @@ public class CinemaService {
         return cinemaMapper.toResponseDTO(savedCinema);
     }
 
+    /** Cinemas (público); com cidade, só os daquela cidade (sem diferenciar maiúsculas). */
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<CinemaResponseDTO> findAll(org.springframework.data.domain.Pageable pageable) {
-        return cinemaRepository.findAll(pageable)
-                .map(cinemaMapper::toResponseDTO);
+    public org.springframework.data.domain.Page<CinemaResponseDTO> findAll(
+            org.springframework.data.domain.Pageable pageable, String cidade) {
+        var page = cidade == null || cidade.isBlank()
+                ? cinemaRepository.findAll(pageable)
+                : cinemaRepository.findByCidadeIgnoreCase(cidade.trim(), pageable);
+        return page.map(cinemaMapper::toResponseDTO);
+    }
+
+    /** Cidades com pelo menos um cinema, em ordem alfabética. */
+    @Transactional(readOnly = true)
+    public java.util.List<com.app.cineticket.dto.response.CidadeDTO> cidades() {
+        return cinemaRepository.findCidades();
     }
 
     @Transactional(readOnly = true)
@@ -62,6 +72,8 @@ public class CinemaService {
         cinema.setCnpj(requestDTO.cnpj());
         cinema.setNome(requestDTO.nome());
         cinema.setEndereco(requestDTO.endereco());
+        cinema.setCidade(requestDTO.cidade().trim());
+        cinema.setUf(requestDTO.uf());
 
         return cinemaMapper.toResponseDTO(cinemaRepository.save(cinema));
     }

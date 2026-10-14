@@ -47,6 +47,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     long countByUsedAtIsNotNull();
 
+    long countBySessionIdAndStatusIn(Long sessionId, java.util.Collection<TicketStatus> statuses);
+
     long countBySessionIdAndTicketTypeInAndStatusIn(Long sessionId,
                                                      java.util.Collection<com.app.cineticket.domain.enums.TicketType> types,
                                                      java.util.Collection<TicketStatus> statuses);

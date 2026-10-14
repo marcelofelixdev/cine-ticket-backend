@@ -4,5 +4,7 @@ public record CinemaResponseDTO (
     Long id,
     String nome,
     String cnpj,
-    String endereco
+    String endereco,
+    String cidade,
+    String uf
 ) {}

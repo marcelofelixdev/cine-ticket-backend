@@ -34,7 +34,8 @@ class ApiErrorResponsesTest extends AbstractIntegrationTest {
 
     private static final String CINEMAS = "/api/v1/cinemas";
     private static final String VALID_CINEMA =
-            "{\"nome\":\"Cine Teste\",\"cnpj\":\"12345678000199\",\"endereco\":\"Rua A, 1\"}";
+            "{\"nome\":\"Cine Teste\",\"cnpj\":\"12345678000199\",\"endereco\":\"Rua A, 1\","
+                    + "\"cidade\":\"São Paulo\",\"uf\":\"SP\"}";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private TokenService tokenService;

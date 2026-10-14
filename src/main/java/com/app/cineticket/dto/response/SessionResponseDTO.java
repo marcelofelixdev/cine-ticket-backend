@@ -12,5 +12,7 @@ public record SessionResponseDTO (
         Long roomId,
         String roomNome,
         Long cinemaId,
-        String cinemaNome
+        String cinemaNome,
+        String formato,
+        com.app.cineticket.domain.enums.SessionAudio audio
 ) {}

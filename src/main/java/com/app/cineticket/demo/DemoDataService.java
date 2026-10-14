@@ -166,13 +166,17 @@ public class DemoDataService {
                 if (alreadyScheduled) {
                     continue;
                 }
+                int slotIndex = 0;
                 for (DemoSchedulePlanner.Slot slot : DemoSchedulePlanner.planDay(day, durations, r, now)) {
+                    Movie movie = movies.get(slot.movieIndex());
                     Session session = new Session();
-                    session.setMovie(movies.get(slot.movieIndex()));
+                    session.setMovie(movie);
                     session.setRoom(room);
                     session.setHorarioInicio(slot.start());
                     session.setValorBase(priceFor(room, day));
                     session.setAtivo(true);
+                    session.setFormato(room.getNome().contains("IMAX") ? "3D" : "2D");
+                    session.setAudio(audioFor(movie, slotIndex++));
                     sessionRepository.save(session);
                     created++;
                 }
@@ -235,12 +239,21 @@ public class DemoDataService {
     private void seedCinemas() {
         for (DemoCatalog.DemoCinema demoCinema : DemoCatalog.CINEMAS) {
             if (cinemaRepository.existsByCnpj(demoCinema.cnpj())) {
+                // Cinemas criados antes da V16 ganham cidade e UF.
+                cinemaRepository.findAll().stream()
+                        .filter(existing -> demoCinema.cnpj().equals(existing.getCnpj()) && existing.getCidade() == null)
+                        .forEach(existing -> {
+                            existing.setCidade(demoCinema.cidade());
+                            existing.setUf(demoCinema.uf());
+                        });
                 continue;
             }
             Cinema cinema = new Cinema();
             cinema.setNome(demoCinema.nome());
             cinema.setCnpj(demoCinema.cnpj());
             cinema.setEndereco(demoCinema.endereco());
+            cinema.setCidade(demoCinema.cidade());
+            cinema.setUf(demoCinema.uf());
             Long cinemaId = cinemaRepository.save(cinema).getId();
 
             for (DemoCatalog.DemoRoom demoRoom : demoCinema.salas()) {
@@ -296,6 +309,19 @@ public class DemoDataService {
                 .findFirst()
                 .orElse(new BigDecimal("30.00"));
         return WEEKEND.contains(day.getDayOfWeek()) ? base.add(DemoCatalog.WEEKEND_SURCHARGE) : base;
+    }
+
+    /** Animação dublada, filme brasileiro nacional, os demais alternando dublado e legendado. */
+    private static com.app.cineticket.domain.enums.SessionAudio audioFor(Movie movie, int slotIndex) {
+        if (movie.getTmdbId() != null && DemoCatalog.NATIONAL_MOVIES.contains(Long.parseLong(movie.getTmdbId()))) {
+            return com.app.cineticket.domain.enums.SessionAudio.NACIONAL;
+        }
+        if (movie.getGeneros() != null && movie.getGeneros().contains("Animação")) {
+            return com.app.cineticket.domain.enums.SessionAudio.DUBLADO;
+        }
+        return slotIndex % 2 == 0
+                ? com.app.cineticket.domain.enums.SessionAudio.DUBLADO
+                : com.app.cineticket.domain.enums.SessionAudio.LEGENDADO;
     }
 
     private static boolean isAdmin(User user) {

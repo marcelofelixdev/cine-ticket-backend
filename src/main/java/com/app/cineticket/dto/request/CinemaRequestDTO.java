@@ -15,6 +15,14 @@ public record CinemaRequestDTO(
 
     @NotBlank(message = "O endereço é obrigatório")
     @Size(max = 200)
-    String endereco
+    String endereco,
+
+    @NotBlank(message = "A cidade é obrigatória")
+    @Size(max = 100)
+    String cidade,
+
+    @NotBlank(message = "A UF é obrigatória")
+    @jakarta.validation.constraints.Pattern(regexp = "[A-Z]{2}", message = "UF deve ter 2 letras maiúsculas (ex.: SP)")
+    String uf
 
     ) {}

@@ -126,11 +126,22 @@ public class MovieService {
         return movieMapper.toResponseDTO(movieRepository.save(movie));
     }
 
-    /** Catálogo público: só filmes em cartaz em algum cinema (ou no cinema informado). */
+    /** Catálogo público: filmes em cartaz (opcionalmente de um cinema ou de uma cidade). */
     @Transactional(readOnly = true)
-    public Page<MovieResponseDTO> findAll(Pageable pageable, Long cinemaId) {
-        return movieRepository.findAll(MovieSpecifications.emCartaz(cinemaId), pageable)
+    public Page<MovieResponseDTO> findAll(Pageable pageable, Long cinemaId, String cidade) {
+        return movieRepository.findAll(MovieSpecifications.emCartaz(cinemaId, cidade, today()), pageable)
                 .map(movieMapper::toResponseDTO);
+    }
+
+    /** "Em breve": filmes programados com estreia depois de hoje (opcionalmente de uma cidade). */
+    @Transactional(readOnly = true)
+    public Page<MovieResponseDTO> findComingSoon(Pageable pageable, String cidade) {
+        return movieRepository.findAll(MovieSpecifications.emBreve(cidade, today()), pageable)
+                .map(movieMapper::toResponseDTO);
+    }
+
+    private static java.time.LocalDate today() {
+        return java.time.LocalDate.now(AppTimeZone.ZONE);
     }
 
     @Transactional(readOnly = true)
