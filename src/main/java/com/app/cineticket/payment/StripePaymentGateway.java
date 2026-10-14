@@ -1,9 +1,11 @@
 package com.app.cineticket.payment;
 
 import com.app.cineticket.domain.entity.Ticket;
+import com.app.cineticket.exception.InvalidPaymentMethodException;
 import com.app.cineticket.exception.PaymentGatewayException;
 import com.stripe.StripeClient;
 import com.stripe.exception.CardException;
+import com.stripe.exception.InvalidRequestException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.PaymentIntent;
 import com.stripe.net.RequestOptions;
@@ -24,6 +26,8 @@ import java.math.RoundingMode;
 @Component
 @ConditionalOnProperty(name = "payments.provider", havingValue = "stripe")
 public class StripePaymentGateway implements PaymentGateway {
+
+    static final String INVALID_PAYMENT_METHOD = "O método de pagamento informado não existe nesta conta do Stripe. Em modo de teste, use pm_card_visa ou pm_card_chargeDeclined.";
 
     private final StripeClient client;
     private final String currency;
@@ -77,6 +81,13 @@ public class StripePaymentGateway implements PaymentGateway {
             String reason = e.getDeclineCode() != null ? e.getDeclineCode() : e.getCode();
             log.info("[STRIPE] Cartão recusado para o ingresso {}: {}", ticket.getId(), reason);
             return PaymentResult.declined(null, "Cartão recusado pelo emissor (" + reason + ").");
+        } catch (InvalidRequestException e) {
+            if ("payment_method".equals(e.getParam()) || "resource_missing".equals(e.getCode())) {
+                log.info("[STRIPE] Método de pagamento inválido para o ingresso {}: {}", ticket.getId(), e.getMessage());
+                throw new InvalidPaymentMethodException(INVALID_PAYMENT_METHOD);
+            }
+            log.error("[STRIPE] Requisição inválida ao cobrar o ingresso {}: {}", ticket.getId(), e.getMessage());
+            throw new PaymentGatewayException("Não foi possível falar com o gateway de pagamento. Tente novamente.", e);
         } catch (StripeException e) {
             log.error("[STRIPE] Falha ao cobrar o ingresso {}: {}", ticket.getId(), e.getMessage());
             throw new PaymentGatewayException("Não foi possível falar com o gateway de pagamento. Tente novamente.", e);

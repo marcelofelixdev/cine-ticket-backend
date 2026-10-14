@@ -161,7 +161,7 @@ Sem essas variáveis, o simulador (`PAYMENTS_PROVIDER=mock`) aprova os mesmos ID
 ./mvnw verify          # Windows: mvnw.cmd verify
 ```
 
-- **132 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
+- **136 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
 - Destaques: concorrência de compra do mesmo assento, fluxo assíncrono de pagamento, rotação e reuso de refresh token, matriz de autorização (admin e dono do recurso) e perfil de demonstração.
 - Cobertura (JaCoCo): `target/site/jacoco/index.html`.
 
