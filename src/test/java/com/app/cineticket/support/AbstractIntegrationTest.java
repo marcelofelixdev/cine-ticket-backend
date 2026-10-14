@@ -1,5 +1,6 @@
 package com.app.cineticket.support;
 
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -27,6 +28,9 @@ import org.springframework.context.annotation.Import;
         "payments.stripe.secret-key="
 })
 @AutoConfigureMockMvc
+// Por padrão os testes do Spring Boot desligam a exportação de métricas (o /actuator/prometheus
+// responderia 404). Ligado aqui, na base, para não criar um segundo contexto só para isso.
+@AutoConfigureObservability(tracing = false)
 @Import(TestcontainersConfiguration.class)
 public abstract class AbstractIntegrationTest {
 
