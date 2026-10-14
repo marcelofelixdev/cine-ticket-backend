@@ -122,12 +122,13 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void classificacaoInvalidaRecebe400() throws Exception {
+    void classificacaoInvalidaRecebe422() throws Exception {
         mockMvc.perform(put("/api/v1/movies/" + movieId)
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"classificacao\":\"18+\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errors[0].field").value("classificacao"));
     }
 
     @Test
@@ -136,7 +137,8 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", "Bearer " + adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"titulo\":\"Só o título\"}"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.errors[0].field").value("identificado"));
     }
 
     @Test
