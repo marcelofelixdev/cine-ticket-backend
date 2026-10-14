@@ -27,8 +27,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -169,13 +171,11 @@ class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     /** Espera o consumidor processar a mensagem (até 15 s). */
-    private TicketStatus waitForStatusOtherThanPending(Long ticketId) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 15_000;
-        TicketStatus status = TicketStatus.PENDING;
-        while (status == TicketStatus.PENDING && System.currentTimeMillis() < deadline) {
-            Thread.sleep(200);
-            status = ticketRepository.findById(ticketId).orElseThrow().getStatus();
-        }
-        return status;
+    private TicketStatus waitForStatusOtherThanPending(Long ticketId) {
+        return await("ingresso " + ticketId + " sair de PENDING")
+                .atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> ticketRepository.findById(ticketId).orElseThrow().getStatus(),
+                        status -> status != TicketStatus.PENDING);
     }
 }

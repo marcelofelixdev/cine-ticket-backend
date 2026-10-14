@@ -30,10 +30,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -145,11 +147,14 @@ class RefundIntegrationTest extends AbstractIntegrationTest {
         transactionTemplate.executeWithoutResult(status -> outboxService.refundRequested(event));
 
         waitForRefund(paymentIntentId);
-        Thread.sleep(3_000); // tempo para a segunda mensagem também ser consumida
 
-        List<Refund> refunds = refundRepository.findByTicketId(ticket.getId());
-        assertEquals(1, refunds.size());
-        assertEquals(1, refunds.get(0).getAttempts());
+        // A segunda mensagem também é consumida; durante 3 s continua existindo um único estorno.
+        await("um único estorno para " + paymentIntentId)
+                .during(Duration.ofSeconds(3))
+                .atMost(Duration.ofSeconds(6))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> refundRepository.findByTicketId(ticket.getId()),
+                        refunds -> refunds.size() == 1 && refunds.get(0).getAttempts() == 1);
     }
 
     private Ticket approvedTicket(String paymentIntentId) {
@@ -164,15 +169,12 @@ class RefundIntegrationTest extends AbstractIntegrationTest {
         return ticketRepository.save(ticket);
     }
 
-    private Refund waitForRefund(String paymentIntentId) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 15_000;
-        while (System.currentTimeMillis() < deadline) {
-            var refund = refundRepository.findByPaymentIntentId(paymentIntentId);
-            if (refund.isPresent() && refund.get().getStatus() == RefundStatus.REFUNDED) {
-                return refund.get();
-            }
-            Thread.sleep(200);
-        }
-        throw new AssertionError("O pagamento " + paymentIntentId + " não foi estornado a tempo");
+    private Refund waitForRefund(String paymentIntentId) {
+        return await("estorno do pagamento " + paymentIntentId)
+                .atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> refundRepository.findByPaymentIntentId(paymentIntentId),
+                        refund -> refund.isPresent() && refund.get().getStatus() == RefundStatus.REFUNDED)
+                .orElseThrow();
     }
 }

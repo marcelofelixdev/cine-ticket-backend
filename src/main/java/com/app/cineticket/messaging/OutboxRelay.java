@@ -1,5 +1,6 @@
 package com.app.cineticket.messaging;
 
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.OutboxEvent;
 import com.app.cineticket.repository.OutboxEventRepository;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,7 @@ public class OutboxRelay {
         for (OutboxEvent event : batch) {
             try {
                 send(event);
-                event.setPublishedAt(LocalDateTime.now());
+                event.setPublishedAt(LocalDateTime.now(AppTimeZone.ZONE));
                 event.setLastError(null);
                 published++;
             } catch (RuntimeException e) {
@@ -76,7 +77,7 @@ public class OutboxRelay {
     @Scheduled(cron = "${outbox.cleanup-cron:0 30 3 * * *}", zone = "America/Sao_Paulo")
     @Transactional
     public void deleteOldPublished() {
-        int deleted = repository.deletePublishedBefore(LocalDateTime.now().minus(retention));
+        int deleted = repository.deletePublishedBefore(LocalDateTime.now(AppTimeZone.ZONE).minus(retention));
         if (deleted > 0) {
             log.info("[OUTBOX] {} evento(s) publicado(s) antigo(s) removido(s).", deleted);
         }

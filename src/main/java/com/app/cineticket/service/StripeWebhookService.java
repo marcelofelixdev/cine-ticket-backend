@@ -1,5 +1,6 @@
 package com.app.cineticket.service;
 
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.ProcessedWebhookEvent;
 import com.app.cineticket.dto.request.PaymentEventDTO;
 import com.app.cineticket.exception.InvalidWebhookSignatureException;
@@ -64,7 +65,7 @@ public class StripeWebhookService {
             log.info("[WEBHOOK] Evento {} ({}) já processado; ignorado.", eventId, type);
             return;
         }
-        processedEvents.save(new ProcessedWebhookEvent(eventId, type, LocalDateTime.now()));
+        processedEvents.save(new ProcessedWebhookEvent(eventId, type, LocalDateTime.now(AppTimeZone.ZONE)));
 
         JsonNode intent = event.path("data").path("object");
         switch (type) {

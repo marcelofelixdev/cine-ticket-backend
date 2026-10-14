@@ -1,5 +1,6 @@
 package com.app.cineticket.messaging;
 
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.config.RabbitMQConfig;
 import com.app.cineticket.domain.entity.OutboxEvent;
 import com.app.cineticket.dto.request.PaymentEventDTO;
@@ -46,7 +47,7 @@ public class OutboxService {
         event.setExchange(RabbitMQConfig.EXCHANGE_CINETICKET);
         event.setRoutingKey(routingKey);
         event.setPayload(toJson(payload));
-        event.setCreatedAt(LocalDateTime.now());
+        event.setCreatedAt(LocalDateTime.now(AppTimeZone.ZONE));
         repository.save(event);
     }
 

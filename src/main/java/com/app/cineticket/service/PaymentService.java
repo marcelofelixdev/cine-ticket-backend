@@ -1,5 +1,6 @@
 package com.app.cineticket.service;
 
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
@@ -60,7 +61,7 @@ public class PaymentService {
         if (ticket.getStatus() != TicketStatus.PENDING) {
             throw new ConflictException("Este ingresso não está aguardando pagamento.");
         }
-        if (ticket.getExpiresAt() != null && !ticket.getExpiresAt().isAfter(LocalDateTime.now())) {
+        if (ticket.getExpiresAt() != null && !ticket.getExpiresAt().isAfter(LocalDateTime.now(AppTimeZone.ZONE))) {
             throw new ConflictException("O prazo de pagamento deste ingresso expirou.");
         }
         if (ticket.getPaymentIntentId() != null) {

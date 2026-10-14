@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,18 +33,16 @@ public class TicketPaymentController {
             description = "Responde 202: a aprovação é assíncrona (acompanhe em GET /api/v1/tickets/{id}). "
                     + "Em modo de teste use paymentMethodId = pm_card_visa (aprovado) ou "
                     + "pm_card_chargeDeclined (recusado).")
-    @ApiResponses({
-            @ApiResponse(responseCode = "202", description = "Pagamento aceito; o ingresso continua PENDING até a confirmação",
-                    content = @Content(schema = @Schema(implementation = TicketResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "O ingresso é de outro usuário", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ingresso não encontrado", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Ingresso não está aguardando pagamento, expirou ou já foi pago",
-                    content = @Content),
-            @ApiResponse(responseCode = "422", description = "Cartão recusado, exige 3-D Secure ou método de pagamento inválido",
-                    content = @Content),
-            @ApiResponse(responseCode = "429", description = "Muitas tentativas de pagamento por minuto", content = @Content),
-            @ApiResponse(responseCode = "502", description = "Falha de comunicação com o gateway de pagamento", content = @Content)
-    })
+    @ApiResponse(responseCode = "202", description = "Pagamento aceito; o ingresso continua PENDING até a confirmação",
+            content = @Content(schema = @Schema(implementation = TicketResponseDTO.class)))
+    @ApiResponse(responseCode = "403", description = "O ingresso é de outro usuário", content = @Content)
+    @ApiResponse(responseCode = "404", description = "Ingresso não encontrado", content = @Content)
+    @ApiResponse(responseCode = "409", description = "Ingresso não está aguardando pagamento, expirou ou já foi pago",
+            content = @Content)
+    @ApiResponse(responseCode = "422", description = "Cartão recusado, exige 3-D Secure ou método de pagamento inválido",
+            content = @Content)
+    @ApiResponse(responseCode = "429", description = "Muitas tentativas de pagamento por minuto", content = @Content)
+    @ApiResponse(responseCode = "502", description = "Falha de comunicação com o gateway de pagamento", content = @Content)
     @PostMapping("/{id}/payment")
     public ResponseEntity<TicketResponseDTO> pay(@PathVariable Long id,
                                                  @RequestBody @Valid PaymentRequestDTO request) {
