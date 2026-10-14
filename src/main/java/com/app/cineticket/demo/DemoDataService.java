@@ -18,6 +18,7 @@ import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
 import com.app.cineticket.repository.UserRepository;
+import com.app.cineticket.service.MovieTmdbEnricher;
 import com.app.cineticket.service.RoomService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,7 +47,6 @@ import java.util.Set;
 @Profile("demo")
 public class DemoDataService {
 
-    private static final String TMDB_POSTER_BASE = "https://image.tmdb.org/t/p/w500";
     private static final Set<DayOfWeek> WEEKEND = EnumSet.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY);
 
     private final MovieRepository movieRepository;
@@ -176,18 +176,24 @@ public class DemoDataService {
         return created;
     }
 
+    /**
+     * Cria os filmes que faltam e completa a ficha dos que nunca foram sincronizados com o TMDB
+     * (inclusive os criados antes da V14). Sem TMDB, usa o plano B do catálogo local.
+     */
     private void seedMovies() {
         boolean tmdbAvailable = true;
         for (DemoCatalog.DemoMovie demoMovie : DemoCatalog.MOVIES) {
             String tmdbId = String.valueOf(demoMovie.tmdbId());
-            if (movieRepository.existsByTmdbId(tmdbId)) {
+            Movie movie = movieRepository.findByTmdbIdIn(List.of(tmdbId)).stream().findFirst().orElse(null);
+            if (movie != null && movie.getTmdbSincronizadoEm() != null) {
                 continue;
             }
-
-            Movie movie = new Movie();
-            movie.setTmdbId(tmdbId);
-            movie.setTitulo(demoMovie.titulo());
-            movie.setDuracaoEmMinutos(demoMovie.duracaoMinutos());
+            if (movie == null) {
+                movie = new Movie();
+                movie.setTmdbId(tmdbId);
+                movie.setTitulo(demoMovie.titulo());
+                movie.setDuracaoEmMinutos(demoMovie.duracaoMinutos());
+            }
 
             if (tmdbAvailable) {
                 try {
@@ -195,9 +201,14 @@ public class DemoDataService {
                 } catch (Exception e) {
                     // Se o TMDB não responde, não insiste filme a filme: usa o plano B para todos.
                     tmdbAvailable = false;
-                    log.warn("[DEMO] TMDB indisponível ({}). Usando título e duração do catálogo local.",
-                            e.getMessage());
+                    log.warn("[DEMO] TMDB indisponível ({}). Usando os dados do catálogo local.", e.getMessage());
                 }
+            }
+            if (movie.getDiretor() == null) {
+                movie.setDiretor(demoMovie.diretor());
+            }
+            if (movie.getGeneros() == null) {
+                movie.setGeneros(demoMovie.generos());
             }
             movieRepository.save(movie);
         }
@@ -210,13 +221,10 @@ public class DemoDataService {
         if (details.title() != null && !details.title().isBlank()) {
             movie.setTitulo(details.title().length() > 150 ? details.title().substring(0, 150) : details.title());
         }
-        movie.setSinopse(details.overview());
-        if (details.poster_path() != null) {
-            movie.setPosterUrl(TMDB_POSTER_BASE + details.poster_path());
-        }
         if (details.runtime() != null && details.runtime() > 0) {
             movie.setDuracaoEmMinutos(details.runtime());
         }
+        MovieTmdbEnricher.apply(movie, details, LocalDateTime.now(AppTimeZone.ZONE));
     }
 
     private void seedCinemas() {

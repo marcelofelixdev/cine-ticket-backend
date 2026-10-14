@@ -83,6 +83,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cinemas", "/api/v1/movies", "/api/v1/rooms", "/api/v1/sessions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/movies/*/tmdb-sync").hasRole("ADMIN")
+                        // Busca no TMDB (gasta a cota da nossa chave): só quem cadastra ou pede filmes.
+                        .requestMatchers(HttpMethod.GET, "/api/v1/tmdb/**").hasAnyRole("ADMIN", "MANAGER")
                         .requestMatchers(HttpMethod.PUT, "/api/v1/cinemas/**", "/api/v1/movies/**", "/api/v1/rooms/**", "/api/v1/sessions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/cinemas/**", "/api/v1/movies/**", "/api/v1/rooms/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/sessions/**").hasRole("ADMIN")

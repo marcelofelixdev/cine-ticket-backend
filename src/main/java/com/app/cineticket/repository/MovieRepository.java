@@ -11,6 +11,8 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
 
     boolean existsByTmdbId(String tmdbId);
 
+    java.util.List<Movie> findByTmdbIdIn(java.util.Collection<String> tmdbIds);
+
     Page<Movie> findAll(Pageable pageable);
 
 }

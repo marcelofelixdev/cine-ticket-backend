@@ -116,6 +116,7 @@ class SecurityMatrixTest extends AbstractIntegrationTest {
             "POST,   /api/v1/movies",
             "PUT,    /api/v1/movies/1",
             "DELETE, /api/v1/movies/1",
+            "POST,   /api/v1/movies/1/tmdb-sync",
             "POST,   /api/v1/rooms",
             "PUT,    /api/v1/rooms/1",
             "DELETE, /api/v1/rooms/1",

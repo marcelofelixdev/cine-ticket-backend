@@ -32,7 +32,8 @@ No ambiente de demonstração, as compras e as contas criadas são apagadas todo
 
 ## ✨ Funcionalidades
 
-- **Catálogo público:** filmes (enriquecidos pelo [TMDB](https://www.themoviedb.org/)), cinemas e sessões com filtros por filme, cinema e data.
+- **Catálogo público:** filmes com ficha completa do [TMDB](https://www.themoviedb.org/) (direção, elenco, produtora, gêneros, classificação indicativa brasileira, trailer, estreia), cinemas e sessões com filtros por filme, cinema e data.
+- **Cadastro de filmes pelo nome:** o painel pesquisa no TMDB, a pessoa escolhe o filme certo e o resto da ficha é preenchido sozinho.
 - **Mapa de assentos** por sessão, com status livre ou ocupado.
 - **Compra de ingresso** com inteira e meia: **reserva que expira em 10 minutos** e pagamento pelo **Stripe em modo de teste** (ou simulador), com aprovação assíncrona via webhook assinado, outbox e RabbitMQ.
 - **Ingresso em PDF** com QR Code, cancelamento até 30 minutos antes da sessão e reembolso.
@@ -59,7 +60,7 @@ flowchart LR
     P --> MQ[[RabbitMQ<br/>pagamentos e reembolsos + DLQs]]
     MQ --> CO[Consumers de pagamento e reembolso]
     CO --> DB
-    S -->|título, sinopse e pôster| TMDB[(TMDB API)]
+    S -->|ficha do filme| TMDB[(TMDB API)]
 ```
 
 **Fluxo de compra:**
@@ -198,7 +199,8 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Recurso | Público | Usuário | Admin |
 |---|---|---|---|
 | Auth | `POST /auth/login`, `/refresh`, `/logout` · `POST /users` | `GET /users/me`, `PATCH /users/me` | |
-| Filmes e cinemas | `GET` (lista e detalhe) | | `POST`, `PUT`, `DELETE` |
+| Filmes e cinemas | `GET` (lista e detalhe) | | `POST` (filme por `tmdbId`), `PUT` (correção parcial), `DELETE`, `POST /movies/{id}/tmdb-sync` |
+| Busca no TMDB | | `GET /tmdb/search?q=` (só `MANAGER`) | `GET /tmdb/search?q=` |
 | Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
 | Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `GET /{id}/qr`, `PUT /{id}/cancel` | `POST /validate` (também `STAFF`) |
