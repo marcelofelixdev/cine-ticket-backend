@@ -1,48 +1,60 @@
 package com.app.cineticket.messaging;
 
 import com.app.cineticket.config.RabbitMQConfig;
+import com.app.cineticket.domain.entity.Ticket;
+import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.dto.request.PaymentEventDTO;
+import com.app.cineticket.dto.request.RefundEventDTO;
 import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.transaction.annotation.Transactional;
 
-@Component
-@ConditionalOnProperty(name = "payments.mock.enabled", havingValue = "true")
-@RequiredArgsConstructor
+/**
+ * Processa pagamentos confirmados (webhook do Stripe ou simulador).
+ * <ul>
+ *   <li>Ingresso ainda PENDING e valor igual: aprova com um UPDATE condicional (idempotente).</li>
+ *   <li>Mesmo pagamento recebido de novo: ignora.</li>
+ *   <li>Ingresso que não pode mais ser aprovado (expirou, foi cancelado, valor divergente):
+ *       o cliente pagou por algo que não vai receber, então o reembolso é pedido pelo outbox.</li>
+ * </ul>
+ * Erros inesperados vão para a DLQ, sem reprocessamento automático.
+ */
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class PaymentConsumer {
 
     private final TicketRepository ticketRepository;
+    private final OutboxService outboxService;
 
     @RabbitListener(queues = RabbitMQConfig.FILA_PAGAMENTOS)
     @Transactional
-    public void processarPagamento(PaymentEventDTO evento) {
-        if (evento == null) {
-            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException("Evento de pagamento ausente");
+    public void onPaymentConfirmed(PaymentEventDTO event) {
+        if (event == null || event.ticketId() == null || event.valor() == null || event.paymentIntentId() == null) {
+            throw new AmqpRejectAndDontRequeueException("Evento de pagamento inválido: " + event);
         }
-        log.info("[CONSUMER] Iniciando cobranca do ingresso: {}", evento.ticketId());
 
-        try {
-            if (evento.ticketId() == null || evento.valor() == null) {
-                throw new org.springframework.amqp.AmqpRejectAndDontRequeueException("Evento de pagamento inválido");
-            }
-            int updated = ticketRepository.approvePendingPayment(evento.ticketId(), evento.valor());
-            if (updated == 0) {
-                log.info("[CONSUMER] Pagamento ignorado por estado/valor divergente. Ingresso: {}", evento.ticketId());
-                return;
-            }
-            log.info("[CONSUMER] Pagamento APROVADO! Ingresso {} liberado para uso.", evento.ticketId());
-        } catch (Exception e) {
-            if (e instanceof org.springframework.amqp.AmqpRejectAndDontRequeueException reject) {
-                throw reject;
-            }
-            log.error("Erro ao processar pagamento", e);
-            throw new org.springframework.amqp.AmqpRejectAndDontRequeueException("Erro ao processar pagamento", e);
+        int updated = ticketRepository.approvePendingPayment(event.ticketId(), event.valor(), event.paymentIntentId());
+        if (updated == 1) {
+            log.info("[CONSUMER] Pagamento {} aprovado. Ingresso {} liberado.", event.paymentIntentId(), event.ticketId());
+            return;
         }
+
+        Ticket ticket = ticketRepository.findById(event.ticketId())
+                .orElseThrow(() -> new AmqpRejectAndDontRequeueException(
+                        "Pagamento " + event.paymentIntentId() + " para ingresso inexistente " + event.ticketId()));
+
+        if (ticket.getStatus() == TicketStatus.APPROVED && event.paymentIntentId().equals(ticket.getPaymentIntentId())) {
+            log.info("[CONSUMER] Pagamento {} já processado; ignorado.", event.paymentIntentId());
+            return;
+        }
+
+        log.warn("[CONSUMER] Pagamento {} recebido para o ingresso {} em estado {}: pedindo reembolso.",
+                event.paymentIntentId(), ticket.getId(), ticket.getStatus());
+        outboxService.refundRequested(new RefundEventDTO(ticket.getId(), event.paymentIntentId(), event.valor()));
     }
-
 }

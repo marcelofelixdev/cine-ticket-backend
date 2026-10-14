@@ -15,6 +15,7 @@ public interface TicketMapper {
     @Mapping(target = "seat", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "expiresAt", ignore = true)
+    @Mapping(target = "paymentIntentId", ignore = true)
     Ticket toEntity(TicketRequestDTO requestDTO);
 
     @Mapping(source = "session.id", target = "sessionId")

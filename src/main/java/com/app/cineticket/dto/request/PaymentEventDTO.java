@@ -2,10 +2,13 @@ package com.app.cineticket.dto.request;
 
 import java.math.BigDecimal;
 
-public record PaymentEventDTO (
-
+/**
+ * Pagamento confirmado pelo gateway (webhook do Stripe ou simulador).
+ * O consumidor aprova o ingresso se ele ainda estiver aguardando pagamento;
+ * caso contrário, pede o reembolso.
+ */
+public record PaymentEventDTO(
         Long ticketId,
-        String cartaoToken,
+        String paymentIntentId,
         BigDecimal valor
-
 ) {}

@@ -4,7 +4,6 @@ import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
-import com.app.cineticket.dto.request.PaymentEventDTO;
 import com.app.cineticket.dto.request.TicketRequestDTO;
 import com.app.cineticket.dto.response.TicketResponseDTO;
 import com.app.cineticket.exception.BusinessException;
@@ -12,6 +11,7 @@ import com.app.cineticket.exception.ForbiddenException;
 import com.app.cineticket.exception.ConflictException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.TicketMapper;
+import com.app.cineticket.messaging.OutboxService;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
@@ -38,7 +38,7 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final SessionRepository sessionRepository;
     private final SeatRepository seatRepository;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final OutboxService outboxService;
     private final TicketMapper ticketMapper;
     private final com.app.cineticket.service.PdfService pdfService;
 
@@ -129,13 +129,8 @@ public class TicketService {
         ticket.setStatus(TicketStatus.PENDING);
         ticket.setExpiresAt(LocalDateTime.now().plus(pendingTtl));
 
+        // Só reserva o assento: o pagamento é feito em POST /tickets/{id}/payment.
         Ticket savedTicket = ticketRepository.save(ticket);
-
-        eventPublisher.publishEvent(new PaymentEventDTO(
-                savedTicket.getId(),
-                request.cartaoToken(),
-                savedTicket.getValorPago()
-        ));
 
         return ticketMapper.toResponseDTO(savedTicket);
     }
@@ -188,8 +183,8 @@ public class TicketService {
 
         if (previousStatus == TicketStatus.APPROVED) {
             log.info("Ticket {} cancelado. Preparando reembolso...", ticket.getId());
-            eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
-                    ticket.getId(), ticket.getValorPago()));
+            outboxService.refundRequested(new com.app.cineticket.dto.request.RefundEventDTO(
+                    ticket.getId(), ticket.getPaymentIntentId(), ticket.getValorPago()));
         }
 
         return ticketMapper.toResponseDTO(ticket);

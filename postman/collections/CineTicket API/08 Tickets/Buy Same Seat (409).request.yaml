@@ -17,8 +17,7 @@ body:
     {
       "sessionId": {{sessionId}},
       "seatId": {{seatId}},
-      "ticketType": "INTEIRA",
-      "cartaoToken": "tok_postman"
+      "ticketType": "INTEIRA"
     }
 scripts:
   - type: afterResponse

@@ -1,7 +1,7 @@
 $kind: http-request
 name: Buy Ticket
 description: |-
-  O pagamento é simulado no perfil dev: o consumidor do RabbitMQ aprova o ingresso em instantes.
+  Reserva o assento (PENDING, expira em 10 minutos). O pagamento é feito no passo seguinte (Pay Ticket).
 method: POST
 url: '{{baseUrl}}/api/v1/tickets'
 order: 1000
@@ -19,8 +19,7 @@ body:
     {
       "sessionId": {{sessionId}},
       "seatId": {{seatId}},
-      "ticketType": "MEIA_ESTUDANTE",
-      "cartaoToken": "tok_postman"
+      "ticketType": "MEIA_ESTUDANTE"
     }
 scripts:
   - type: afterResponse

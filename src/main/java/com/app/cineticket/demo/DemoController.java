@@ -21,7 +21,9 @@ public class DemoController {
     public ResponseEntity<DemoInfoDTO> info() {
         return ResponseEntity.ok(new DemoInfoDTO(
                 true,
-                "Ambiente de demonstração: o pagamento é simulado e nenhum valor é cobrado.",
+                "Ambiente de demonstração: pagamento em modo de teste, nenhum valor é cobrado. "
+                        + "Reserve em POST /api/v1/tickets e pague em POST /api/v1/tickets/{id}/payment "
+                        + "com paymentMethodId pm_card_visa (aprovado) ou pm_card_chargeDeclined (recusado).",
                 demoDataService.getVisitorEmail(),
                 demoDataService.getVisitorPassword(),
                 "Compras e contas criadas são apagadas todos os dias às 04:00 (horário de Brasília)."));

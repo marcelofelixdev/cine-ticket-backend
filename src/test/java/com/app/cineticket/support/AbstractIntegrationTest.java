@@ -18,9 +18,13 @@ import org.springframework.context.annotation.Import;
 @SpringBootTest(properties = {
         "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
         "TMDB_API_KEY=test_tmdb_key",
-        "app.bootstrap.admin.enabled=false"
+        "app.bootstrap.admin.enabled=false",
+        "payments.stripe.webhook-secret=" + AbstractIntegrationTest.WEBHOOK_SECRET
 })
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 public abstract class AbstractIntegrationTest {
+
+    /** Signing secret do webhook do Stripe usado nos testes (o gateway continua simulado). */
+    protected static final String WEBHOOK_SECRET = "whsec_test_cineticket";
 }

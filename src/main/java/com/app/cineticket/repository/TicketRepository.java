@@ -31,11 +31,13 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findBySessionIdForUpdate(@Param("sessionId") Long sessionId);
 
     @Modifying
-    @Query("update Ticket t set t.status = com.app.cineticket.domain.enums.TicketStatus.APPROVED " +
+    @Query("update Ticket t set t.status = com.app.cineticket.domain.enums.TicketStatus.APPROVED, " +
+            "t.paymentIntentId = :paymentIntentId " +
             "where t.id = :ticketId and t.status = com.app.cineticket.domain.enums.TicketStatus.PENDING " +
             "and t.valorPago = :expectedAmount")
     int approvePendingPayment(@Param("ticketId") Long ticketId,
-                              @Param("expectedAmount") BigDecimal expectedAmount);
+                              @Param("expectedAmount") BigDecimal expectedAmount,
+                              @Param("paymentIntentId") String paymentIntentId);
 
     long countByUserIdAndStatus(Long userId, TicketStatus status);
 

@@ -46,4 +46,8 @@ public class Ticket extends AuditableEntity {
     /** Prazo para o pagamento de um ingresso PENDING. Depois dele, o ingresso expira. */
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
+
+    /** PaymentIntent do Stripe (ou do simulador) que pagou este ingresso. */
+    @Column(name = "payment_intent_id")
+    private String paymentIntentId;
 }
