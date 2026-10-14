@@ -35,18 +35,21 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Entrada na sala: QR assinado, papel STAFF, janela de horário e uso único. */
+/** Entrada na sala: QR assinado, papel STAFF do próprio cinema, janela de horário e uso único. */
 class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
     private static final String VALIDATE = "/api/v1/tickets/validate";
     private static final String STAFF_EMAIL = "funcionario@teste.com";
     private static final String CLIENT_EMAIL = "cliente-entrada@teste.com";
+    private static final String OTHER_STAFF_EMAIL = "funcionario-outro@teste.com";
+    private static final String ADMIN_EMAIL = "admin-entrada@teste.com";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private TokenService tokenService;
@@ -60,6 +63,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
     @Autowired private UserRepository userRepository;
     @Autowired private RoleRepository roleRepository;
 
+    private Cinema cinema;
     private Room room;
     private Movie movie;
     private Seat seat;
@@ -70,7 +74,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
+        cinema = new Cinema();
         cinema.setNome("Cine Entrada");
         cinema.setCnpj("66666666000166");
         cinema.setEndereco("Rua E, 6");
@@ -100,6 +104,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
         });
         User staff = user("Funcionário", STAFF_EMAIL);
         staff.setRoles(new HashSet<>(Set.of(staffRole)));
+        staff.setCinema(cinema);
         staffToken = tokenService.generateToken(userRepository.save(staff));
 
         client = userRepository.save(user("Cliente", CLIENT_EMAIL));
@@ -116,6 +121,39 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
         movieRepository.deleteAll();
         userRepository.findByEmailIgnoreCase(STAFF_EMAIL).ifPresent(userRepository::delete);
         userRepository.findByEmailIgnoreCase(CLIENT_EMAIL).ifPresent(userRepository::delete);
+        userRepository.findByEmailIgnoreCase(OTHER_STAFF_EMAIL).ifPresent(userRepository::delete);
+        userRepository.findByEmailIgnoreCase(ADMIN_EMAIL).ifPresent(userRepository::delete);
+    }
+
+    @Test
+    void funcionarioDeOutroCinemaNaoValida() throws Exception {
+        Cinema other = new Cinema();
+        other.setNome("Cine Vizinho");
+        other.setCnpj("77777777000177");
+        other.setEndereco("Rua V, 7");
+        other = cinemaRepository.save(other);
+
+        User otherStaff = user("Funcionário vizinho", OTHER_STAFF_EMAIL);
+        otherStaff.setRoles(new HashSet<>(Set.of(roleRepository.findByNome("ROLE_STAFF").orElseThrow())));
+        otherStaff.setCinema(other);
+        String otherStaffToken = tokenService.generateToken(userRepository.save(otherStaff));
+
+        Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(20));
+        validate(qrCodeService.payloadFor(ticket.getId()), otherStaffToken)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("Este ingresso é de outro cinema."));
+
+        assertNull(ticketRepository.findById(ticket.getId()).orElseThrow().getUsedAt());
+    }
+
+    @Test
+    void adminValidaEmQualquerCinema() throws Exception {
+        User admin = user("Admin", ADMIN_EMAIL);
+        admin.setRoles(new HashSet<>(Set.of(roleRepository.findByNome("ROLE_ADMIN").orElseThrow())));
+        String adminToken = tokenService.generateToken(userRepository.save(admin));
+
+        Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(20));
+        validate(qrCodeService.payloadFor(ticket.getId()), adminToken).andExpect(status().isOk());
     }
 
     @Test

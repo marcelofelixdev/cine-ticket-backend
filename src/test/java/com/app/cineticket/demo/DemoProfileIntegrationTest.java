@@ -54,6 +54,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private com.app.cineticket.repository.RoleRepository roleRepository;
 
     @Test
     void bootPopulaCatalogoCinemasSalasEVisitante() {
@@ -118,11 +119,39 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void equipeSemCinemaEVinculadaAoPrimeiroCinemaEAEquipeDeExemploSobreviveAoReset() {
+        User exampleManager = teamUser("gerente@cineticket.dev", "ROLE_MANAGER");
+        User createdByVisitor = teamUser("funcionario-criado-no-demo@teste.com", "ROLE_STAFF");
+
+        demoDataService.seed();
+
+        Long firstCinemaId = cinemaRepository.findFirstByOrderByIdAsc().orElseThrow().getId();
+        assertEquals(firstCinemaId, userRepository.findById(exampleManager.getId()).orElseThrow().getCinema().getId());
+        assertEquals(firstCinemaId, userRepository.findById(createdByVisitor.getId()).orElseThrow().getCinema().getId());
+
+        demoDataService.reset();
+
+        assertTrue(userRepository.existsByEmailIgnoreCase("gerente@cineticket.dev"));
+        assertFalse(userRepository.existsByEmailIgnoreCase("funcionario-criado-no-demo@teste.com"));
+        userRepository.deleteById(exampleManager.getId());
+    }
+
+    private User teamUser(String email, String role) {
+        User user = new User();
+        user.setNome("Equipe");
+        user.setEmail(email);
+        user.setSenha("hash-irrelevante");
+        user.setRoles(new java.util.HashSet<>(java.util.Set.of(roleRepository.findByNome(role).orElseThrow())));
+        return userRepository.save(user);
+    }
+
+    @Test
     void infoEPublicaEOVisitanteConsegueEntrar() throws Exception {
         mockMvc.perform(get("/api/v1/demo/info"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.demo").value(true))
-                .andExpect(jsonPath("$.visitanteEmail").value(demoDataService.getVisitorEmail()));
+                .andExpect(jsonPath("$.visitanteEmail").value(demoDataService.getVisitorEmail()))
+                .andExpect(jsonPath("$.gerenteEmail").value("gerente@cineticket.dev"));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .with(request -> { request.setRemoteAddr("10.9.0.1"); return request; })

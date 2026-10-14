@@ -48,6 +48,18 @@ public class User extends AuditableEntity implements org.springframework.securit
     @Column(name = "data_nascimento")
     private java.time.LocalDate dataNascimento;
 
+    /**
+     * Cinema do gerente ou funcionário; vazio para clientes e admins. EAGER porque o usuário
+     * logado é carregado no filtro de segurança e usado fora daquela sessão do Hibernate.
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "cinema_id")
+    private Cinema cinema;
+
+    public boolean hasRole(String roleName) {
+        return roles.stream().anyMatch(role -> roleName.equals(role.getNome()));
+    }
+
     public boolean isLockedAt(java.time.LocalDateTime instant) {
         return lockedUntil != null && lockedUntil.isAfter(instant);
     }

@@ -62,6 +62,7 @@ public class DemoDataService {
     private final TmdbClient tmdbClient;
     private final String visitorEmail;
     private final String visitorPassword;
+    private final Set<String> bootstrapTeamEmails;
 
     public DemoDataService(MovieRepository movieRepository, CinemaRepository cinemaRepository,
                            RoomRepository roomRepository, RoomService roomService,
@@ -69,7 +70,9 @@ public class DemoDataService {
                            RefreshTokenRepository refreshTokenRepository, UserRepository userRepository,
                            RoleRepository roleRepository, PasswordEncoder passwordEncoder, TmdbClient tmdbClient,
                            @Value("${app.demo.visitor.email}") String visitorEmail,
-                           @Value("${app.demo.visitor.password}") String visitorPassword) {
+                           @Value("${app.demo.visitor.password}") String visitorPassword,
+                           @Value("${app.bootstrap.staff.email:}") String staffEmail,
+                           @Value("${app.bootstrap.manager.email:}") String managerEmail) {
         this.movieRepository = movieRepository;
         this.cinemaRepository = cinemaRepository;
         this.roomRepository = roomRepository;
@@ -83,6 +86,10 @@ public class DemoDataService {
         this.tmdbClient = tmdbClient;
         this.visitorEmail = visitorEmail.trim().toLowerCase(Locale.ROOT);
         this.visitorPassword = visitorPassword;
+        this.bootstrapTeamEmails = java.util.stream.Stream.of(staffEmail, managerEmail)
+                .map(email -> email.trim().toLowerCase(Locale.ROOT))
+                .filter(email -> !email.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     public String getVisitorEmail() {
@@ -98,6 +105,7 @@ public class DemoDataService {
     public void seed() {
         seedMovies();
         seedCinemas();
+        linkTeamWithoutCinema();
         seedVisitor();
         int created = createMissingSessions(LocalDateTime.now(AppTimeZone.ZONE));
         log.info("[DEMO] Ambiente pronto: {} filme(s), {} cinema(s), {} sessão(ões) nova(s).",
@@ -105,8 +113,9 @@ public class DemoDataService {
     }
 
     /**
-     * Reset diário: apaga ingressos, sessões e as contas criadas por visitantes,
-     * mantém filmes, cinemas, admins, funcionários e o visitante, e recria a programação.
+     * Reset diário: apaga ingressos, sessões e as contas criadas por visitantes (inclusive
+     * funcionários cadastrados pelo gerente público), mantém filmes, cinemas, admins, a equipe
+     * de exemplo e o visitante, e recria a programação.
      */
     @Transactional
     public void reset() {
@@ -114,7 +123,9 @@ public class DemoDataService {
         sessionRepository.deleteAllInBatch();
 
         List<User> visitorAccounts = userRepository.findAll().stream()
-                .filter(user -> !isAdmin(user) && !isStaff(user) && !visitorEmail.equalsIgnoreCase(user.getEmail()))
+                .filter(user -> !isAdmin(user)
+                        && !bootstrapTeamEmails.contains(user.getEmail().toLowerCase(Locale.ROOT))
+                        && !visitorEmail.equalsIgnoreCase(user.getEmail()))
                 .toList();
         if (!visitorAccounts.isEmpty()) {
             refreshTokenRepository.deleteByUserIdIn(visitorAccounts.stream().map(User::getId).toList());
@@ -225,6 +236,12 @@ public class DemoDataService {
         }
     }
 
+    /** A equipe criada no boot antes dos cinemas existirem passa a pertencer ao primeiro cinema. */
+    private void linkTeamWithoutCinema() {
+        cinemaRepository.findFirstByOrderByIdAsc().ifPresent(cinema ->
+                userRepository.findTeamWithoutCinema().forEach(user -> user.setCinema(cinema)));
+    }
+
     private void seedVisitor() {
         if (userRepository.existsByEmailIgnoreCase(visitorEmail)) {
             return;
@@ -252,9 +269,5 @@ public class DemoDataService {
 
     private static boolean isAdmin(User user) {
         return user.getRoles().stream().anyMatch(role -> "ROLE_ADMIN".equals(role.getNome()));
-    }
-
-    private static boolean isStaff(User user) {
-        return user.getRoles().stream().anyMatch(role -> "ROLE_STAFF".equals(role.getNome()));
     }
 }

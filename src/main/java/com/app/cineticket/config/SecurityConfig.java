@@ -88,6 +88,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/sessions/**").hasRole("ADMIN")
                         // Entrada na sala: funcionário (STAFF) ou admin. STAFF não tem acesso a mais nada administrativo.
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets/validate").hasAnyRole("STAFF", "ADMIN")
+                        // Equipe: o admin cuida da rede toda; o gerente, só do próprio cinema (checado no serviço).
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/manager/**").hasRole("MANAGER")
                         .anyRequest().authenticated()
                 )
 

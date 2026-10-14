@@ -8,6 +8,9 @@ import org.springframework.stereotype.Repository;
 public interface CinemaRepository extends JpaRepository<Cinema, Long> {
 
     boolean existsByCnpj(String cnpj);
+
+    /** Primeiro cinema cadastrado (menor ID), usado para vincular a equipe criada no boot. */
+    java.util.Optional<Cinema> findFirstByOrderByIdAsc();
 }
 
 
