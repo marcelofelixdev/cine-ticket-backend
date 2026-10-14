@@ -32,8 +32,6 @@ import java.util.UUID;
 public class RefundService {
 
     private static final int MAX_ERROR_LENGTH = 500;
-    /** gateway_refund_id das devoluções feitas no caixa (venda de balcão, sem gateway). */
-    public static final String COUNTER_REFUND_ID = "BALCAO";
 
     private final RefundRepository refundRepository;
     private final TicketRepository ticketRepository;
@@ -86,23 +84,6 @@ public class RefundService {
         return paymentGateway.refund(paymentIntentId);
     }
 
-    /**
-     * Devolução de venda de balcão, sem gateway. {@code paidBack}: o valor já foi devolvido
-     * no caixa (REFUNDED); senão fica PENDING até o cliente voltar ao caixa.
-     */
-    @Transactional
-    public Refund registerCounterRefund(Ticket ticket, boolean paidBack) {
-        Refund refund = newRefund(ticket, new RefundEventDTO(ticket.getId(), null, ticket.getValorPago()),
-                paidBack ? RefundStatus.REFUNDED : RefundStatus.PENDING);
-        refund.setGatewayRefundId(COUNTER_REFUND_ID);
-        if (paidBack) {
-            refund.setRefundedAt(LocalDateTime.now(AppTimeZone.ZONE));
-        }
-        Refund saved = refundRepository.save(refund);
-        ticket.getRefunds().add(0, saved); // a resposta do ingresso já mostra o reembolso
-        return saved;
-    }
-
     private RefundStatus registerNotApplicable(Ticket ticket, RefundEventDTO event) {
         if (!refundRepository.existsByTicketIdAndPaymentIntentIdIsNull(ticket.getId())) {
             refundRepository.save(newRefund(ticket, event, RefundStatus.NOT_APPLICABLE));
@@ -111,7 +92,7 @@ public class RefundService {
         return RefundStatus.NOT_APPLICABLE;
     }
 
-    private static Refund newRefund(Ticket ticket, RefundEventDTO event, RefundStatus status) {
+    static Refund newRefund(Ticket ticket, RefundEventDTO event, RefundStatus status) {
         Refund refund = new Refund();
         refund.setTicket(ticket);
         refund.setPaymentIntentId(event.paymentIntentId());

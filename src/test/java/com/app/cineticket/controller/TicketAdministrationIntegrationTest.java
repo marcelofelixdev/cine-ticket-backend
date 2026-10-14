@@ -167,6 +167,43 @@ class TicketAdministrationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void caixaDevolveOValorDaSessaoCanceladaUmaVezSo() throws Exception {
+        mockMvc.perform(authed(delete("/api/v1/manager/sessions/" + sessionA.getId()), managerToken, null))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(authed(get("/api/v1/box-office/refunds/pending"), staffToken, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
+
+        String confirm = "/api/v1/box-office/refunds/" + counterHalf.getId() + "/confirm";
+        mockMvc.perform(authed(post(confirm), staffToken, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REFUNDED"))
+                .andExpect(jsonPath("$.valor").value(15.00))
+                .andExpect(jsonPath("$.devolvidoEm").exists());
+        mockMvc.perform(authed(post(confirm), staffToken, null)).andExpect(status().isNotFound());
+
+        mockMvc.perform(authed(get("/api/v1/box-office/refunds/pending"), staffToken, null))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void devolucaoSoNoCaixaDoProprioCinema() throws Exception {
+        mockMvc.perform(authed(delete("/api/v1/manager/sessions/" + sessionA.getId()), managerToken, null))
+                .andExpect(status().isNoContent());
+        String otherStaff = testData.token("caixa-b" + DOMAIN, "ROLE_STAFF", sessionB.getRoom().getCinema());
+        String confirm = "/api/v1/box-office/refunds/" + counterHalf.getId() + "/confirm";
+
+        mockMvc.perform(authed(post(confirm), otherStaff, null)).andExpect(status().isForbidden());
+        mockMvc.perform(authed(get("/api/v1/box-office/refunds/pending"), otherStaff, null))
+                .andExpect(jsonPath("$.length()").value(0));
+        for (String token : List.of(clientToken, adminToken)) {
+            mockMvc.perform(authed(post(confirm), token, null)).andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
     void soGerenteEAdminVeemOPainelDeIngressos() throws Exception {
         for (String token : List.of(staffToken, clientToken, adminToken)) {
             mockMvc.perform(authed(get("/api/v1/manager/tickets"), token, null)).andExpect(status().isForbidden());

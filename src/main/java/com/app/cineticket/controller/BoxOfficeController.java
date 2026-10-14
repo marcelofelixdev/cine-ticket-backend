@@ -3,8 +3,10 @@ package com.app.cineticket.controller;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.dto.request.BoxOfficeSaleRequestDTO;
 import com.app.cineticket.dto.response.BoxOfficeSaleResponseDTO;
+import com.app.cineticket.dto.response.CounterRefundDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
 import com.app.cineticket.service.BoxOfficeService;
+import com.app.cineticket.service.CounterRefundService;
 import com.app.cineticket.service.ManagerSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -39,6 +41,7 @@ public class BoxOfficeController {
 
     private final BoxOfficeService boxOfficeService;
     private final ManagerSessionService managerSessionService;
+    private final CounterRefundService counterRefundService;
 
     @Operation(summary = "Sessões do dia no próprio cinema, com ocupação (STAFF ou MANAGER)")
     @GetMapping("/sessions")
@@ -56,6 +59,23 @@ public class BoxOfficeController {
     @PostMapping("/sales")
     public ResponseEntity<BoxOfficeSaleResponseDTO> sell(@AuthenticationPrincipal User loggedUser, @RequestBody @Valid BoxOfficeSaleRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(boxOfficeService.sell(request, loggedUser));
+    }
+
+    @Operation(summary = "Devoluções pendentes no caixa do próprio cinema (STAFF ou MANAGER)",
+            description = "Vendas de balcão de sessões canceladas: o cliente volta ao caixa para receber o valor.")
+    @GetMapping("/refunds/pending")
+    public ResponseEntity<List<CounterRefundDTO>> pendingRefunds(@AuthenticationPrincipal User loggedUser) {
+        return ResponseEntity.ok(counterRefundService.pending(loggedUser));
+    }
+
+    @Operation(summary = "Confirma que o caixa devolveu o valor ao cliente (STAFF ou MANAGER)")
+    @ApiResponse(responseCode = "200", description = "Devolução registrada (REFUNDED), com quem devolveu")
+    @ApiResponse(responseCode = "403", description = "Ingresso de outro cinema", content = @Content)
+    @ApiResponse(responseCode = "404", description = "Não há devolução pendente para o ingresso", content = @Content)
+    @PostMapping("/refunds/{ticketId}/confirm")
+    public ResponseEntity<CounterRefundDTO> confirmRefund(@AuthenticationPrincipal User loggedUser,
+                                                          @PathVariable Long ticketId) {
+        return ResponseEntity.ok(counterRefundService.confirm(ticketId, loggedUser));
     }
 
     @Operation(summary = "PDF de um ingresso vendido no balcão do próprio cinema (STAFF ou MANAGER)")

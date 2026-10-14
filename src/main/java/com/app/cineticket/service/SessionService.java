@@ -47,7 +47,7 @@ public class SessionService {
     private final OutboxService outboxService;
     private final SeatRepository seatRepository;
     private final CinemaMovieRepository cinemaMovieRepository;
-    private final RefundService refundService;
+    private final CounterRefundService counterRefundService;
 
 
     /**
@@ -136,7 +136,7 @@ public class SessionService {
             if (previousStatus == TicketStatus.APPROVED
                     && ticket.getCanal() == com.app.cineticket.domain.enums.TicketChannel.BALCAO) {
                 // Venda de balcão: o dinheiro volta no caixa, não pelo gateway.
-                refundService.registerCounterRefund(ticket, false);
+                counterRefundService.registerPending(ticket);
             } else if (previousStatus == TicketStatus.APPROVED) {
                 outboxService.refundRequested(new com.app.cineticket.dto.request.RefundEventDTO(
                         ticket.getId(), ticket.getPaymentIntentId(), ticket.getValorPago()));

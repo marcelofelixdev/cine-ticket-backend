@@ -205,7 +205,7 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Auth | `POST /auth/login`, `/refresh`, `/logout` · `POST /users` | `GET /users/me`, `PATCH /users/me` | |
 | Filmes e cinemas | `GET` (lista e detalhe; `GET /movies` só traz filmes em cartaz, com filtros `cinemaId` e `cidade`), `GET /movies/em-breve?cidade=`, `GET /cinemas?cidade=`, `GET /cinemas/cidades` | | `POST` (filme por `tmdbId`), `PUT` (correção parcial), `DELETE`, `POST /movies/{id}/tmdb-sync` |
 | Busca no TMDB | | `GET /tmdb/search?q=` (só `MANAGER`) | `GET /tmdb/search?q=` |
-| Caixa (balcão) | | `STAFF` ou `MANAGER`: `GET /box-office/sessions?date=`, `POST /box-office/sales`, `GET /box-office/tickets/{id}/pdf` | |
+| Caixa (balcão) | | `STAFF` ou `MANAGER`: `GET /box-office/sessions?date=`, `POST /box-office/sales`, `GET /box-office/tickets/{id}/pdf`, `GET /box-office/refunds/pending`, `POST /box-office/refunds/{ticketId}/confirm` | |
 | Ingressos (painel) | | `MANAGER`: `GET /manager/tickets` (filtros), `GET /manager/sessions/{id}/summary`, `POST /manager/tickets/{id}/cancel` (venda de balcão) | `GET /admin/tickets`, `GET /admin/sessions/{id}/summary` |
 | Sessões do cinema | | `MANAGER`: `GET /manager/sessions?date=` (com ocupação), `POST`, `DELETE /manager/sessions/{id}`, `GET /manager/rooms` | |
 | Pedidos e programação | | `MANAGER`: `POST`, `GET /manager/movie-requests`, `GET /manager/programacao`, `POST /manager/programacao/{movieId}/confirm` | `GET /admin/movie-requests?status=`, `POST /{id}/approve`, `POST /{id}/reject`, `GET /admin/movies`, `POST /admin/movies/{id}/offer` |

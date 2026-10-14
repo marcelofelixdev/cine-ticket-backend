@@ -48,4 +48,9 @@ public class Refund extends AuditableEntity {
 
     @Column(name = "refunded_at")
     private LocalDateTime refundedAt;
+
+    /** Quem devolveu o dinheiro no caixa (só em venda de balcão). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "refunded_by")
+    private User refundedBy;
 }

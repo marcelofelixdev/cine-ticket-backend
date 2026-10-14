@@ -44,7 +44,7 @@ public class TicketAdminService {
     private final TicketRepository ticketRepository;
     private final SessionRepository sessionRepository;
     private final TicketMapper ticketMapper;
-    private final RefundService refundService;
+    private final CounterRefundService counterRefundService;
 
     @Transactional(readOnly = true)
     public Page<TicketAdminDTO> list(TicketAdminFilter filter, Long cinemaScope, Pageable pageable) {
@@ -112,7 +112,7 @@ public class TicketAdminService {
 
         ticket.setStatus(TicketStatus.CANCELLED);
         ticketRepository.save(ticket);
-        refundService.registerCounterRefund(ticket, true);
+        counterRefundService.refundNow(ticket, manager);
         log.info("[CAIXA] Ingresso {} cancelado por {}; R$ {} devolvido no caixa.",
                 ticketId, manager.getEmail(), ticket.getValorPago());
         return ticketMapper.toResponseDTO(ticket);
