@@ -1,5 +1,6 @@
 package com.app.cineticket.controller;
 
+import com.app.cineticket.demo.DemoRestrictions;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.dto.request.SessionRequestDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
@@ -34,6 +35,7 @@ import java.util.List;
 public class ManagerSessionController {
 
     private final ManagerSessionService managerSessionService;
+    private final DemoRestrictions demoRestrictions;
 
     @Operation(summary = "Sessões do dia no próprio cinema, com ocupação (MANAGER)",
             description = "Sem date, hoje. Inclui as que já começaram.")
@@ -56,9 +58,10 @@ public class ManagerSessionController {
     @Operation(summary = "Cancela uma sessão do próprio cinema (MANAGER)",
             description = "Cancela os ingressos e estorna os pagos, como o cancelamento emergencial do admin.")
     @ApiResponse(responseCode = "204", description = "Cancelada")
-    @ApiResponse(responseCode = "403", description = "Sessão de outro cinema", content = @Content)
+    @ApiResponse(responseCode = "403", description = "Sessão de outro cinema ou demonstração pública", content = @Content)
     @DeleteMapping("/sessions/{id}")
     public ResponseEntity<Void> cancel(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
+        demoRestrictions.requireNotDemo("Cancelar sessões");
         managerSessionService.cancel(id, loggedUser);
         return ResponseEntity.noContent().build();
     }

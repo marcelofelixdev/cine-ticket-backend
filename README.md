@@ -21,7 +21,7 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 | **Funcionário** do Cine 1 (só valida ingressos) | `funcionario@cineticket.dev` / `funcionario12345` |
 | **Gerente** do Cine 1 (equipe do próprio cinema) | `gerente@cineticket.dev` / `gerente12345` |
 
-No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília).
+No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília). Como os logins são públicos, o gerente não cancela sessões nem vendas ali, e nenhuma dessas contas é bloqueada por senha errada.
 
 **Comprar pelo Swagger:** reserve em `POST /api/v1/tickets` e pague em `POST /api/v1/tickets/{id}/payment` com
 `{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado). Acompanhe a aprovação em `GET /api/v1/tickets/{id}`.
@@ -107,6 +107,7 @@ sequenceDiagram
 | **Meia-entrada sem controle** | Idoso: 60+ na data da sessão pela data de nascimento do perfil; estudante: número da carteira gravado no ingresso e exibido ao funcionário na entrada; **cota de 40% dos lugares por sessão** (Lei 12.933/2013) contada com lock na sessão | A regra legal é aplicada no servidor; compras simultâneas de meia não estouram a cota. |
 | **Funcionário da porta com poder demais** | Papel `ROLE_STAFF` que só pode `POST /tickets/validate`, e só para sessões do próprio cinema | Menor privilégio: quem confere ingresso não cria sessão nem cancela sala, e não libera entrada em outro cinema. |
 | **Gerente mexendo em outro cinema** | Papel `ROLE_MANAGER` vinculado a um cinema; o cinema do cadastro vem do gerente logado, não do pedido | O gerente cadastra funcionários só no próprio cinema e não cria gerentes nem admins. |
+| **Caixa descobrindo quem tem conta** | A venda no balcão aceita o e-mail do cliente, mas a resposta e o PDF não dizem se ele tem conta (o PDF de balcão não traz o nome do titular) | O funcionário não consegue testar e-mails para listar clientes cadastrados; quem tem conta vê o ingresso em "Meus ingressos". |
 | **Assentos travados por quem não paga** | `expires_at` + job que marca `EXPIRED` e limite de 4 reservas pendentes por usuário | O índice parcial ignora `EXPIRED`, então o assento volta a ficar livre sozinho. |
 | **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Só o hash SHA-256 fica no banco. |
 | **CSRF com cookie entre domínios** | Validação do header `Origin` nas rotas de refresh e logout | O resto da API usa `Authorization: Bearer`, que o navegador não envia sozinho. |

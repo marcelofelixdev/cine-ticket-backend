@@ -33,7 +33,8 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
     Optional<Refund> findPendingCounterRefundForUpdate(@org.springframework.data.repository.query.Param("ticketId") Long ticketId,
                                                        @org.springframework.data.repository.query.Param("counterId") String counterId);
 
-    /** Linhas [status, quantidade] para as métricas de negócio. */
-    @org.springframework.data.jpa.repository.Query("select r.status, count(r) from Refund r group by r.status")
-    List<Object[]> countGroupedByStatus();
+    /** Linhas [status, canal do ingresso, quantidade] para as métricas de negócio. */
+    @org.springframework.data.jpa.repository.Query(
+            "select r.status, r.ticket.canal, count(r) from Refund r group by r.status, r.ticket.canal")
+    List<Object[]> countGroupedByStatusAndChannel();
 }

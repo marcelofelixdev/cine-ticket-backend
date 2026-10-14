@@ -25,6 +25,7 @@ class MetricsEndpointIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(content().string(containsString("cineticket_tickets{")))
                 .andExpect(content().string(containsString("status=\"APPROVED\"")))
                 .andExpect(content().string(containsString("cineticket_refunds{")))
+                .andExpect(content().string(containsString("canal=\"BALCAO\"")))
                 .andExpect(content().string(containsString("cineticket_outbox_pending")))
                 .andExpect(content().string(containsString("cineticket_outbox_oldest_pending_seconds")))
                 .andExpect(content().string(containsString("application=\"cineticket\"")));

@@ -402,7 +402,7 @@
     {
       "id": 11,
       "type": "bargauge",
-      "title": "Reembolsos por status",
+      "title": "Reembolsos por canal e status",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -419,8 +419,8 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (status) (cineticket_refunds)",
-          "legendFormat": "{{status}}",
+          "expr": "sum by (canal, status) (cineticket_refunds)",
+          "legendFormat": "{{canal}} {{status}}",
           "refId": "A"
         }
       ],

@@ -126,7 +126,6 @@ public class BoxOfficeService {
                 session.getHorarioInicio(),
                 request.formaPagamento(),
                 total,
-                buyer.isPresent(),
                 saved.stream()
                         .map(ticket -> new BoxOfficeSaleResponseDTO.Ingresso(
                                 ticket.getId(),

@@ -109,7 +109,7 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
         String response = mockMvc.perform(authed(post(SALES), staffToken, body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.total").value(45.00))
-                .andExpect(jsonPath("$.vinculadoAConta").value(false))
+                .andExpect(jsonPath("$.vinculadoAConta").doesNotExist())
                 .andExpect(jsonPath("$.ingressos", hasSize(2)))
                 .andReturn().getResponse().getContentAsString();
 
@@ -169,7 +169,7 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
         String body = sale(sessionA, "CREDITO", "cliente" + DOMAIN, item(seatsA.get(0), "INTEIRA", null));
         String response = mockMvc.perform(authed(post(SALES), staffToken, body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.vinculadoAConta").value(true))
+                .andExpect(jsonPath("$.vinculadoAConta").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
         long ticketId = objectMapper.readTree(response).get("ingressos").get(0).get("ticketId").asLong();
 

@@ -1,5 +1,6 @@
 package com.app.cineticket.controller;
 
+import com.app.cineticket.demo.DemoRestrictions;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketChannel;
 import com.app.cineticket.domain.enums.TicketStatus;
@@ -37,6 +38,7 @@ import java.time.LocalDate;
 public class ManagerTicketController {
 
     private final TicketAdminService ticketAdminService;
+    private final DemoRestrictions demoRestrictions;
 
     @Operation(summary = "Ingressos do próprio cinema com filtros (MANAGER)")
     @GetMapping("/tickets")
@@ -61,11 +63,12 @@ public class ManagerTicketController {
     @Operation(summary = "Cancela uma venda de balcão e registra a devolução no caixa (MANAGER)",
             description = "Só ingressos de balcão do próprio cinema, aprovados, não usados e antes do início da sessão.")
     @ApiResponse(responseCode = "200", description = "Cancelado; reembolso REFUNDED")
-    @ApiResponse(responseCode = "403", description = "Ingresso de outro cinema", content = @Content)
+    @ApiResponse(responseCode = "403", description = "Ingresso de outro cinema ou demonstração pública", content = @Content)
     @ApiResponse(responseCode = "409", description = "Já cancelado ou já usado na entrada", content = @Content)
     @ApiResponse(responseCode = "422", description = "Ingresso online ou sessão já começou", content = @Content)
     @PostMapping("/tickets/{id}/cancel")
     public ResponseEntity<TicketResponseDTO> cancel(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
+        demoRestrictions.requireNotDemo("Cancelar vendas");
         return ResponseEntity.ok(ticketAdminService.cancelCounterSale(id, loggedUser));
     }
 }
