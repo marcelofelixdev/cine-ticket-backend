@@ -44,9 +44,13 @@ public class PaymentConsumer {
             return;
         }
 
-        Ticket ticket = ticketRepository.findById(event.ticketId())
-                .orElseThrow(() -> new AmqpRejectAndDontRequeueException(
-                        "Pagamento " + event.paymentIntentId() + " para ingresso inexistente " + event.ticketId()));
+        Ticket ticket = ticketRepository.findById(event.ticketId()).orElse(null);
+        if (ticket == null) {
+            // Ingresso apagado (ex.: reset diário do demo). Tentar de novo não resolve.
+            log.warn("[CONSUMER] Pagamento {} para ingresso inexistente {}; ignorado.",
+                    event.paymentIntentId(), event.ticketId());
+            return;
+        }
 
         if (ticket.getStatus() == TicketStatus.APPROVED && event.paymentIntentId().equals(ticket.getPaymentIntentId())) {
             log.info("[CONSUMER] Pagamento {} já processado; ignorado.", event.paymentIntentId());

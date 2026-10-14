@@ -11,5 +11,7 @@ public record TicketResponseDTO (
     java.time.LocalDateTime expiresAt,
     Long sessionId,
     java.time.LocalDateTime horarioSessao,
-    Long seatId
+    Long seatId,
+    /** Status do reembolso do pagamento deste ingresso (PENDING, REFUNDED, FAILED...), ou null. */
+    String reembolso
 ){}

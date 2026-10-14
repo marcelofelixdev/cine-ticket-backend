@@ -50,4 +50,9 @@ public class Ticket extends AuditableEntity {
     /** PaymentIntent do Stripe (ou do simulador) que pagou este ingresso. */
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
+
+    /** Estornos dos pagamentos deste ingresso (o mais recente primeiro). */
+    @OneToMany(mappedBy = "ticket")
+    @OrderBy("id DESC")
+    private java.util.List<Refund> refunds = new java.util.ArrayList<>();
 }

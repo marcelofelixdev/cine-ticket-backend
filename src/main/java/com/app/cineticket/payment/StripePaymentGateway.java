@@ -99,6 +99,32 @@ public class StripePaymentGateway implements PaymentGateway {
         return true;
     }
 
+    @Override
+    public RefundResult refund(String paymentIntentId) {
+        if (client == null) {
+            throw new PaymentGatewayException("Stripe não configurado.", null);
+        }
+        com.stripe.param.RefundCreateParams params = com.stripe.param.RefundCreateParams.builder()
+                .setPaymentIntent(paymentIntentId)
+                .build();
+        RequestOptions options = RequestOptions.builder()
+                .setIdempotencyKey("refund-" + paymentIntentId)
+                .build();
+        try {
+            com.stripe.model.Refund refund = client.v1().refunds().create(params, options);
+            return new RefundResult(refund.getId());
+        } catch (InvalidRequestException e) {
+            if ("charge_already_refunded".equals(e.getCode())) {
+                // Já estornado (por outra tentativa ou pelo painel): o objetivo foi atingido.
+                log.info("[STRIPE] Pagamento {} já estava estornado.", paymentIntentId);
+                return new RefundResult(null);
+            }
+            throw new PaymentGatewayException("O Stripe recusou o estorno: " + e.getMessage(), e);
+        } catch (StripeException e) {
+            throw new PaymentGatewayException("Não foi possível estornar no Stripe: " + e.getMessage(), e);
+        }
+    }
+
     /** O Stripe trabalha na menor unidade da moeda (centavos). */
     private static long toMinorUnits(Ticket ticket) {
         return ticket.getValorPago().setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact();

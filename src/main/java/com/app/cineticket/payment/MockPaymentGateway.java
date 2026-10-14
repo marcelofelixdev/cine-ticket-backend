@@ -37,4 +37,9 @@ public class MockPaymentGateway implements PaymentGateway {
     public boolean confirmsViaWebhook() {
         return false;
     }
+
+    @Override
+    public RefundResult refund(String paymentIntentId) {
+        return new RefundResult("re_mock_" + UUID.randomUUID());
+    }
 }

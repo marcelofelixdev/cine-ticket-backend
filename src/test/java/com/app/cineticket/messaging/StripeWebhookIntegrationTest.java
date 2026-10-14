@@ -60,6 +60,7 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
     @Autowired private TicketRepository ticketRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private OutboxEventRepository outboxRepository;
+    @Autowired private com.app.cineticket.repository.RefundRepository refundRepository;
 
     private Session session;
     private Seat seat;
@@ -171,6 +172,16 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
         List<OutboxEvent> refunds = waitForOutbox(ticket.getId(), "RefundRequested");
         assertTrue(refunds.get(0).getPayload().contains(paymentIntentId), refunds.get(0).getPayload());
         assertEquals(TicketStatus.EXPIRED, ticketRepository.findById(ticket.getId()).orElseThrow().getStatus());
+
+        // O RefundConsumer estorna o pagamento (pelo gateway simulado, nos testes).
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (refundRepository.findByPaymentIntentId(paymentIntentId)
+                .filter(r -> r.getStatus() == com.app.cineticket.domain.enums.RefundStatus.REFUNDED).isEmpty()) {
+            if (System.currentTimeMillis() > deadline) {
+                throw new AssertionError("O pagamento atrasado não foi estornado");
+            }
+            Thread.sleep(200);
+        }
     }
 
     private Ticket ticket(TicketStatus status) {

@@ -17,7 +17,13 @@ public class RabbitMQConfig {
     public static final String DLX_CINETICKET = "cineticket.dlx";
     public static final String ROUTING_KEY_PAGAMENTO = "pagamento.routingKey";
     public static final String ROUTING_KEY_DLQ = "pagamento.dlq.routingKey";
-    public static final String FILA_REEMBOLSOS = "reembolsos.v1.queue";
+    /**
+     * v2: a v1 foi criada sem dead-letter, e o RabbitMQ não deixa mudar os argumentos de
+     * uma fila existente. A v1 fica órfã e pode ser apagada pelo painel.
+     */
+    public static final String FILA_REEMBOLSOS = "reembolsos.v2.queue";
+    public static final String DLQ_REEMBOLSOS = "reembolsos.v2.queue.dlq";
+    public static final String ROUTING_KEY_REEMBOLSO_DLQ = "reembolso.dlq.routingKey";
     public static final String ROUTING_KEY_REEMBOLSO = "reembolso.routingKey";
 
     @Bean
@@ -56,9 +62,24 @@ public class RabbitMQConfig {
     @Bean
     public Queue reembolsosQueue() {
         return org.springframework.amqp.core.QueueBuilder.durable(FILA_REEMBOLSOS)
+                .withArgument("x-dead-letter-exchange", DLX_CINETICKET)
+                .withArgument("x-dead-letter-routing-key", ROUTING_KEY_REEMBOLSO_DLQ)
                 .withArgument("x-message-ttl", 604_800_000)
-                .withArgument("x-max-length", 100_000)
+                .withArgument("x-max-length", 10_000)
                 .build();
+    }
+
+    @Bean
+    public Queue reembolsosDlq() {
+        return org.springframework.amqp.core.QueueBuilder.durable(DLQ_REEMBOLSOS)
+                .withArgument("x-message-ttl", 604_800_000)
+                .withArgument("x-max-length", 10_000)
+                .build();
+    }
+
+    @Bean
+    public Binding reembolsoDlqBinding(Queue reembolsosDlq, DirectExchange deadLetterExchange) {
+        return BindingBuilder.bind(reembolsosDlq).to(deadLetterExchange).with(ROUTING_KEY_REEMBOLSO_DLQ);
     }
 
     @Bean

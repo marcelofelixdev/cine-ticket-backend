@@ -7,6 +7,9 @@ import com.app.cineticket.repository.OutboxEventRepository;
 import com.app.cineticket.support.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.core.AnonymousQueue;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,7 +60,12 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
     @Test
     void eventoCommitadoEPublicadoNaFilaComConfirmacao() throws InterruptedException {
         long ticketId = 910_003L;
-        amqpAdmin.purgeQueue(RabbitMQConfig.FILA_REEMBOLSOS, false);
+        // A fila real de reembolsos tem consumidor; uma fila temporária ligada à mesma
+        // routing key recebe uma cópia para o teste conferir o que foi publicado.
+        String probe = amqpAdmin.declareQueue(new AnonymousQueue());
+        amqpAdmin.declareBinding(BindingBuilder.bind(new org.springframework.amqp.core.Queue(probe))
+                .to(new DirectExchange(RabbitMQConfig.EXCHANGE_CINETICKET))
+                .with(RabbitMQConfig.ROUTING_KEY_REEMBOLSO));
 
         transactionTemplate.executeWithoutResult(status ->
                 outboxService.refundRequested(new RefundEventDTO(ticketId, "pi_test_publish", new BigDecimal("25.00"))));
@@ -66,8 +74,9 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
         OutboxEvent published = waitUntilPublished(ticketId);
         assertNotNull(published.getPublishedAt());
 
-        Message message = receive("outbox-" + published.getId());
-        assertNotNull(message, "a mensagem deveria estar na fila de reembolsos");
+        Message message = receive(probe, "outbox-" + published.getId());
+        amqpAdmin.deleteQueue(probe);
+        assertNotNull(message, "a mensagem deveria ter sido roteada para a fila de reembolsos");
         String body = new String(message.getBody(), StandardCharsets.UTF_8);
         assertTrue(body.contains("\"ticketId\":" + ticketId), body);
         assertEquals("RefundRequested", message.getMessageProperties().getType());
@@ -92,10 +101,10 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
         throw new AssertionError("O evento do ingresso " + ticketId + " não foi publicado a tempo");
     }
 
-    private Message receive(String messageId) {
+    private Message receive(String queue, String messageId) {
         long deadline = System.currentTimeMillis() + 5_000;
         while (System.currentTimeMillis() < deadline) {
-            Message message = rabbitTemplate.receive(RabbitMQConfig.FILA_REEMBOLSOS, 500);
+            Message message = rabbitTemplate.receive(queue, 500);
             if (message != null && messageId.equals(message.getMessageProperties().getMessageId())) {
                 return message;
             }
