@@ -21,7 +21,7 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 | **Funcionário** do Cine 1 (só valida ingressos) | `funcionario@cineticket.dev` / `funcionario12345` |
 | **Gerente** do Cine 1 (equipe do próprio cinema) | `gerente@cineticket.dev` / `gerente12345` |
 
-No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília).
+No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília). Como os logins são públicos, o gerente não cancela sessões nem vendas ali, e nenhuma dessas contas é bloqueada por senha errada.
 
 **Comprar pelo Swagger:** reserve em `POST /api/v1/tickets` e pague em `POST /api/v1/tickets/{id}/payment` com
 `{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado). Acompanhe a aprovação em `GET /api/v1/tickets/{id}`.

@@ -38,7 +38,8 @@ public class DemoController {
                         + "Reserve em POST /api/v1/tickets e pague em POST /api/v1/tickets/{id}/payment "
                         + "com paymentMethodId pm_card_visa (aprovado) ou pm_card_chargeDeclined (recusado). "
                         + "O funcionário valida ingressos em POST /api/v1/tickets/validate com o QR de GET /api/v1/tickets/{id}/qr. "
-                        + "O gerente cadastra funcionários do próprio cinema em /api/v1/manager/staff.",
+                        + "O gerente cadastra funcionários do próprio cinema em /api/v1/manager/staff. "
+                        + "Na demonstração, o gerente não cancela sessões nem vendas.",
                 demoDataService.getVisitorEmail(),
                 demoDataService.getVisitorPassword(),
                 staffEmail,
