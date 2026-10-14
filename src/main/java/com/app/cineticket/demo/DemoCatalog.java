@@ -56,6 +56,9 @@ public final class DemoCatalog {
             new DemoMovie(1000837, "Ainda Estou Aqui", 137, "Walter Salles", "Drama, História")
     );
 
+    /** Corredores das salas do demo (10 cadeiras por fila): 2 | 6 | 2. */
+    public static final List<Integer> CORREDORES = List.of(2, 8);
+
     /** CNPJs fictícios, só para demonstração. */
     public static final List<DemoCinema> CINEMAS = List.of(
             new DemoCinema("CineTicket Paulista", "00.000.000/0001-91",

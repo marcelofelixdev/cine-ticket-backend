@@ -11,6 +11,8 @@ public interface RoomMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "cinema", ignore = true)
+    @Mapping(target = "cadeirasPorFila", ignore = true) // definidos e validados no RoomService
+    @Mapping(target = "corredores", ignore = true)
     Room toEntity(RoomRequestDTO requestDTO);
 
     @Mapping(source = "cinema.id", target = "cinemaId")

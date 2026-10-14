@@ -72,7 +72,8 @@ public class SessionService {
         int freeSeats = (int) seatStatuses.stream().filter(s -> s.status() == SeatAvailability.LIVRE).count();
 
         return new SeatMapResponseDTO(session.getId(), session.getHorarioInicio(), session.getRoom().getNome(),
-                seatStatuses.size(), freeSeats, seatStatuses);
+                seatStatuses.size(), freeSeats, session.getRoom().getCadeirasPorFila(),
+                List.copyOf(session.getRoom().getCorredores()), seatStatuses);
     }
 
     @Transactional

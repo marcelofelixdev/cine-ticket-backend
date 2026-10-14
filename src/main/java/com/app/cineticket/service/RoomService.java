@@ -34,6 +34,9 @@ public class RoomService {
     private final SessionRepository sessionRepository;
     private final RoomMapper roomMapper;
 
+    /** As filas vão de A a Z. */
+    static final int MAX_FILAS = 26;
+
     @Transactional
     public RoomResponseDTO create(RoomRequestDTO requestDTO) {
         Cinema cinema = cinemaRepository.findById(requestDTO.cinemaId())
@@ -41,6 +44,15 @@ public class RoomService {
 
         Room room = roomMapper.toEntity(requestDTO);
         room.setCinema(cinema);
+        int cadeirasPorFila = requestDTO.cadeirasPorFila() == null
+                ? Room.CADEIRAS_POR_FILA_PADRAO : requestDTO.cadeirasPorFila();
+        int filas = (requestDTO.capacidade() + cadeirasPorFila - 1) / cadeirasPorFila;
+        if (filas > MAX_FILAS) {
+            throw new BusinessException("Com " + cadeirasPorFila + " cadeiras por fila, a sala teria " + filas
+                    + " filas; o máximo é " + MAX_FILAS + " (A a Z). Aumente as cadeiras por fila.");
+        }
+        room.setCadeirasPorFila(cadeirasPorFila);
+        room.setCorredores(corredores(requestDTO.corredores(), cadeirasPorFila));
 
         Room savedRoom = roomRepository.save(room);
 
@@ -61,7 +73,14 @@ public class RoomService {
             throw new BusinessException("Uma sala não pode ser transferida para outro cinema");
         }
 
+        if (requestDTO.cadeirasPorFila() != null && !requestDTO.cadeirasPorFila().equals(room.getCadeirasPorFila())) {
+            throw new BusinessException("As cadeiras por fila não podem ser alteradas após a criação");
+        }
+
         room.setNome(requestDTO.nome());
+        if (requestDTO.corredores() != null) {
+            room.setCorredores(corredores(requestDTO.corredores(), room.getCadeirasPorFila()));
+        }
 
         return roomMapper.toResponseDTO(roomRepository.save(room));
     }
@@ -86,9 +105,25 @@ public class RoomService {
         roomRepository.delete(room);
     }
 
+    /** Corredores em ordem, sem repetição, e cada um antes da última cadeira da fila. */
+    private static List<Integer> corredores(List<Integer> pedidos, int cadeirasPorFila) {
+        if (pedidos == null) {
+            return new ArrayList<>();
+        }
+        List<Integer> ordenados = pedidos.stream().distinct().sorted().collect(Collectors.toCollection(ArrayList::new));
+        if (ordenados.size() != pedidos.size()) {
+            throw new BusinessException("O mesmo corredor foi informado mais de uma vez.");
+        }
+        if (!ordenados.isEmpty() && ordenados.get(ordenados.size() - 1) >= cadeirasPorFila) {
+            throw new BusinessException("Cada corredor deve ficar depois de uma cadeira entre 1 e "
+                    + (cadeirasPorFila - 1) + ".");
+        }
+        return ordenados;
+    }
+
     private void gerarAssentoParaSala(Room room) {
         int capacidade = room.getCapacidade();
-        int maxCadeirasPorFila = 10;
+        int maxCadeirasPorFila = room.getCadeirasPorFila();
 
         List<Seat> cadeirasParaSalvar = new ArrayList<>();
 

@@ -246,12 +246,18 @@ public class DemoDataService {
     private void seedCinemas() {
         for (DemoCatalog.DemoCinema demoCinema : DemoCatalog.CINEMAS) {
             if (cinemaRepository.existsByCnpj(demoCinema.cnpj())) {
-                // Cinemas criados antes da V16 ganham cidade e UF.
                 cinemaRepository.findAll().stream()
-                        .filter(existing -> demoCinema.cnpj().equals(existing.getCnpj()) && existing.getCidade() == null)
+                        .filter(existing -> demoCinema.cnpj().equals(existing.getCnpj()))
                         .forEach(existing -> {
-                            existing.setCidade(demoCinema.cidade());
-                            existing.setUf(demoCinema.uf());
+                            // Cinemas criados antes da V16 ganham cidade e UF.
+                            if (existing.getCidade() == null) {
+                                existing.setCidade(demoCinema.cidade());
+                                existing.setUf(demoCinema.uf());
+                            }
+                            // Salas criadas antes da V19 ganham os corredores do demo.
+                            roomRepository.findByCinemaIdOrderByNome(existing.getId()).stream()
+                                    .filter(room -> room.getCorredores().isEmpty())
+                                    .forEach(room -> room.setCorredores(new java.util.ArrayList<>(DemoCatalog.CORREDORES)));
                         });
                 continue;
             }
@@ -264,7 +270,8 @@ public class DemoDataService {
             Long cinemaId = cinemaRepository.save(cinema).getId();
 
             for (DemoCatalog.DemoRoom demoRoom : demoCinema.salas()) {
-                roomService.create(new RoomRequestDTO(demoRoom.nome(), demoRoom.capacidade(), cinemaId));
+                roomService.create(new RoomRequestDTO(demoRoom.nome(), demoRoom.capacidade(), cinemaId,
+                        null, DemoCatalog.CORREDORES));
             }
         }
     }

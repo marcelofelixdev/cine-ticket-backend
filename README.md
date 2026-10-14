@@ -41,7 +41,7 @@ No ambiente de demonstração, as compras, os pedidos de filme e as contas criad
 - **Mapa de assentos** por sessão, com status livre ou ocupado.
 - **Compra de ingresso** com inteira e meia: **reserva que expira em 10 minutos** e pagamento pelo **Stripe em modo de teste** (ou simulador), com aprovação assíncrona via webhook assinado, outbox e RabbitMQ.
 - **Ingresso em PDF** com QR Code, cancelamento até 30 minutos antes da sessão e reembolso.
-- **Área administrativa:** cadastro de cinemas, salas (com geração automática de assentos), filmes e sessões, e cancelamento emergencial de sessão.
+- **Área administrativa:** cadastro de cinemas, salas (cadeiras por fila, corredores e geração automática de assentos, de A a Z), filmes e sessões, e cancelamento emergencial de sessão.
 - **Autenticação para SPA:** JWT de 15 minutos e refresh token rotativo em cookie `HttpOnly`.
 - **Contrato OpenAPI** em `/swagger-ui.html` e erros no padrão **RFC 9457** (`application/problem+json`).
 

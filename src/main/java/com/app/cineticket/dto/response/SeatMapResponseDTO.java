@@ -10,6 +10,9 @@ public record SeatMapResponseDTO(
         String salaNome,
         int totalAssentos,
         int assentosLivres,
+        /** Para desenhar a sala: cadeiras por fila e os corredores (depois de qual cadeira). */
+        int cadeirasPorFila,
+        List<Integer> corredores,
         List<SeatStatusDTO> assentos
 ) {
 }

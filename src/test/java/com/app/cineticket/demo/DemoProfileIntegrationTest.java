@@ -64,6 +64,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
         assertEquals(2, cinemaRepository.count());
         assertEquals(4, roomRepository.count());
         assertEquals(120 + 80 + 100 + 40, seatRepository.count());
+        assertTrue(roomRepository.findAll().stream().allMatch(room -> DemoCatalog.CORREDORES.equals(room.getCorredores())));
         assertTrue(userRepository.existsByEmailIgnoreCase(demoDataService.getVisitorEmail()));
         // TMDB fora do ar neste teste: direção e gêneros vêm do plano B do catálogo local.
         assertTrue(movieRepository.findAll().stream().allMatch(movie -> movie.getDiretor() != null && movie.getGeneros() != null));
