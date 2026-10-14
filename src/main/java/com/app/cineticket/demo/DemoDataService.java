@@ -106,7 +106,7 @@ public class DemoDataService {
 
     /**
      * Reset diário: apaga ingressos, sessões e as contas criadas por visitantes,
-     * mantém filmes, cinemas, admins e o visitante, e recria a programação.
+     * mantém filmes, cinemas, admins, funcionários e o visitante, e recria a programação.
      */
     @Transactional
     public void reset() {
@@ -114,7 +114,7 @@ public class DemoDataService {
         sessionRepository.deleteAllInBatch();
 
         List<User> visitorAccounts = userRepository.findAll().stream()
-                .filter(user -> !isAdmin(user) && !visitorEmail.equalsIgnoreCase(user.getEmail()))
+                .filter(user -> !isAdmin(user) && !isStaff(user) && !visitorEmail.equalsIgnoreCase(user.getEmail()))
                 .toList();
         if (!visitorAccounts.isEmpty()) {
             refreshTokenRepository.deleteByUserIdIn(visitorAccounts.stream().map(User::getId).toList());
@@ -252,5 +252,9 @@ public class DemoDataService {
 
     private static boolean isAdmin(User user) {
         return user.getRoles().stream().anyMatch(role -> "ROLE_ADMIN".equals(role.getNome()));
+    }
+
+    private static boolean isStaff(User user) {
+        return user.getRoles().stream().anyMatch(role -> "ROLE_STAFF".equals(role.getNome()));
     }
 }

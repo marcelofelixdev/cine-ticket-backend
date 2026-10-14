@@ -6,6 +6,8 @@ public record DemoInfoDTO(
         String aviso,
         String visitanteEmail,
         String visitanteSenha,
+        String porteiroEmail,
+        String porteiroSenha,
         String reset
 ) {
 }

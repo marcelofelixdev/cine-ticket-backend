@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Import;
         "api.security.token.secret=test_secret_for_ci_with_at_least_32_chars",
         "TMDB_API_KEY=test_tmdb_key",
         "app.bootstrap.admin.enabled=false",
+        "app.bootstrap.staff.enabled=false",
         "payments.stripe.webhook-secret=" + AbstractIntegrationTest.WEBHOOK_SECRET,
         // Fixos aqui porque o .env local é importado pela aplicação: com PAYMENTS_PROVIDER=stripe
         // no .env, os testes cobrariam no Stripe de verdade e esperariam um webhook que não vem.

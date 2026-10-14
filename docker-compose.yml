@@ -63,6 +63,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin12345678}
       - ADMIN_NAME=${ADMIN_NAME:-Administrador}
       - PAYMENTS_PROVIDER=${PAYMENTS_PROVIDER:-mock}
+      - QR_SECRET=${QR_SECRET:-dev-only-qr-secret-troque-em-producao-0123456789}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
       - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
     depends_on:

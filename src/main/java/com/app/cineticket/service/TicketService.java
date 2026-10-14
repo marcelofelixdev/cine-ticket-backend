@@ -170,6 +170,9 @@ public class TicketService {
         if (previousStatus != TicketStatus.PENDING && previousStatus != TicketStatus.APPROVED) {
             throw new ConflictException("O ingresso já está cancelado.");
         }
+        if (ticket.getUsedAt() != null) {
+            throw new ConflictException("Ingresso já utilizado na entrada não pode ser cancelado.");
+        }
 
         LocalDateTime deadlineCancelamento = ticket.getSession().getHorarioInicio().minusMinutes(30);
 

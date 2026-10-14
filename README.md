@@ -18,6 +18,7 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 |---|---|
 | **API (Swagger)** | [cineticket-api.onrender.com/swagger-ui.html](https://cineticket-api.onrender.com/swagger-ui.html) |
 | **Visitante** | `visitante@cineticket.dev` / `visitante123456` |
+| **Porteiro** (só valida ingressos) | `porteiro@cineticket.dev` / `porteiro12345678` |
 
 No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília).
 
@@ -53,7 +54,7 @@ flowchart LR
         J[Jobs agendados: expiração e limpeza]
     end
 
-    R --> DB[(PostgreSQL 15<br/>Flyway V1–V10)]
+    R --> DB[(PostgreSQL 15<br/>Flyway V1–V11)]
     P --> MQ[[RabbitMQ<br/>pagamentos e reembolsos + DLQs]]
     MQ --> CO[Consumers de pagamento e reembolso]
     CO --> DB
@@ -96,6 +97,8 @@ sequenceDiagram
 | **Pagamento lento ou instável** | Compra nasce `PENDING`; o evento é gravado no **outbox na mesma transação** e um relay o publica no RabbitMQ com *publisher confirms*; aprovação por `UPDATE` condicional | A requisição não fica presa ao gateway; se o broker cair, nenhum evento se perde (fica no banco até ser entregue); a entrega é "pelo menos uma vez" e a aprovação é idempotente; mensagens com erro vão para a DLQ. |
 | **Pagamento real sem tocar em dado de cartão** | Stripe em modo de teste: a API recebe só um `paymentMethodId` (`pm_...`), cria o PaymentIntent com *idempotency key* e aprova pelo **webhook assinado** (`Stripe-Signature`, tolerância de 5 min), deduplicado pelo ID do evento | O número do cartão nunca passa pela API; duplo clique não cobra duas vezes; webhook forjado ou repetido não aprova nada. Pagamento que chega depois de a reserva expirar gera reembolso automático. |
 | **Reembolso sem estorno em dobro** | Pedido de reembolso via outbox → `RefundConsumer` → estorno no Stripe com *idempotency key*; tabela `tb_refund` com `UNIQUE(payment_intent_id)`; retry com backoff e DLQ própria | Mensagem repetida não estorna duas vezes; falha do gateway fica registrada (`FAILED`) e a mensagem vai para a DLQ em vez de travar a fila. |
+| **Ingresso falsificado ou usado duas vezes** | QR com `CT1.<id>.<HMAC-SHA256>` (segredo só no servidor, sem dado pessoal); validação com lock pessimista que grava `used_at` uma única vez, dentro da janela da sessão | Trocar o ID invalida a assinatura; dois funcionários lendo o mesmo QR ao mesmo tempo não liberam duas entradas; ingresso usado não pode mais ser cancelado. |
+| **Funcionário da porta com poder demais** | Papel `ROLE_STAFF` que só pode `POST /tickets/validate` | Menor privilégio: quem confere ingresso não cria sessão nem cancela sala. |
 | **Assentos travados por quem não paga** | `expires_at` + job que marca `EXPIRED` e limite de 4 reservas pendentes por usuário | O índice parcial ignora `EXPIRED`, então o assento volta a ficar livre sozinho. |
 | **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Só o hash SHA-256 fica no banco. |
 | **CSRF com cookie entre domínios** | Validação do header `Origin` nas rotas de refresh e logout | O resto da API usa `Authorization: Bearer`, que o navegador não envia sozinho. |
@@ -162,7 +165,7 @@ Sem essas variáveis, o simulador (`PAYMENTS_PROVIDER=mock`) aprova os mesmos ID
 ./mvnw verify          # Windows: mvnw.cmd verify
 ```
 
-- **147 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
+- **160 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
 - Destaques: concorrência de compra do mesmo assento, fluxo assíncrono de pagamento, rotação e reuso de refresh token, matriz de autorização (admin e dono do recurso) e perfil de demonstração.
 - Cobertura (JaCoCo): `target/site/jacoco/index.html`.
 
@@ -176,7 +179,7 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Filmes e cinemas | `GET` (lista e detalhe) | | `POST`, `PUT`, `DELETE` |
 | Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
-| Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `PUT /{id}/cancel` | |
+| Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `GET /{id}/qr`, `PUT /{id}/cancel` | `POST /validate` (também `STAFF`) |
 | Pagamentos | `POST /payments/webhook` (somente Stripe, com assinatura) | | |
 
 Exemplo de erro:
@@ -206,6 +209,8 @@ Veja o [`.env.example`](.env.example) para a lista completa. As principais:
 | `TMDB_API_KEY` | Chave da API do TMDB (opcional; sem ela os filmes ficam sem pôster) |
 | `CORS_ALLOWED_ORIGINS` | Origens do frontend, separadas por vírgula |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_BOOTSTRAP_ENABLED` | Admin criado no boot |
+| `QR_SECRET` | Segredo do HMAC do QR Code dos ingressos (32+ caracteres; obrigatório em `prod`) |
+| `STAFF_BOOTSTRAP_ENABLED`, `STAFF_EMAIL`, `STAFF_PASSWORD` | Funcionário da entrada (`ROLE_STAFF`) criado no boot (padrão em `dev` e `demo`) |
 | `PAYMENTS_PROVIDER` | `mock` (simulador) ou `stripe` (modo de teste) |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Chave `sk_test_...` e signing secret `whsec_...` do Stripe |
 
@@ -232,7 +237,7 @@ src/main/java/com/app/cineticket
 - [x] Pagamento em **modo de teste do Stripe** com webhook assinado.
 - [x] **Transactional outbox** para os eventos de pagamento e reembolso.
 - [x] Consumidor de reembolso idempotente.
-- [ ] **QR Code assinado** (HMAC), sem dados pessoais, com validação de uso único na entrada.
+- [x] **QR Code assinado** (HMAC), sem dados pessoais, com validação de uso único na entrada.
 - [ ] Comprovação de meia-entrada.
 - [ ] Frontend.
 

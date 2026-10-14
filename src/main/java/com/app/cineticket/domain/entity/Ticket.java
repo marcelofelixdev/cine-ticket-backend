@@ -51,6 +51,15 @@ public class Ticket extends AuditableEntity {
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
 
+    /** Quando o ingresso foi usado na entrada da sala (null = ainda não usado). */
+    @Column(name = "used_at")
+    private LocalDateTime usedAt;
+
+    /** Funcionário que validou a entrada. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "used_by")
+    private User usedBy;
+
     /** Estornos dos pagamentos deste ingresso (o mais recente primeiro). */
     @OneToMany(mappedBy = "ticket")
     @OrderBy("id DESC")

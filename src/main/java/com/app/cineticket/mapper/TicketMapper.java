@@ -17,6 +17,8 @@ public interface TicketMapper {
     @Mapping(target = "expiresAt", ignore = true)
     @Mapping(target = "paymentIntentId", ignore = true)
     @Mapping(target = "refunds", ignore = true)
+    @Mapping(target = "usedAt", ignore = true)
+    @Mapping(target = "usedBy", ignore = true)
     Ticket toEntity(TicketRequestDTO requestDTO);
 
     @Mapping(source = "session.id", target = "sessionId")
@@ -26,6 +28,7 @@ public interface TicketMapper {
     @Mapping(source = "session.room.nome", target = "salaNome")
     @Mapping(target = "cadeiraAssento", expression = "java(entity.getSeat().getFila() + \"-\" + entity.getSeat().getNumero())")
     @Mapping(target = "reembolso", expression = "java(refundStatus(entity))")
+    @Mapping(source = "usedAt", target = "utilizadoEm")
     TicketResponseDTO toResponseDTO(Ticket entity);
 
     /** Reembolso do pagamento que pertence ao ingresso (ignora estornos de pagamentos duplicados). */

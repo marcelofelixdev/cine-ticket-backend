@@ -13,5 +13,7 @@ public record TicketResponseDTO (
     java.time.LocalDateTime horarioSessao,
     Long seatId,
     /** Status do reembolso do pagamento deste ingresso (PENDING, REFUNDED, FAILED...), ou null. */
-    String reembolso
+    String reembolso,
+    /** Quando o ingresso foi usado na entrada da sala, ou null. */
+    java.time.LocalDateTime utilizadoEm
 ){}
