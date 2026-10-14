@@ -109,7 +109,7 @@ public class MovieService {
                         result.title(),
                         result.original_title(),
                         year(result.release_date()),
-                        result.poster_path() == null ? null : MovieTmdbEnricher.POSTER_BASE + result.poster_path(),
+                        MovieTmdbEnricher.posterUrl(result.poster_path()),
                         result.overview(),
                         inCatalog.get(String.valueOf(result.id()))))
                 .toList();
@@ -193,12 +193,11 @@ public class MovieService {
 
     /** Título e duração do TMDB só entram se o cadastro não trouxe os seus. */
     private void applyDetails(Movie movie, TmdbMovieDetailsDTO details) {
-        if (movie.getTitulo() == null && details.title() != null && !details.title().isBlank()) {
-            String title = details.title().trim();
-            movie.setTitulo(title.length() > 150 ? title.substring(0, 150) : title);
+        if (movie.getTitulo() == null) {
+            movie.setTitulo(MovieTmdbEnricher.title(details));
         }
-        if (movie.getDuracaoEmMinutos() == null && details.runtime() != null && details.runtime() > 0) {
-            movie.setDuracaoEmMinutos(details.runtime());
+        if (movie.getDuracaoEmMinutos() == null) {
+            movie.setDuracaoEmMinutos(MovieTmdbEnricher.runtime(details));
         }
         MovieTmdbEnricher.apply(movie, details, now());
     }

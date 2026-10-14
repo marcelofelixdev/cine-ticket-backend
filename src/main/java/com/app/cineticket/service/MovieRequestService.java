@@ -13,7 +13,6 @@ import com.app.cineticket.dto.request.MovieRequestCreateDTO;
 import com.app.cineticket.dto.request.MovieRequestRejectDTO;
 import com.app.cineticket.dto.response.MovieRequestResponseDTO;
 import com.app.cineticket.exception.ConflictException;
-import com.app.cineticket.exception.ForbiddenException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.repository.CinemaMovieRepository;
 import com.app.cineticket.repository.CinemaRepository;
@@ -47,9 +46,8 @@ public class MovieRequestService {
 
     @Transactional
     public MovieRequestResponseDTO create(MovieRequestCreateDTO request, User manager) {
-        Long cinemaId = ProgramacaoService.cinemaIdOf(manager);
-        Cinema cinema = cinemaRepository.findById(cinemaId)
-                .orElseThrow(() -> new ForbiddenException("Gerente sem cinema vinculado."));
+        Long cinemaId = CinemaScope.cinemaIdOf(manager);
+        Cinema cinema = cinemaRepository.getReferenceById(cinemaId);
         long tmdbId = request.tmdbId();
 
         Optional<Movie> inCatalog = movieRepository.findByTmdbId(String.valueOf(tmdbId));
@@ -72,9 +70,9 @@ public class MovieRequestService {
             movieRequest.setAno(movie.getDataEstreia() == null ? null : movie.getDataEstreia().getYear());
         } else {
             TmdbMovieDetailsDTO details = movieService.fetchDetails(tmdbId);
-            String title = details.title() == null || details.title().isBlank() ? "Filme TMDB " + tmdbId : details.title().trim();
-            movieRequest.setTitulo(title.length() > 150 ? title.substring(0, 150) : title);
-            movieRequest.setPosterUrl(details.poster_path() == null ? null : MovieTmdbEnricher.POSTER_BASE + details.poster_path());
+            String title = MovieTmdbEnricher.title(details);
+            movieRequest.setTitulo(title == null ? "Filme TMDB " + tmdbId : title);
+            movieRequest.setPosterUrl(MovieTmdbEnricher.posterUrl(details.poster_path()));
             movieRequest.setAno(MovieTmdbEnricher.releaseDate(details).map(java.time.LocalDate::getYear).orElse(null));
         }
         MovieRequest saved = movieRequestRepository.save(movieRequest);
@@ -84,7 +82,7 @@ public class MovieRequestService {
 
     @Transactional(readOnly = true)
     public List<MovieRequestResponseDTO> listForManager(User manager) {
-        return movieRequestRepository.findByCinema(ProgramacaoService.cinemaIdOf(manager)).stream()
+        return movieRequestRepository.findByCinema(CinemaScope.cinemaIdOf(manager)).stream()
                 .map(MovieRequestService::toResponse)
                 .toList();
     }

@@ -14,20 +14,16 @@ import com.app.cineticket.messaging.OutboxService;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -53,14 +49,16 @@ class HalfPriceRulesTest {
     @Mock private OutboxService outboxService;
     @Mock private PdfService pdfService;
 
-    @InjectMocks private TicketService ticketService;
+    private TicketService ticketService;
 
     private Session session;
     private User buyer;
 
-    @AfterEach
-    void clearSecurity() {
-        SecurityContextHolder.clearContext();
+    @BeforeEach
+    void createService() {
+        // HalfPricePolicy real (com o repositório simulado): a regra da cota é a que está sendo testada.
+        ticketService = new TicketService(ticketRepository, sessionRepository, seatRepository, outboxService,
+                ticketMapper, pdfService, new HalfPricePolicy(ticketRepository));
     }
 
     @Test
@@ -160,12 +158,10 @@ class HalfPriceRulesTest {
             when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
         }
         ReflectionTestUtils.setField(ticketService, "paymentsEnabled", true);
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(buyer, null, List.of()));
     }
 
     private void buy(TicketType type, String documento) {
-        ticketService.buyTicket(new TicketRequestDTO(1L, 2L, type, documento));
+        ticketService.buyTicket(new TicketRequestDTO(1L, 2L, type, documento), buyer);
     }
 
     private Ticket captureSaved() {

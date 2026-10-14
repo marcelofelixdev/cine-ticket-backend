@@ -60,7 +60,7 @@ class MovieRequestServiceTest {
 
     @Test
     void filmeForaDoCatalogoUsaTituloEPosterDoTmdb() {
-        when(cinemaRepository.findById(5L)).thenReturn(Optional.of(cinema));
+        when(cinemaRepository.getReferenceById(5L)).thenReturn(cinema);
         when(movieRepository.findByTmdbId("27205")).thenReturn(Optional.empty());
         when(userRepository.getReferenceById(9L)).thenReturn(manager);
         when(movieService.fetchDetails(27205L)).thenReturn(new TmdbMovieDetailsDTO(27205L, "A Origem", null, null,
@@ -78,7 +78,7 @@ class MovieRequestServiceTest {
 
     @Test
     void tmdbForaDoArNaoCriaPedido() {
-        when(cinemaRepository.findById(5L)).thenReturn(Optional.of(cinema));
+        when(cinemaRepository.getReferenceById(5L)).thenReturn(cinema);
         when(movieRepository.findByTmdbId("27205")).thenReturn(Optional.empty());
         when(userRepository.getReferenceById(9L)).thenReturn(manager);
         when(movieService.fetchDetails(27205L)).thenThrow(new TmdbUnavailableException("fora do ar", null));

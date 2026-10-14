@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,9 +38,8 @@ public class ManagerSessionController {
     @Operation(summary = "Sessões do dia no próprio cinema, com ocupação (MANAGER)",
             description = "Sem date, hoje. Inclui as que já começaram.")
     @GetMapping("/sessions")
-    public ResponseEntity<List<ManagerSessionDTO>> sessions(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser()));
+    public ResponseEntity<List<ManagerSessionDTO>> sessions(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser));
     }
 
     @Operation(summary = "Cria uma sessão no próprio cinema (MANAGER)",
@@ -50,8 +49,8 @@ public class ManagerSessionController {
     @ApiResponse(responseCode = "409", description = "Conflito de horário na sala", content = @Content)
     @ApiResponse(responseCode = "422", description = "Filme não está em cartaz no cinema", content = @Content)
     @PostMapping("/sessions")
-    public ResponseEntity<SessionResponseDTO> create(@RequestBody @Valid SessionRequestDTO request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(managerSessionService.create(request, loggedUser()));
+    public ResponseEntity<SessionResponseDTO> create(@AuthenticationPrincipal User loggedUser, @RequestBody @Valid SessionRequestDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(managerSessionService.create(request, loggedUser));
     }
 
     @Operation(summary = "Cancela uma sessão do próprio cinema (MANAGER)",
@@ -59,18 +58,14 @@ public class ManagerSessionController {
     @ApiResponse(responseCode = "204", description = "Cancelada")
     @ApiResponse(responseCode = "403", description = "Sessão de outro cinema", content = @Content)
     @DeleteMapping("/sessions/{id}")
-    public ResponseEntity<Void> cancel(@PathVariable Long id) {
-        managerSessionService.cancel(id, loggedUser());
+    public ResponseEntity<Void> cancel(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
+        managerSessionService.cancel(id, loggedUser);
         return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Salas do próprio cinema (MANAGER)")
     @GetMapping("/rooms")
-    public ResponseEntity<List<RoomResponseDTO>> rooms() {
-        return ResponseEntity.ok(managerSessionService.rooms(loggedUser()));
-    }
-
-    private static User loggedUser() {
-        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    public ResponseEntity<List<RoomResponseDTO>> rooms(@AuthenticationPrincipal User loggedUser) {
+        return ResponseEntity.ok(managerSessionService.rooms(loggedUser));
     }
 }

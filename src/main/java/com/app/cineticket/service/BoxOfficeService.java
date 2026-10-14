@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -48,20 +47,13 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class BoxOfficeService {
 
-    private static final List<TicketStatus> OCCUPYING = List.of(TicketStatus.PENDING, TicketStatus.APPROVED);
-    private static final List<TicketType> HALF_PRICE = List.of(TicketType.MEIA_ESTUDANTE, TicketType.MEIA_IDOSO);
-    private static final int MIN_STUDENT_DOCUMENT = 6;
-
     private final SessionRepository sessionRepository;
     private final SeatRepository seatRepository;
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketQrCodeService qrCodeService;
     private final PdfService pdfService;
-
-    /** Fração dos lugares que pode ser meia-entrada (mesma propriedade da compra online). */
-    @Value("${tickets.half-price.quota:0.40}")
-    private double halfPriceQuota = 0.40;
+    private final HalfPricePolicy halfPricePolicy;
 
     /** Até quanto tempo depois do início da sessão o caixa ainda vende. */
     @Value("${app.box-office.sales-close-after-start:30m}")
@@ -72,9 +64,7 @@ public class BoxOfficeService {
         Session session = sessionRepository.findByIdWithLock(request.sessionId())
                 .filter(found -> Boolean.TRUE.equals(found.getAtivo()))
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
-        if (!ProgramacaoService.cinemaIdOf(seller).equals(session.getRoom().getCinema().getId())) {
-            throw new ForbiddenException("Esta sessão é de outro cinema.");
-        }
+        CinemaScope.requireSameCinema(seller, session.getRoom().getCinema().getId(), "Esta sessão é de outro cinema.");
         if (LocalDateTime.now(AppTimeZone.ZONE).isAfter(session.getHorarioInicio().plus(salesCloseAfterStart))) {
             throw new BusinessException("As vendas desta sessão já foram encerradas.");
         }
@@ -85,7 +75,8 @@ public class BoxOfficeService {
         if (new HashSet<>(itens.stream().map(BoxOfficeSaleRequestDTO.Item::seatId).toList()).size() != itens.size()) {
             throw new BusinessException("O mesmo lugar foi informado mais de uma vez.");
         }
-        checkHalfPriceQuota(session, itens);
+        halfPricePolicy.requireQuota(session,
+                itens.stream().filter(item -> HalfPricePolicy.isHalfPrice(item.ticketType())).count());
 
         String email = request.clienteEmail() == null || request.clienteEmail().isBlank()
                 ? null : request.clienteEmail().trim().toLowerCase(Locale.ROOT);
@@ -102,7 +93,8 @@ public class BoxOfficeService {
             if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
                 throw new BusinessException("A cadeira " + assento + " não é da sala desta sessão.");
             }
-            if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(session.getId(), seat.getId(), OCCUPYING)) {
+            if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(session.getId(), seat.getId(),
+                    TicketStatus.OCCUPYING_SEAT)) {
                 throw new ConflictException("A cadeira " + assento + " já está ocupada.");
             }
 
@@ -112,8 +104,9 @@ public class BoxOfficeService {
             ticket.setUser(buyer.orElse(null));
             ticket.setClienteEmail(email);
             ticket.setTicketType(item.ticketType());
-            ticket.setDocumentoMeia(studentDocument(item, assento));
-            ticket.setValorPago(priceFor(session, item.ticketType()));
+            ticket.setDocumentoMeia(item.ticketType() == TicketType.MEIA_ESTUDANTE
+                    ? HalfPricePolicy.studentDocument(item.documentoMeia()) : null);
+            ticket.setValorPago(HalfPricePolicy.priceFor(session.getValorBase(), item.ticketType()));
             ticket.setStatus(TicketStatus.APPROVED);
             ticket.setCanal(TicketChannel.BALCAO);
             ticket.setFormaPagamento(request.formaPagamento());
@@ -149,45 +142,15 @@ public class BoxOfficeService {
     public byte[] pdf(Long ticketId, User seller) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
-        if (ticket.getCanal() != TicketChannel.BALCAO
-                || !ProgramacaoService.cinemaIdOf(seller).equals(ticket.getSession().getRoom().getCinema().getId())) {
-            throw new ForbiddenException("Só é possível imprimir ingressos vendidos no balcão deste cinema.");
+        String notAllowed = "Só é possível imprimir ingressos vendidos no balcão deste cinema.";
+        if (ticket.getCanal() != TicketChannel.BALCAO) {
+            throw new ForbiddenException(notAllowed);
         }
+        CinemaScope.requireSameCinema(seller, ticket.getSession().getRoom().getCinema().getId(), notAllowed);
         if (ticket.getStatus() != TicketStatus.APPROVED) {
             throw new BusinessException("Ingresso cancelado não pode ser impresso.");
         }
         return pdfService.generateTicketPdf(ticket);
     }
 
-    private void checkHalfPriceQuota(Session session, List<BoxOfficeSaleRequestDTO.Item> itens) {
-        long requested = itens.stream().filter(item -> HALF_PRICE.contains(item.ticketType())).count();
-        if (requested == 0) {
-            return;
-        }
-        int capacity = session.getRoom().getCapacidade() == null ? 0 : session.getRoom().getCapacidade();
-        long quota = (long) Math.floor(capacity * halfPriceQuota);
-        long sold = ticketRepository.countBySessionIdAndTicketTypeInAndStatusIn(session.getId(), HALF_PRICE, OCCUPYING);
-        if (sold + requested > quota) {
-            throw new ConflictException("Cota de meia-entrada insuficiente para esta sessão: restam "
-                    + Math.max(0, quota - sold) + " de " + quota + ". A inteira continua disponível.");
-        }
-    }
-
-    /** Estudante: número da carteira, conferido na entrada. Idoso: documento conferido na hora, no caixa. */
-    private static String studentDocument(BoxOfficeSaleRequestDTO.Item item, String assento) {
-        if (item.ticketType() != TicketType.MEIA_ESTUDANTE) {
-            return null;
-        }
-        String documento = item.documentoMeia() == null ? "" : item.documentoMeia().trim().toUpperCase(Locale.ROOT);
-        if (documento.length() < MIN_STUDENT_DOCUMENT) {
-            throw new BusinessException("Informe o número da carteira de estudante da cadeira " + assento + ".");
-        }
-        return documento;
-    }
-
-    private static BigDecimal priceFor(Session session, TicketType type) {
-        return type == TicketType.INTEIRA
-                ? session.getValorBase()
-                : session.getValorBase().divide(new BigDecimal("2"), RoundingMode.HALF_UP);
-    }
 }

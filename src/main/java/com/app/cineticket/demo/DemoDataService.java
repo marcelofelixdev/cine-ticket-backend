@@ -227,11 +227,14 @@ public class DemoDataService {
         if (details == null) {
             return;
         }
-        if (details.title() != null && !details.title().isBlank()) {
-            movie.setTitulo(details.title().length() > 150 ? details.title().substring(0, 150) : details.title());
+        // No demo, título e duração do TMDB substituem o plano B do catálogo local.
+        String title = MovieTmdbEnricher.title(details);
+        if (title != null) {
+            movie.setTitulo(title);
         }
-        if (details.runtime() != null && details.runtime() > 0) {
-            movie.setDuracaoEmMinutos(details.runtime());
+        Integer runtime = MovieTmdbEnricher.runtime(details);
+        if (runtime != null) {
+            movie.setDuracaoEmMinutos(runtime);
         }
         MovieTmdbEnricher.apply(movie, details, LocalDateTime.now(AppTimeZone.ZONE));
     }

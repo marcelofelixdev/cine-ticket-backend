@@ -38,9 +38,7 @@ public final class MovieTmdbEnricher {
         }
         setIfPresent(truncate(details.original_title(), 255), movie::setTituloOriginal);
         setIfPresent(details.overview(), movie::setSinopse);
-        if (hasText(details.poster_path())) {
-            movie.setPosterUrl(POSTER_BASE + details.poster_path());
-        }
+        setIfPresent(posterUrl(details.poster_path()), movie::setPosterUrl);
         if (hasText(details.backdrop_path())) {
             movie.setBackdropUrl(BACKDROP_BASE + details.backdrop_path());
         }
@@ -57,6 +55,21 @@ public final class MovieTmdbEnricher {
             movie.getElenco().addAll(cast);
         }
         movie.setTmdbSincronizadoEm(now);
+    }
+
+    /** Título em português pronto para o catálogo (até 150 caracteres), ou null. */
+    public static String title(TmdbMovieDetailsDTO details) {
+        return hasText(details.title()) ? truncate(details.title().trim(), 150) : null;
+    }
+
+    /** Duração em minutos, ou null se o TMDB não informar. */
+    public static Integer runtime(TmdbMovieDetailsDTO details) {
+        return details.runtime() != null && details.runtime() > 0 ? details.runtime() : null;
+    }
+
+    /** URL do pôster (w500) a partir do poster_path do TMDB, ou null. */
+    public static String posterUrl(String posterPath) {
+        return hasText(posterPath) ? POSTER_BASE + posterPath : null;
     }
 
     static String directors(TmdbMovieDetailsDTO details) {

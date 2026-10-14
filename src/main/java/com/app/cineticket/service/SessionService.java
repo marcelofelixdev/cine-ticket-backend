@@ -48,8 +48,6 @@ public class SessionService {
     private final SeatRepository seatRepository;
     private final CinemaMovieRepository cinemaMovieRepository;
 
-    /** Status que ocupam um assento; é o mesmo critério usado na compra e no índice anti-overbooking. */
-    private static final List<TicketStatus> OCCUPYING_STATUSES = List.of(TicketStatus.PENDING, TicketStatus.APPROVED);
 
     /**
      * Mapa de assentos de uma sessão ativa: cada assento da sala com status LIVRE ou OCUPADO,
@@ -62,7 +60,7 @@ public class SessionService {
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
 
         Set<Long> occupiedSeatIds = new HashSet<>(
-                ticketRepository.findSeatIdsBySessionIdAndStatusIn(sessionId, OCCUPYING_STATUSES));
+                ticketRepository.findSeatIdsBySessionIdAndStatusIn(sessionId, TicketStatus.OCCUPYING_SEAT));
 
         List<Seat> seats = seatRepository.findByRoomIdOrderByFilaAscNumeroAsc(session.getRoom().getId());
         List<SeatStatusDTO> seatStatuses = seats.stream()

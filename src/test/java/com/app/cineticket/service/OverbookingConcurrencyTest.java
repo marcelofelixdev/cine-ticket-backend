@@ -24,8 +24,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -187,19 +185,15 @@ class OverbookingConcurrencyTest extends AbstractIntegrationTest {
     private Callable<Outcome> purchase(User buyer, TicketRequestDTO request,
                                        CountDownLatch ready, CountDownLatch start) {
         return () -> {
-            SecurityContextHolder.getContext().setAuthentication(
-                    new UsernamePasswordAuthenticationToken(buyer, null, List.of()));
             try {
                 ready.countDown();
                 start.await();
-                ticketService.buyTicket(request);
+                ticketService.buyTicket(request, buyer);
                 return Outcome.SUCCESS;
             } catch (ConflictException | DataIntegrityViolationException e) {
                 // ConflictException: barrado pela verificação após o lock.
                 // DataIntegrityViolation: barrado pelo índice (as duas viram 409 na API).
                 return Outcome.CONFLICT;
-            } finally {
-                SecurityContextHolder.clearContext();
             }
         };
     }

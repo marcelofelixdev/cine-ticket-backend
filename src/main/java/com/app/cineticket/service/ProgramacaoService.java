@@ -10,7 +10,6 @@ import com.app.cineticket.dto.request.MovieOfferDTO;
 import com.app.cineticket.dto.response.AdminMovieDTO;
 import com.app.cineticket.dto.response.CinemaProgramacaoDTO;
 import com.app.cineticket.dto.response.ProgramacaoItemDTO;
-import com.app.cineticket.exception.ForbiddenException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.repository.CinemaMovieRepository;
 import com.app.cineticket.repository.CinemaRepository;
@@ -68,7 +67,7 @@ public class ProgramacaoService {
     /** O gerente confirma um filme enviado pelo admin; confirmar de novo não muda nada. */
     @Transactional
     public ProgramacaoItemDTO confirm(Long movieId, User manager) {
-        Long cinemaId = cinemaIdOf(manager);
+        Long cinemaId = CinemaScope.cinemaIdOf(manager);
         CinemaMovie entry = cinemaMovieRepository.findByCinemaIdAndMovieId(cinemaId, movieId)
                 .orElseThrow(() -> new ResourceNotFoundException("Este filme não foi enviado para o seu cinema."));
         if (entry.getStatus() != ProgramacaoStatus.ATIVO) {
@@ -81,7 +80,7 @@ public class ProgramacaoService {
     /** Programação do cinema do gerente: ativos e aguardando confirmação. */
     @Transactional(readOnly = true)
     public List<ProgramacaoItemDTO> listForManager(User manager) {
-        return cinemaMovieRepository.findByCinemaWithMovie(cinemaIdOf(manager)).stream()
+        return cinemaMovieRepository.findByCinemaWithMovie(CinemaScope.cinemaIdOf(manager)).stream()
                 .map(ProgramacaoService::toItem)
                 .toList();
     }
@@ -133,13 +132,6 @@ public class ProgramacaoService {
         return cinemaMovieRepository.findByMovieIdsWithCinema(List.of(movieId)).stream()
                 .map(ProgramacaoService::toCinemaDto)
                 .toList();
-    }
-
-    static Long cinemaIdOf(User manager) {
-        if (manager.getCinema() == null) {
-            throw new ForbiddenException("Gerente sem cinema vinculado.");
-        }
-        return manager.getCinema().getId();
     }
 
     private static CinemaProgramacaoDTO toCinemaDto(CinemaMovie entry) {

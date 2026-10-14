@@ -11,7 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,17 +33,13 @@ public class ManagerStaffController {
     @ApiResponse(responseCode = "403", description = "Não é gerente ou está sem cinema vinculado", content = @Content)
     @ApiResponse(responseCode = "409", description = "E-mail já cadastrado", content = @Content)
     @PostMapping
-    public ResponseEntity<TeamMemberResponseDTO> create(@RequestBody @Valid StaffRequestDTO request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(teamService.createByManager(request, loggedUser()));
+    public ResponseEntity<TeamMemberResponseDTO> create(@AuthenticationPrincipal User loggedUser, @RequestBody @Valid StaffRequestDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(teamService.createByManager(request, loggedUser));
     }
 
     @Operation(summary = "Lista os funcionários do cinema do gerente (MANAGER)")
     @GetMapping
-    public ResponseEntity<List<TeamMemberResponseDTO>> list() {
-        return ResponseEntity.ok(teamService.listStaffOf(loggedUser()));
-    }
-
-    private static User loggedUser() {
-        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    public ResponseEntity<List<TeamMemberResponseDTO>> list(@AuthenticationPrincipal User loggedUser) {
+        return ResponseEntity.ok(teamService.listStaffOf(loggedUser));
     }
 }

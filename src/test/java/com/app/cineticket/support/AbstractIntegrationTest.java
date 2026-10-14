@@ -32,7 +32,7 @@ import org.springframework.context.annotation.Import;
 // Por padrão os testes do Spring Boot desligam a exportação de métricas (o /actuator/prometheus
 // responderia 404). Ligado aqui, na base, para não criar um segundo contexto só para isso.
 @AutoConfigureObservability(tracing = false)
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, TestData.class})
 public abstract class AbstractIntegrationTest {
 
     /** Signing secret do webhook do Stripe usado nos testes (o gateway continua simulado). */

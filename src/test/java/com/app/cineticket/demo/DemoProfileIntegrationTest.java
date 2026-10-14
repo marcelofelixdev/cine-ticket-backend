@@ -1,7 +1,5 @@
 package com.app.cineticket.demo;
 
-import com.app.cineticket.support.TestRoles;
-
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
@@ -56,7 +54,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired private com.app.cineticket.repository.RoleRepository roleRepository;
+    @Autowired private com.app.cineticket.support.TestData testData;
 
     @Test
     void bootPopulaCatalogoCinemasSalasEVisitante() {
@@ -131,8 +129,8 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void equipeSemCinemaEVinculadaAoPrimeiroCinemaEAEquipeDeExemploSobreviveAoReset() {
-        User exampleManager = teamUser("gerente@cineticket.dev", "ROLE_MANAGER");
-        User createdByVisitor = teamUser("funcionario-criado-no-demo@teste.com", "ROLE_STAFF");
+        User exampleManager = testData.user("gerente@cineticket.dev", "ROLE_MANAGER", null);
+        User createdByVisitor = testData.user("funcionario-criado-no-demo@teste.com", "ROLE_STAFF", null);
 
         demoDataService.seed();
 
@@ -145,15 +143,6 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
         assertTrue(userRepository.existsByEmailIgnoreCase("gerente@cineticket.dev"));
         assertFalse(userRepository.existsByEmailIgnoreCase("funcionario-criado-no-demo@teste.com"));
         userRepository.deleteById(exampleManager.getId());
-    }
-
-    private User teamUser(String email, String role) {
-        User user = new User();
-        user.setNome("Equipe");
-        user.setEmail(email);
-        user.setSenha("hash-irrelevante");
-        user.setRoles(new java.util.HashSet<>(java.util.Set.of(TestRoles.ensure(roleRepository, role))));
-        return userRepository.save(user);
     }
 
     @Test

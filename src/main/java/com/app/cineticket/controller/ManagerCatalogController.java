@@ -13,7 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,32 +39,28 @@ public class ManagerCatalogController {
     @ApiResponse(responseCode = "409", description = "Filme já no cinema ou pedido já aguardando", content = @Content)
     @ApiResponse(responseCode = "502", description = "TMDB indisponível", content = @Content)
     @PostMapping("/movie-requests")
-    public ResponseEntity<MovieRequestResponseDTO> request(@RequestBody @Valid MovieRequestCreateDTO request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(movieRequestService.create(request, loggedUser()));
+    public ResponseEntity<MovieRequestResponseDTO> request(@AuthenticationPrincipal User loggedUser, @RequestBody @Valid MovieRequestCreateDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(movieRequestService.create(request, loggedUser));
     }
 
     @Operation(summary = "Pedidos do próprio cinema (MANAGER)")
     @GetMapping("/movie-requests")
-    public ResponseEntity<List<MovieRequestResponseDTO>> requests() {
-        return ResponseEntity.ok(movieRequestService.listForManager(loggedUser()));
+    public ResponseEntity<List<MovieRequestResponseDTO>> requests(@AuthenticationPrincipal User loggedUser) {
+        return ResponseEntity.ok(movieRequestService.listForManager(loggedUser));
     }
 
     @Operation(summary = "Programação do próprio cinema (MANAGER)",
             description = "Filmes ativos e os enviados pelo admin que aguardam confirmação.")
     @GetMapping("/programacao")
-    public ResponseEntity<List<ProgramacaoItemDTO>> programacao() {
-        return ResponseEntity.ok(programacaoService.listForManager(loggedUser()));
+    public ResponseEntity<List<ProgramacaoItemDTO>> programacao(@AuthenticationPrincipal User loggedUser) {
+        return ResponseEntity.ok(programacaoService.listForManager(loggedUser));
     }
 
     @Operation(summary = "Confirma um filme enviado pelo admin (MANAGER)")
     @ApiResponse(responseCode = "200", description = "Filme ativo no cinema")
     @ApiResponse(responseCode = "404", description = "Filme não foi enviado para este cinema", content = @Content)
     @PostMapping("/programacao/{movieId}/confirm")
-    public ResponseEntity<ProgramacaoItemDTO> confirm(@PathVariable Long movieId) {
-        return ResponseEntity.ok(programacaoService.confirm(movieId, loggedUser()));
-    }
-
-    private static User loggedUser() {
-        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    public ResponseEntity<ProgramacaoItemDTO> confirm(@AuthenticationPrincipal User loggedUser, @PathVariable Long movieId) {
+        return ResponseEntity.ok(programacaoService.confirm(movieId, loggedUser));
     }
 }

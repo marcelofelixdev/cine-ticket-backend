@@ -12,19 +12,13 @@ import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.BoxOfficeSaleRequestDTO;
 import com.app.cineticket.exception.ConflictException;
-import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoleRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
-import com.app.cineticket.security.TokenService;
 import com.app.cineticket.service.BoxOfficeService;
 import com.app.cineticket.service.TicketQrCodeService;
 import com.app.cineticket.support.AbstractIntegrationTest;
-import com.app.cineticket.support.TestRoles;
+import com.app.cineticket.support.TestData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
@@ -34,13 +28,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -50,6 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -71,14 +62,9 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @Autowired private TokenService tokenService;
+    @Autowired private TestData testData;
     @Autowired private BoxOfficeService boxOfficeService;
     @Autowired private TicketQrCodeService qrCodeService;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
     @Autowired private MovieRepository movieRepository;
     @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
@@ -97,27 +83,24 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinemaA = cinema("Cine Caixa A", CNPJ_A);
-        Cinema cinemaB = cinema("Cine Caixa B", CNPJ_B);
-        roomA = room("Sala Caixa A", cinemaA);
-        Room roomB = room("Sala Caixa B", cinemaB);
+        Cinema cinemaA = testData.cinema("Cine Caixa A", CNPJ_A);
+        Cinema cinemaB = testData.cinema("Cine Caixa B", CNPJ_B);
+        roomA = testData.room("Sala Caixa A", cinemaA, 10);
+        Room roomB = testData.room("Sala Caixa B", cinemaB, 10);
         seatsA.clear();
         for (int n = 1; n <= 10; n++) {
-            seatsA.add(seat(roomA, n));
+            seatsA.add(testData.seat(roomA, "A", n));
         }
-        seat(roomB, 1);
-        movie = new Movie();
-        movie.setTitulo("Filme do Caixa");
-        movie.setDuracaoEmMinutos(120);
-        movie = movieRepository.save(movie);
-        sessionA = session(roomA, LocalDateTime.now().plusDays(1));
-        sessionB = session(roomB, LocalDateTime.now().plusDays(1));
+        testData.seat(roomB, "A", 1);
+        movie = testData.movie("Filme do Caixa", 120);
+        sessionA = testData.session(movie, roomA, LocalDateTime.now().plusDays(1));
+        sessionB = testData.session(movie, roomB, LocalDateTime.now().plusDays(1));
 
-        staff = user("caixa", "ROLE_STAFF", cinemaA);
-        staffToken = tokenService.generateToken(staff);
-        managerToken = tokenService.generateToken(user("gerente", "ROLE_MANAGER", cinemaA));
-        adminToken = tokenService.generateToken(user("admin", "ROLE_ADMIN", null));
-        clientToken = tokenService.generateToken(user("cliente", "ROLE_USER", null));
+        staff = testData.user("caixa" + DOMAIN, "ROLE_STAFF", cinemaA);
+        staffToken = testData.token(staff);
+        managerToken = testData.token("gerente" + DOMAIN, "ROLE_MANAGER", cinemaA);
+        adminToken = testData.token("admin" + DOMAIN, "ROLE_ADMIN", null);
+        clientToken = testData.token("cliente" + DOMAIN, "ROLE_USER", null);
     }
 
     @AfterEach
@@ -125,18 +108,8 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
         ticketRepository.deleteAll();
         sessionRepository.deleteAll();
         movieRepository.deleteAll();
-        userRepository.deleteAll(userRepository.findAll().stream()
-                .filter(user -> user.getEmail().endsWith(DOMAIN))
-                .toList());
-        cinemaRepository.findAll().stream()
-                .filter(cinema -> Set.of(CNPJ_A, CNPJ_B).contains(cinema.getCnpj()))
-                .forEach(cinema -> {
-                    roomRepository.findByCinemaIdOrderByNome(cinema.getId()).forEach(room -> {
-                        seatRepository.deleteAll(seatRepository.findByRoomIdOrderByFilaAscNumeroAsc(room.getId()));
-                        roomRepository.delete(room);
-                    });
-                    cinemaRepository.delete(cinema);
-                });
+        testData.deleteUsersEndingWith(DOMAIN);
+        testData.deleteCinemas(Set.of(CNPJ_A, CNPJ_B));
     }
 
     @Test
@@ -144,7 +117,7 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
         String body = sale(sessionA, "DINHEIRO", null,
                 item(seatsA.get(0), "INTEIRA", null), item(seatsA.get(1), "MEIA_ESTUDANTE", "cie123456"));
 
-        String response = perform(post(SALES), staffToken, body)
+        String response = mockMvc.perform(authed(post(SALES), staffToken, body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.total").value(45.00))
                 .andExpect(jsonPath("$.vinculadoAConta").value(false))
@@ -159,19 +132,19 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
         assertEquals(FormaPagamento.DINHEIRO, ticket.getFormaPagamento());
         assertNull(ticket.getUser());
 
-        perform(get("/api/v1/box-office/sessions").param("date", sessionA.getHorarioInicio().toLocalDate().toString()),
-                staffToken, null)
+        mockMvc.perform(authed(get("/api/v1/box-office/sessions")
+                        .param("date", sessionA.getHorarioInicio().toLocalDate().toString()), staffToken, null))
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].ocupados").value(2));
     }
 
     @Test
     void lugarOcupadoBarraAVendaInteira() throws Exception {
-        perform(post(SALES), staffToken, sale(sessionA, "PIX", null, item(seatsA.get(1), "INTEIRA", null)))
+        mockMvc.perform(authed(post(SALES), staffToken, sale(sessionA, "PIX", null, item(seatsA.get(1), "INTEIRA", null))))
                 .andExpect(status().isCreated());
 
-        perform(post(SALES), managerToken, sale(sessionA, "CREDITO", null,
-                item(seatsA.get(0), "INTEIRA", null), item(seatsA.get(1), "INTEIRA", null)))
+        mockMvc.perform(authed(post(SALES), managerToken, sale(sessionA, "CREDITO", null,
+                        item(seatsA.get(0), "INTEIRA", null), item(seatsA.get(1), "INTEIRA", null))))
                 .andExpect(status().isConflict());
 
         assertEquals(1, ticketRepository.count(), "a venda com lugar ocupado não pode deixar ingresso para trás");
@@ -180,57 +153,58 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
     @Test
     void cotaDeMeiaContaOsLugaresDaVenda() throws Exception {
         // Sala de 10 lugares: cota de 4 meias.
-        perform(post(SALES), staffToken, sale(sessionA, "DEBITO", null,
-                item(seatsA.get(0), "MEIA_IDOSO", null), item(seatsA.get(1), "MEIA_IDOSO", null),
-                item(seatsA.get(2), "MEIA_IDOSO", null), item(seatsA.get(3), "MEIA_IDOSO", null),
-                item(seatsA.get(4), "MEIA_IDOSO", null)))
+        mockMvc.perform(authed(post(SALES), staffToken, sale(sessionA, "DEBITO", null,
+                        item(seatsA.get(0), "MEIA_IDOSO", null), item(seatsA.get(1), "MEIA_IDOSO", null),
+                        item(seatsA.get(2), "MEIA_IDOSO", null), item(seatsA.get(3), "MEIA_IDOSO", null),
+                        item(seatsA.get(4), "MEIA_IDOSO", null))))
                 .andExpect(status().isConflict());
         assertEquals(0, ticketRepository.count());
     }
 
     @Test
     void sessaoDeOutroCinemaRecebe403() throws Exception {
-        perform(post(SALES), staffToken, sale(sessionB, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null)))
+        mockMvc.perform(authed(post(SALES), staffToken, sale(sessionB, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null))))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void vendaEncerradaMeiaHoraDepoisDoInicio() throws Exception {
-        Session started = session(roomA, LocalDateTime.now().minusMinutes(40));
+        Session started = testData.session(movie, roomA, LocalDateTime.now().minusMinutes(40));
 
-        perform(post(SALES), staffToken, sale(started, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null)))
+        mockMvc.perform(authed(post(SALES), staffToken, sale(started, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null))))
                 .andExpect(status().isUnprocessableEntity());
     }
 
     @Test
     void emailDeContaLevaOIngressoParaMeusIngressosMasNaoCancelaOnline() throws Exception {
         String body = sale(sessionA, "CREDITO", "cliente" + DOMAIN, item(seatsA.get(0), "INTEIRA", null));
-        String response = perform(post(SALES), staffToken, body)
+        String response = mockMvc.perform(authed(post(SALES), staffToken, body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.vinculadoAConta").value(true))
                 .andReturn().getResponse().getContentAsString();
         long ticketId = objectMapper.readTree(response).get("ingressos").get(0).get("ticketId").asLong();
 
-        perform(get("/api/v1/tickets/my-tickets"), clientToken, null)
+        mockMvc.perform(authed(get("/api/v1/tickets/my-tickets"), clientToken, null))
                 .andExpect(jsonPath("$.content[0].id").value(ticketId))
                 .andExpect(jsonPath("$.content[0].canal").value("BALCAO"));
-        perform(put("/api/v1/tickets/" + ticketId + "/cancel"), clientToken, null)
+        mockMvc.perform(authed(put("/api/v1/tickets/" + ticketId + "/cancel"), clientToken, null))
                 .andExpect(status().isUnprocessableEntity());
     }
 
     @Test
     void ingressoSemDonoEntraNaSalaEImprimeNoCaixa() throws Exception {
-        Session soon = session(roomA, LocalDateTime.now().plusMinutes(20));
-        String response = perform(post(SALES), staffToken, sale(soon, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null)))
+        Session soon = testData.session(movie, roomA, LocalDateTime.now().plusMinutes(20));
+        String response = mockMvc.perform(authed(post(SALES), staffToken,
+                        sale(soon, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null))))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         JsonNode ingresso = objectMapper.readTree(response).get("ingressos").get(0);
 
-        perform(get("/api/v1/box-office/tickets/" + ingresso.get("ticketId").asLong() + "/pdf"), staffToken, null)
+        mockMvc.perform(authed(get("/api/v1/box-office/tickets/" + ingresso.get("ticketId").asLong() + "/pdf"), staffToken, null))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_PDF));
 
-        perform(post("/api/v1/tickets/validate"), staffToken, "{\"qr\":\"" + ingresso.get("qr").asText() + "\"}")
+        mockMvc.perform(authed(post("/api/v1/tickets/validate"), staffToken, "{\"qr\":\"" + ingresso.get("qr").asText() + "\"}"))
                 .andExpect(status().isOk());
     }
 
@@ -266,8 +240,8 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
     void soEquipeDoCinemaUsaOCaixa() throws Exception {
         String body = sale(sessionA, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null));
         for (String token : List.of(adminToken, clientToken)) {
-            perform(post(SALES), token, body).andExpect(status().isForbidden());
-            perform(get("/api/v1/box-office/sessions"), token, null).andExpect(status().isForbidden());
+            mockMvc.perform(authed(post(SALES), token, body)).andExpect(status().isForbidden());
+            mockMvc.perform(authed(get("/api/v1/box-office/sessions"), token, null)).andExpect(status().isForbidden());
         }
         mockMvc.perform(post(SALES).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isUnauthorized());
@@ -296,57 +270,5 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
                 + ",\"formaPagamento\":\"" + forma + "\""
                 + (email == null ? "" : ",\"clienteEmail\":\"" + email + "\"")
                 + ",\"itens\":[" + String.join(",", itens) + "]}";
-    }
-
-    private ResultActions perform(MockHttpServletRequestBuilder request, String token, String body) throws Exception {
-        request.header("Authorization", "Bearer " + token);
-        if (body != null) {
-            request.contentType(MediaType.APPLICATION_JSON).content(body);
-        }
-        return mockMvc.perform(request);
-    }
-
-    private Cinema cinema(String nome, String cnpj) {
-        Cinema cinema = new Cinema();
-        cinema.setNome(nome);
-        cinema.setCnpj(cnpj);
-        cinema.setEndereco("Rua do Caixa, 1");
-        return cinemaRepository.save(cinema);
-    }
-
-    private Room room(String nome, Cinema cinema) {
-        Room room = new Room();
-        room.setNome(nome);
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        return roomRepository.save(room);
-    }
-
-    private Seat seat(Room room, int numero) {
-        Seat seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(numero);
-        seat.setRoom(room);
-        return seatRepository.save(seat);
-    }
-
-    private Session session(Room room, LocalDateTime start) {
-        Session session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(start);
-        session.setValorBase(new BigDecimal("30.00"));
-        session.setAtivo(true);
-        return sessionRepository.save(session);
-    }
-
-    private User user(String login, String role, Cinema cinema) {
-        User user = new User();
-        user.setNome("Pessoa " + login);
-        user.setEmail(login + DOMAIN);
-        user.setSenha("hash-irrelevante");
-        user.setRoles(new HashSet<>(Set.of(TestRoles.ensure(roleRepository, role))));
-        user.setCinema(cinema);
-        return userRepository.save(user);
     }
 }

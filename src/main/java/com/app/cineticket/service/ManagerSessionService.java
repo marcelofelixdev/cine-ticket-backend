@@ -9,7 +9,6 @@ import com.app.cineticket.dto.request.SessionRequestDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
 import com.app.cineticket.dto.response.SessionResponseDTO;
-import com.app.cineticket.exception.ForbiddenException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.RoomMapper;
 import com.app.cineticket.repository.RoomRepository;
@@ -30,7 +29,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ManagerSessionService {
 
-    private static final List<TicketStatus> OCCUPYING = List.of(TicketStatus.PENDING, TicketStatus.APPROVED);
 
     private final SessionService sessionService;
     private final SessionRepository sessionRepository;
@@ -42,7 +40,7 @@ public class ManagerSessionService {
     public SessionResponseDTO create(SessionRequestDTO request, User manager) {
         Room room = roomRepository.findWithCinemaById(request.roomId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sala não encontrada."));
-        requireOwnCinema(room.getCinema().getId(), manager, "Esta sala é de outro cinema.");
+        CinemaScope.requireSameCinema(manager, room.getCinema().getId(), "Esta sala é de outro cinema.");
         return sessionService.create(request);
     }
 
@@ -50,7 +48,7 @@ public class ManagerSessionService {
     public void cancel(Long sessionId, User manager) {
         Session session = sessionRepository.findWithDetailsById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
-        requireOwnCinema(session.getRoom().getCinema().getId(), manager, "Esta sessão é de outro cinema.");
+        CinemaScope.requireSameCinema(manager, session.getRoom().getCinema().getId(), "Esta sessão é de outro cinema.");
         sessionService.deleteEmergency(sessionId);
     }
 
@@ -58,7 +56,7 @@ public class ManagerSessionService {
     @Transactional(readOnly = true)
     public List<ManagerSessionDTO> listOfDay(LocalDate date, User manager) {
         LocalDate day = date == null ? LocalDate.now(AppTimeZone.ZONE) : date;
-        return sessionRepository.findActiveByCinemaBetween(ProgramacaoService.cinemaIdOf(manager),
+        return sessionRepository.findActiveByCinemaBetween(CinemaScope.cinemaIdOf(manager),
                         day.atStartOfDay(), day.plusDays(1).atStartOfDay()).stream()
                 .map(this::toDto)
                 .toList();
@@ -66,7 +64,7 @@ public class ManagerSessionService {
 
     @Transactional(readOnly = true)
     public List<RoomResponseDTO> rooms(User manager) {
-        return roomRepository.findByCinemaIdOrderByNome(ProgramacaoService.cinemaIdOf(manager)).stream()
+        return roomRepository.findByCinemaIdOrderByNome(CinemaScope.cinemaIdOf(manager)).stream()
                 .map(roomMapper::toResponseDTO)
                 .toList();
     }
@@ -86,12 +84,6 @@ public class ManagerSessionService {
                 session.getAudio(),
                 session.getValorBase(),
                 session.getRoom().getCapacidade(),
-                ticketRepository.countBySessionIdAndStatusIn(session.getId(), OCCUPYING));
-    }
-
-    private static void requireOwnCinema(Long cinemaId, User manager, String message) {
-        if (!ProgramacaoService.cinemaIdOf(manager).equals(cinemaId)) {
-            throw new ForbiddenException(message);
-        }
+                ticketRepository.countBySessionIdAndStatusIn(session.getId(), TicketStatus.OCCUPYING_SEAT));
     }
 }

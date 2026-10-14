@@ -16,7 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,9 +42,8 @@ public class BoxOfficeController {
 
     @Operation(summary = "Sessões do dia no próprio cinema, com ocupação (STAFF ou MANAGER)")
     @GetMapping("/sessions")
-    public ResponseEntity<List<ManagerSessionDTO>> sessions(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser()));
+    public ResponseEntity<List<ManagerSessionDTO>> sessions(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser));
     }
 
     @Operation(summary = "Vende lugares no caixa (STAFF ou MANAGER)",
@@ -55,20 +54,16 @@ public class BoxOfficeController {
     @ApiResponse(responseCode = "409", description = "Lugar ocupado ou cota de meia esgotada", content = @Content)
     @ApiResponse(responseCode = "422", description = "Vendas encerradas, lugar de outra sala ou documento de estudante ausente", content = @Content)
     @PostMapping("/sales")
-    public ResponseEntity<BoxOfficeSaleResponseDTO> sell(@RequestBody @Valid BoxOfficeSaleRequestDTO request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(boxOfficeService.sell(request, loggedUser()));
+    public ResponseEntity<BoxOfficeSaleResponseDTO> sell(@AuthenticationPrincipal User loggedUser, @RequestBody @Valid BoxOfficeSaleRequestDTO request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(boxOfficeService.sell(request, loggedUser));
     }
 
     @Operation(summary = "PDF de um ingresso vendido no balcão do próprio cinema (STAFF ou MANAGER)")
     @GetMapping(value = "/tickets/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    public ResponseEntity<byte[]> pdf(@PathVariable Long id) {
+    public ResponseEntity<byte[]> pdf(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=ingresso-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
-                .body(boxOfficeService.pdf(id, loggedUser()));
-    }
-
-    private static User loggedUser() {
-        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                .body(boxOfficeService.pdf(id, loggedUser));
     }
 }

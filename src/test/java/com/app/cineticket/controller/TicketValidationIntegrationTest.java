@@ -1,10 +1,7 @@
 package com.app.cineticket.controller;
 
-import com.app.cineticket.support.TestRoles;
-
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
-import com.app.cineticket.domain.entity.Role;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
@@ -14,7 +11,6 @@ import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoleRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
@@ -33,8 +29,6 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -63,7 +57,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
     @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
     @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
+    @Autowired private com.app.cineticket.support.TestData testData;
 
     private Cinema cinema;
     private Room room;
@@ -99,15 +93,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
         movie.setDuracaoEmMinutos(120);
         movie = movieRepository.save(movie);
 
-        Role staffRole = roleRepository.findByNome("ROLE_STAFF").orElseGet(() -> {
-            Role role = new Role();
-            role.setNome("ROLE_STAFF");
-            return roleRepository.save(role);
-        });
-        User staff = user("Funcionário", STAFF_EMAIL);
-        staff.setRoles(new HashSet<>(Set.of(staffRole)));
-        staff.setCinema(cinema);
-        staffToken = tokenService.generateToken(userRepository.save(staff));
+        staffToken = testData.token(STAFF_EMAIL, "ROLE_STAFF", cinema);
 
         client = userRepository.save(user("Cliente", CLIENT_EMAIL));
         clientToken = tokenService.generateToken(client);
@@ -129,16 +115,8 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void funcionarioDeOutroCinemaNaoValida() throws Exception {
-        Cinema other = new Cinema();
-        other.setNome("Cine Vizinho");
-        other.setCnpj("77777777000177");
-        other.setEndereco("Rua V, 7");
-        other = cinemaRepository.save(other);
-
-        User otherStaff = user("Funcionário vizinho", OTHER_STAFF_EMAIL);
-        otherStaff.setRoles(new HashSet<>(Set.of(TestRoles.ensure(roleRepository, "ROLE_STAFF"))));
-        otherStaff.setCinema(other);
-        String otherStaffToken = tokenService.generateToken(userRepository.save(otherStaff));
+        Cinema other = testData.cinema("Cine Vizinho", "77777777000177");
+        String otherStaffToken = testData.token(OTHER_STAFF_EMAIL, "ROLE_STAFF", other);
 
         Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(20));
         validate(qrCodeService.payloadFor(ticket.getId()), otherStaffToken)
@@ -150,9 +128,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void adminValidaEmQualquerCinema() throws Exception {
-        User admin = user("Admin", ADMIN_EMAIL);
-        admin.setRoles(new HashSet<>(Set.of(TestRoles.ensure(roleRepository, "ROLE_ADMIN"))));
-        String adminToken = tokenService.generateToken(userRepository.save(admin));
+        String adminToken = testData.token(ADMIN_EMAIL, "ROLE_ADMIN", null);
 
         Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(20));
         validate(qrCodeService.payloadFor(ticket.getId()), adminToken).andExpect(status().isOk());

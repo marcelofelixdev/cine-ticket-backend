@@ -8,7 +8,6 @@ import com.app.cineticket.dto.request.StaffRequestDTO;
 import com.app.cineticket.dto.request.TeamMemberRequestDTO;
 import com.app.cineticket.dto.response.TeamMemberResponseDTO;
 import com.app.cineticket.exception.ConflictException;
-import com.app.cineticket.exception.ForbiddenException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.RoleRepository;
@@ -50,8 +49,7 @@ public class TeamService {
     /** O funcionário é criado no cinema do gerente; o pedido não escolhe papel nem cinema. */
     @Transactional
     public TeamMemberResponseDTO createByManager(StaffRequestDTO request, User manager) {
-        Cinema cinema = cinemaRepository.findById(cinemaIdOf(manager))
-                .orElseThrow(() -> new ForbiddenException("Gerente sem cinema vinculado."));
+        Cinema cinema = cinemaRepository.getReferenceById(CinemaScope.cinemaIdOf(manager));
         return create(request.nome(), request.email(), request.senha(), TeamRole.STAFF, cinema);
     }
 
@@ -67,7 +65,7 @@ public class TeamService {
     /** Funcionários do cinema do gerente. */
     @Transactional(readOnly = true)
     public List<TeamMemberResponseDTO> listStaffOf(User manager) {
-        return userRepository.findTeamByCinema(List.of(TeamRole.STAFF.roleName()), cinemaIdOf(manager)).stream()
+        return userRepository.findTeamByCinema(List.of(TeamRole.STAFF.roleName()), CinemaScope.cinemaIdOf(manager)).stream()
                 .map(TeamService::toResponse)
                 .toList();
     }
@@ -89,13 +87,6 @@ public class TeamService {
         User saved = userRepository.save(user);
         log.info("[EQUIPE] {} {} criado no cinema {}.", papel, normalizedEmail, cinema.getId());
         return toResponse(saved);
-    }
-
-    private static Long cinemaIdOf(User manager) {
-        if (manager.getCinema() == null) {
-            throw new ForbiddenException("Gerente sem cinema vinculado.");
-        }
-        return manager.getCinema().getId();
     }
 
     private static TeamMemberResponseDTO toResponse(User user) {

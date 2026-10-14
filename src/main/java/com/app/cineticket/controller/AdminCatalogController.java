@@ -19,7 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -53,8 +53,8 @@ public class AdminCatalogController {
     @ApiResponse(responseCode = "409", description = "Pedido já decidido", content = @Content)
     @ApiResponse(responseCode = "502", description = "TMDB indisponível", content = @Content)
     @PostMapping("/movie-requests/{id}/approve")
-    public ResponseEntity<MovieRequestResponseDTO> approve(@PathVariable Long id) {
-        return ResponseEntity.ok(movieRequestService.approve(id, loggedUser()));
+    public ResponseEntity<MovieRequestResponseDTO> approve(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
+        return ResponseEntity.ok(movieRequestService.approve(id, loggedUser));
     }
 
     @Operation(summary = "Recusa um pedido com motivo (ADMIN)")
@@ -62,9 +62,9 @@ public class AdminCatalogController {
     @ApiResponse(responseCode = "409", description = "Pedido já decidido", content = @Content)
     @ApiResponse(responseCode = "422", description = "Motivo em branco", content = @Content)
     @PostMapping("/movie-requests/{id}/reject")
-    public ResponseEntity<MovieRequestResponseDTO> reject(@PathVariable Long id,
+    public ResponseEntity<MovieRequestResponseDTO> reject(@AuthenticationPrincipal User loggedUser, @PathVariable Long id,
                                                           @RequestBody @Valid MovieRequestRejectDTO request) {
-        return ResponseEntity.ok(movieRequestService.reject(id, request, loggedUser()));
+        return ResponseEntity.ok(movieRequestService.reject(id, request, loggedUser));
     }
 
     @Operation(summary = "Catálogo inteiro com os cinemas de cada filme (ADMIN)",
@@ -80,12 +80,8 @@ public class AdminCatalogController {
     @ApiResponse(responseCode = "200", description = "Situação do filme em cada cinema")
     @ApiResponse(responseCode = "404", description = "Filme ou cinema não encontrado", content = @Content)
     @PostMapping("/movies/{id}/offer")
-    public ResponseEntity<List<CinemaProgramacaoDTO>> offer(@PathVariable Long id,
+    public ResponseEntity<List<CinemaProgramacaoDTO>> offer(@AuthenticationPrincipal User loggedUser, @PathVariable Long id,
                                                             @RequestBody @Valid MovieOfferDTO request) {
-        return ResponseEntity.ok(programacaoService.offer(id, request, loggedUser()));
-    }
-
-    private static User loggedUser() {
-        return (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(programacaoService.offer(id, request, loggedUser));
     }
 }

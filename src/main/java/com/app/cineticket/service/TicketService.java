@@ -17,17 +17,13 @@ import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,6 +37,7 @@ public class TicketService {
     private final OutboxService outboxService;
     private final TicketMapper ticketMapper;
     private final com.app.cineticket.service.PdfService pdfService;
+    private final HalfPricePolicy halfPricePolicy;
 
     @Value("${payments.enabled:false}")
     private boolean paymentsEnabled;
@@ -49,22 +46,14 @@ public class TicketService {
     @Value("${tickets.pending.ttl:10m}")
     private Duration pendingTtl = Duration.ofMinutes(10);
 
-    /** Fração dos lugares de cada sessão que pode ser vendida como meia-entrada (Lei 12.933/2013: 40%). */
-    @Value("${tickets.half-price.quota:0.40}")
-    private double halfPriceQuota = 0.40;
-
     private static final int SENIOR_AGE = 60;
-    private static final List<TicketType> HALF_PRICE_TYPES = List.of(TicketType.MEIA_ESTUDANTE, TicketType.MEIA_IDOSO);
 
     /** Máximo de ingressos aguardando pagamento por usuário (evita travar a sala inteira). */
     @Value("${tickets.pending.max-per-user:4}")
     private int maxPendingPerUser = 4;
 
     @Transactional(readOnly = true)
-    public byte[] downloadPdf(Long ticketId) {
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        User loggedUser = (User) auth.getPrincipal();
-
+    public byte[] downloadPdf(Long ticketId, User loggedUser) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
@@ -80,7 +69,7 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketResponseDTO buyTicket(TicketRequestDTO request) {
+    public TicketResponseDTO buyTicket(TicketRequestDTO request, User loggedUser) {
         var seat = seatRepository.findByIdWithLock(request.seatId())
                 .orElseThrow(() -> new ResourceNotFoundException("Cadeira não encontrada."));
 
@@ -99,17 +88,14 @@ public class TicketService {
             throw new BusinessException("A cadeira solicitada não pertence à sala desta sessão.");
         }
 
-        List<TicketStatus> statusAtivos = List.of(TicketStatus.APPROVED, TicketStatus.PENDING);
-        if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(request.sessionId(), request.seatId(), statusAtivos)) {
+        if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(request.sessionId(), request.seatId(),
+                TicketStatus.OCCUPYING_SEAT)) {
             throw new ConflictException("Esta cadeira já está ocupada para esta sessão.");
         }
 
         if (!paymentsEnabled) {
             throw new BusinessException("Compra de ingressos indisponível até a configuração de um gateway de pagamento seguro");
         }
-
-        var auth = SecurityContextHolder.getContext().getAuthentication();
-        User loggedUser = (User) auth.getPrincipal();
 
         long pendingTickets = ticketRepository.countByUserIdAndStatus(loggedUser.getId(), TicketStatus.PENDING);
         if (pendingTickets >= maxPendingPerUser) {
@@ -125,15 +111,7 @@ public class TicketService {
         ticket.setSession(session);
         ticket.setSeat(seat);
 
-        BigDecimal valorSessao = session.getValorBase();
-
-        if (request.ticketType() == TicketType.INTEIRA) {
-            ticket.setValorPago(valorSessao);
-        } else {
-            ticket.setValorPago(valorSessao.divide(new BigDecimal("2"),
-                    RoundingMode.HALF_UP));
-        }
-
+        ticket.setValorPago(HalfPricePolicy.priceFor(session.getValorBase(), request.ticketType()));
         ticket.setTicketType(request.ticketType());
 
         ticket.setStatus(TicketStatus.PENDING);
@@ -146,11 +124,10 @@ public class TicketService {
     }
 
     /**
-     * Regras da meia-entrada. Devolve o documento normalizado (estudante) ou null.
+     * Regras da meia-entrada na compra online. Devolve o documento normalizado (estudante) ou null.
      * <ul>
      *   <li>Idoso: 60 anos ou mais na data da sessão, pela data de nascimento do perfil.</li>
-     *   <li>Estudante: número da carteira de estudante, conferido na entrada.</li>
-     *   <li>Cota: no máximo 40% dos lugares da sessão como meia (Lei 12.933/2013).</li>
+     *   <li>Estudante e cota: {@link HalfPricePolicy}, as mesmas regras do caixa.</li>
      * </ul>
      */
     private String validateHalfPrice(TicketRequestDTO request, com.app.cineticket.domain.entity.Session session,
@@ -172,23 +149,12 @@ public class TicketService {
                         + " anos ou mais na data da sessão.");
             }
         } else {
-            documento = request.documentoMeia() == null ? "" : request.documentoMeia().trim().toUpperCase(java.util.Locale.ROOT);
-            if (documento.length() < 6) {
-                throw new BusinessException("Para meia-entrada de estudante, informe o número da carteira de estudante "
-                        + "(documentoMeia). Ele será conferido na entrada.");
-            }
+            documento = HalfPricePolicy.studentDocument(request.documentoMeia());
         }
 
         // Lock na sessão: duas compras de meia simultâneas não estouram a cota.
         sessionRepository.findByIdWithLock(session.getId());
-        int capacity = session.getRoom().getCapacidade() == null ? 0 : session.getRoom().getCapacidade();
-        long quota = (long) Math.floor(capacity * halfPriceQuota);
-        long sold = ticketRepository.countBySessionIdAndTicketTypeInAndStatusIn(
-                session.getId(), HALF_PRICE_TYPES, List.of(TicketStatus.PENDING, TicketStatus.APPROVED));
-        if (sold >= quota) {
-            throw new ConflictException("Cota de meia-entrada esgotada para esta sessão ("
-                    + quota + " de " + capacity + " lugares). A inteira continua disponível.");
-        }
+        halfPricePolicy.requireQuota(session, 1);
         return documento;
     }
 

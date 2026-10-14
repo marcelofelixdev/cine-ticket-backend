@@ -52,11 +52,7 @@ class AuthFlowTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Role role = roleRepository.findByNome("ROLE_USER").orElseGet(() -> {
-            Role newRole = new Role();
-            newRole.setNome("ROLE_USER");
-            return roleRepository.save(newRole);
-        });
+        Role role = com.app.cineticket.support.TestRoles.ensure(roleRepository, "ROLE_USER");
         User user = new User();
         user.setNome("Fluxo de Auth");
         user.setEmail(EMAIL);

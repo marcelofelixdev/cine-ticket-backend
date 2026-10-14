@@ -2,33 +2,24 @@ package com.app.cineticket.controller;
 
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
-import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.MovieRequestStatus;
 import com.app.cineticket.domain.enums.ProgramacaoStatus;
 import com.app.cineticket.repository.CinemaMovieRepository;
-import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.MovieRequestRepository;
-import com.app.cineticket.repository.RoleRepository;
-import com.app.cineticket.repository.UserRepository;
-import com.app.cineticket.security.TokenService;
 import com.app.cineticket.support.AbstractIntegrationTest;
-import com.app.cineticket.support.TestRoles;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.app.cineticket.support.TestData;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -43,16 +34,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
 
     private static final String DOMAIN = "@pedidos.teste";
-    private static final String CNPJ_A = "44444444000144";
+    private static final String CNPJ_A = "51515151000151";
     private static final String CNPJ_B = "45454545000145";
     private static final long TMDB_ID = 693134L;
+    private static final String REQUEST_BODY = "{\"tmdbId\":" + TMDB_ID + "}";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-    @Autowired private TokenService tokenService;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
-    @Autowired private CinemaRepository cinemaRepository;
+    @Autowired private TestData testData;
     @Autowired private MovieRepository movieRepository;
     @Autowired private CinemaMovieRepository cinemaMovieRepository;
     @Autowired private MovieRequestRepository movieRequestRepository;
@@ -69,19 +58,17 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        cinemaA = cinema("Cine Pedido A", CNPJ_A);
-        cinemaB = cinema("Cine Pedido B", CNPJ_B);
-        movie = new Movie();
-        movie.setTitulo("Duna: Parte Dois");
-        movie.setDuracaoEmMinutos(167);
+        cinemaA = testData.cinema("Cine Pedido A", CNPJ_A);
+        cinemaB = testData.cinema("Cine Pedido B", CNPJ_B);
+        movie = testData.movie("Duna: Parte Dois", 167);
         movie.setTmdbId(String.valueOf(TMDB_ID));
         movie = movieRepository.save(movie);
 
-        adminToken = token("admin", "ROLE_ADMIN", null);
-        managerAToken = token("gerente-a", "ROLE_MANAGER", cinemaA);
-        managerBToken = token("gerente-b", "ROLE_MANAGER", cinemaB);
-        staffToken = token("funcionario-a", "ROLE_STAFF", cinemaA);
-        clientToken = token("cliente", "ROLE_USER", null);
+        adminToken = testData.token("admin" + DOMAIN, "ROLE_ADMIN", null);
+        managerAToken = testData.token("gerente-a" + DOMAIN, "ROLE_MANAGER", cinemaA);
+        managerBToken = testData.token("gerente-b" + DOMAIN, "ROLE_MANAGER", cinemaB);
+        staffToken = testData.token("funcionario-a" + DOMAIN, "ROLE_STAFF", cinemaA);
+        clientToken = testData.token("cliente" + DOMAIN, "ROLE_USER", null);
     }
 
     @AfterEach
@@ -89,12 +76,8 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
         movieRequestRepository.deleteAll();
         cinemaMovieRepository.deleteAll();
         movieRepository.deleteAll();
-        userRepository.deleteAll(userRepository.findAll().stream()
-                .filter(user -> user.getEmail().endsWith(DOMAIN))
-                .toList());
-        cinemaRepository.findAll().stream()
-                .filter(cinema -> Set.of(CNPJ_A, CNPJ_B).contains(cinema.getCnpj()))
-                .forEach(cinemaRepository::delete);
+        testData.deleteUsersEndingWith(DOMAIN);
+        testData.deleteCinemas(Set.of(CNPJ_A, CNPJ_B));
     }
 
     @Test
@@ -108,13 +91,13 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
     void gerentePedeAdminAprovaEOFilmeEntraEmCartaz() throws Exception {
         long requestId = createRequest(managerAToken);
 
-        perform(get("/api/v1/admin/movie-requests").param("status", "AGUARDANDO_ADMIN"), adminToken, null)
+        mockMvc.perform(authed(get("/api/v1/admin/movie-requests").param("status", "AGUARDANDO_ADMIN"), adminToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].cinemaNome").value("Cine Pedido A"))
                 .andExpect(jsonPath("$[0].solicitadoPor").value("gerente-a" + DOMAIN));
 
-        perform(post("/api/v1/admin/movie-requests/" + requestId + "/approve"), adminToken, null)
+        mockMvc.perform(authed(post(approve(requestId)), adminToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APROVADO"))
                 .andExpect(jsonPath("$.filmeId").value(movie.getId()));
@@ -127,38 +110,36 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.page.totalElements").value(0));
 
         // Decidir de novo o mesmo pedido: 409.
-        perform(post("/api/v1/admin/movie-requests/" + requestId + "/approve"), adminToken, null)
-                .andExpect(status().isConflict());
+        mockMvc.perform(authed(post(approve(requestId)), adminToken, null)).andExpect(status().isConflict());
     }
 
     @Test
     void recusaExigeMotivoEOGerenteVeOMotivo() throws Exception {
         long requestId = createRequest(managerAToken);
+        String reject = "/api/v1/admin/movie-requests/" + requestId + "/reject";
 
-        perform(post("/api/v1/admin/movie-requests/" + requestId + "/reject"), adminToken, "{\"motivo\":\" \"}")
+        mockMvc.perform(authed(post(reject), adminToken, "{\"motivo\":\" \"}"))
                 .andExpect(status().isUnprocessableEntity());
-        perform(post("/api/v1/admin/movie-requests/" + requestId + "/reject"), adminToken,
-                "{\"motivo\":\"Sem sala livre neste mês\"}")
+        mockMvc.perform(authed(post(reject), adminToken, "{\"motivo\":\"Sem sala livre neste mês\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RECUSADO"));
 
-        perform(get("/api/v1/manager/movie-requests"), managerAToken, null)
+        mockMvc.perform(authed(get("/api/v1/manager/movie-requests"), managerAToken, null))
                 .andExpect(jsonPath("$[0].status").value("RECUSADO"))
                 .andExpect(jsonPath("$[0].motivoRecusa").value("Sem sala livre neste mês"));
         // O gerente de outro cinema não vê o pedido.
-        perform(get("/api/v1/manager/movie-requests"), managerBToken, null)
+        mockMvc.perform(authed(get("/api/v1/manager/movie-requests"), managerBToken, null))
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test
     void pedidoRepetidoOuDeFilmeJaEmCartazRecebe409() throws Exception {
         long requestId = createRequest(managerAToken);
-        perform(post("/api/v1/manager/movie-requests"), managerAToken, "{\"tmdbId\":" + TMDB_ID + "}")
+        mockMvc.perform(authed(post("/api/v1/manager/movie-requests"), managerAToken, REQUEST_BODY))
                 .andExpect(status().isConflict());
 
-        perform(post("/api/v1/admin/movie-requests/" + requestId + "/approve"), adminToken, null)
-                .andExpect(status().isOk());
-        perform(post("/api/v1/manager/movie-requests"), managerAToken, "{\"tmdbId\":" + TMDB_ID + "}")
+        mockMvc.perform(authed(post(approve(requestId)), adminToken, null)).andExpect(status().isOk());
+        mockMvc.perform(authed(post("/api/v1/manager/movie-requests"), managerAToken, REQUEST_BODY))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Este filme já está em cartaz no seu cinema."));
 
@@ -168,16 +149,15 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void adminEnviaParaDoisCinemasESoOQueConfirmaFicaAtivo() throws Exception {
-        perform(post("/api/v1/admin/movies/" + movie.getId() + "/offer"), adminToken,
-                "{\"cinemaIds\":[" + cinemaA.getId() + "," + cinemaB.getId() + "]}")
+        mockMvc.perform(authed(post(offer()), adminToken, offerBody(cinemaA, cinemaB)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].status").value("AGUARDANDO_GERENTE"));
 
-        perform(get("/api/v1/manager/programacao"), managerBToken, null)
+        mockMvc.perform(authed(get("/api/v1/manager/programacao"), managerBToken, null))
                 .andExpect(jsonPath("$", hasSize(1)))
                 .andExpect(jsonPath("$[0].status").value("AGUARDANDO_GERENTE"));
-        perform(post("/api/v1/manager/programacao/" + movie.getId() + "/confirm"), managerBToken, null)
+        mockMvc.perform(authed(post(confirm()), managerBToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ATIVO"));
 
@@ -186,38 +166,33 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/v1/movies").param("cinemaId", String.valueOf(cinemaA.getId())))
                 .andExpect(jsonPath("$.page.totalElements").value(0));
 
-        perform(get("/api/v1/admin/movies"), adminToken, null)
+        mockMvc.perform(authed(get("/api/v1/admin/movies"), adminToken, null))
                 .andExpect(jsonPath("$.content[0].cinemas", hasSize(2)));
 
         // Enviado e ainda não confirmado: pedir o mesmo filme não faz sentido.
-        perform(post("/api/v1/manager/movie-requests"), managerAToken, "{\"tmdbId\":" + TMDB_ID + "}")
+        mockMvc.perform(authed(post("/api/v1/manager/movie-requests"), managerAToken, REQUEST_BODY))
                 .andExpect(status().isConflict());
     }
 
     @Test
     void gerenteNaoConfirmaFilmeQueNaoFoiEnviadoAoSeuCinema() throws Exception {
-        perform(post("/api/v1/admin/movies/" + movie.getId() + "/offer"), adminToken,
-                "{\"cinemaIds\":[" + cinemaB.getId() + "]}")
-                .andExpect(status().isOk());
+        mockMvc.perform(authed(post(offer()), adminToken, offerBody(cinemaB))).andExpect(status().isOk());
 
-        perform(post("/api/v1/manager/programacao/" + movie.getId() + "/confirm"), managerAToken, null)
-                .andExpect(status().isNotFound());
+        mockMvc.perform(authed(post(confirm()), managerAToken, null)).andExpect(status().isNotFound());
         assertEquals(ProgramacaoStatus.AGUARDANDO_GERENTE,
                 cinemaMovieRepository.findByCinemaIdAndMovieId(cinemaB.getId(), movie.getId()).orElseThrow().getStatus());
     }
 
     @Test
     void cadaPapelSoAcessaAsPropriasRotas() throws Exception {
-        String offer = "{\"cinemaIds\":[" + cinemaA.getId() + "]}";
         for (String token : List.of(managerAToken, staffToken, clientToken)) {
-            perform(get("/api/v1/admin/movie-requests"), token, null).andExpect(status().isForbidden());
-            perform(get("/api/v1/admin/movies"), token, null).andExpect(status().isForbidden());
-            perform(post("/api/v1/admin/movies/" + movie.getId() + "/offer"), token, offer)
-                    .andExpect(status().isForbidden());
+            mockMvc.perform(authed(get("/api/v1/admin/movie-requests"), token, null)).andExpect(status().isForbidden());
+            mockMvc.perform(authed(get("/api/v1/admin/movies"), token, null)).andExpect(status().isForbidden());
+            mockMvc.perform(authed(post(offer()), token, offerBody(cinemaA))).andExpect(status().isForbidden());
         }
         for (String token : List.of(adminToken, staffToken, clientToken)) {
-            perform(get("/api/v1/manager/programacao"), token, null).andExpect(status().isForbidden());
-            perform(post("/api/v1/manager/movie-requests"), token, "{\"tmdbId\":" + TMDB_ID + "}")
+            mockMvc.perform(authed(get("/api/v1/manager/programacao"), token, null)).andExpect(status().isForbidden());
+            mockMvc.perform(authed(post("/api/v1/manager/movie-requests"), token, REQUEST_BODY))
                     .andExpect(status().isForbidden());
         }
         mockMvc.perform(get("/api/v1/manager/programacao")).andExpect(status().isUnauthorized());
@@ -225,38 +200,28 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     private long createRequest(String managerToken) throws Exception {
-        String body = perform(post("/api/v1/manager/movie-requests"), managerToken, "{\"tmdbId\":" + TMDB_ID + "}")
+        String body = mockMvc.perform(authed(post("/api/v1/manager/movie-requests"), managerToken, REQUEST_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("AGUARDANDO_ADMIN"))
                 .andExpect(jsonPath("$.titulo").value("Duna: Parte Dois"))
                 .andReturn().getResponse().getContentAsString();
-        JsonNode json = objectMapper.readTree(body);
-        return json.get("id").asLong();
+        return objectMapper.readTree(body).get("id").asLong();
     }
 
-    private ResultActions perform(MockHttpServletRequestBuilder request, String token, String body) throws Exception {
-        request.header("Authorization", "Bearer " + token);
-        if (body != null) {
-            request.contentType(MediaType.APPLICATION_JSON).content(body);
-        }
-        return mockMvc.perform(request);
+    private static String approve(long requestId) {
+        return "/api/v1/admin/movie-requests/" + requestId + "/approve";
     }
 
-    private Cinema cinema(String nome, String cnpj) {
-        Cinema cinema = new Cinema();
-        cinema.setNome(nome);
-        cinema.setCnpj(cnpj);
-        cinema.setEndereco("Rua dos Pedidos, 1");
-        return cinemaRepository.save(cinema);
+    private String offer() {
+        return "/api/v1/admin/movies/" + movie.getId() + "/offer";
     }
 
-    private String token(String login, String role, Cinema cinema) {
-        User user = new User();
-        user.setNome("Pessoa " + login);
-        user.setEmail(login + DOMAIN);
-        user.setSenha("hash-irrelevante");
-        user.setRoles(new HashSet<>(Set.of(TestRoles.ensure(roleRepository, role))));
-        user.setCinema(cinema);
-        return tokenService.generateToken(userRepository.save(user));
+    private String confirm() {
+        return "/api/v1/manager/programacao/" + movie.getId() + "/confirm";
+    }
+
+    private static String offerBody(Cinema... cinemas) {
+        return "{\"cinemaIds\":[" + String.join(",",
+                java.util.Arrays.stream(cinemas).map(cinema -> String.valueOf(cinema.getId())).toList()) + "]}";
     }
 }

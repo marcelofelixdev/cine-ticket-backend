@@ -52,10 +52,8 @@ public class TicketValidationService {
         // O funcionário só libera a entrada no próprio cinema; o admin, em qualquer um.
         // Checado antes do status para não revelar nada de ingressos de outro cinema.
         if (!staff.hasRole("ROLE_ADMIN")) {
-            Long ticketCinemaId = ticket.getSession().getRoom().getCinema().getId();
-            if (staff.getCinema() == null || !staff.getCinema().getId().equals(ticketCinemaId)) {
-                throw new ForbiddenException("Este ingresso é de outro cinema.");
-            }
+            CinemaScope.requireSameCinema(staff, ticket.getSession().getRoom().getCinema().getId(),
+                    "Este ingresso é de outro cinema.");
         }
 
         if (ticket.getUsedAt() != null) {
