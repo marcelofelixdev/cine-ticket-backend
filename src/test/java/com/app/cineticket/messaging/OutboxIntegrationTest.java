@@ -60,7 +60,7 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void eventoCommitadoEPublicadoNaFilaComConfirmacao() throws InterruptedException {
+    void eventoCommitadoEPublicadoNaFilaComConfirmacao() {
         long ticketId = 910_003L;
         // A fila real de reembolsos tem consumidor; uma fila temporária ligada à mesma
         // routing key recebe uma cópia para o teste conferir o que foi publicado.
