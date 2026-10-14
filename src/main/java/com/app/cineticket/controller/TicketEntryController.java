@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -39,15 +38,13 @@ public class TicketEntryController {
 
     @Operation(summary = "Valida o ingresso na entrada (STAFF ou ADMIN)",
             description = "Confere a assinatura do QR, o status e o horário, e marca o ingresso como usado.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Entrada liberada",
-                    content = @Content(schema = @Schema(implementation = TicketValidationResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "QR Code inválido ou adulterado", content = @Content),
-            @ApiResponse(responseCode = "403", description = "Usuário sem papel STAFF/ADMIN", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Ingresso não encontrado", content = @Content),
-            @ApiResponse(responseCode = "409", description = "Ingresso já utilizado, cancelado ou não pago", content = @Content),
-            @ApiResponse(responseCode = "422", description = "Fora do horário da sessão", content = @Content)
-    })
+    @ApiResponse(responseCode = "200", description = "Entrada liberada",
+            content = @Content(schema = @Schema(implementation = TicketValidationResponseDTO.class)))
+    @ApiResponse(responseCode = "400", description = "QR Code inválido ou adulterado", content = @Content)
+    @ApiResponse(responseCode = "403", description = "Usuário sem papel STAFF/ADMIN", content = @Content)
+    @ApiResponse(responseCode = "404", description = "Ingresso não encontrado", content = @Content)
+    @ApiResponse(responseCode = "409", description = "Ingresso já utilizado, cancelado ou não pago", content = @Content)
+    @ApiResponse(responseCode = "422", description = "Fora do horário da sessão", content = @Content)
     @PostMapping("/validate")
     public ResponseEntity<TicketValidationResponseDTO> validate(@RequestBody @Valid TicketValidationRequestDTO request) {
         User staff = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

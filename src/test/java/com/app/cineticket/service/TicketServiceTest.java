@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -29,6 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -86,7 +88,7 @@ public class TicketServiceTest {
 
         assertEquals("Esta cadeira já está ocupada para esta sessão.", exception.getMessage());
 
-        Mockito.verify(ticketRepository, Mockito.never()).save(any());
+        verify(ticketRepository, never()).save(any());
     }
 
     @Test
@@ -117,7 +119,7 @@ public class TicketServiceTest {
         });
 
         assertTrue(exception.getMessage().contains("30 minutos"));
-        Mockito.verify(ticketRepository, Mockito.never()).save(any());
+        verify(ticketRepository, never()).save(any());
     }
 
     @Test
@@ -138,7 +140,7 @@ public class TicketServiceTest {
         ticketService.cancelTicket(20L, user);
 
         assertEquals(TicketStatus.CANCELLED, ticket.getStatus());
-        Mockito.verify(outboxService, Mockito.never())
+        verify(outboxService, never())
                 .refundRequested(any(com.app.cineticket.dto.request.RefundEventDTO.class));
     }
 
@@ -162,7 +164,7 @@ public class TicketServiceTest {
         ticketService.cancelTicket(21L, user);
 
         assertEquals(TicketStatus.CANCELLED, ticket.getStatus());
-        Mockito.verify(outboxService).refundRequested(
+        verify(outboxService).refundRequested(
                 new com.app.cineticket.dto.request.RefundEventDTO(21L, "pi_test_21", new BigDecimal("30.00")));
     }
 
@@ -186,7 +188,7 @@ public class TicketServiceTest {
                 () -> ticketService.buyTicket(request));
 
         assertTrue(exception.getMessage().contains("não está ativa"));
-        Mockito.verify(ticketRepository, Mockito.never()).save(any());
+        verify(ticketRepository, never()).save(any());
     }
 
     @Test
@@ -201,7 +203,7 @@ public class TicketServiceTest {
         ticketService.buyTicket(request);
 
         org.mockito.ArgumentCaptor<Ticket> captor = org.mockito.ArgumentCaptor.forClass(Ticket.class);
-        Mockito.verify(ticketRepository).save(captor.capture());
+        verify(ticketRepository).save(captor.capture());
         Ticket salvo = captor.getValue();
         assertEquals(TicketStatus.PENDING, salvo.getStatus());
         assertTrue(!salvo.getExpiresAt().isBefore(antes.plusMinutes(10)));
@@ -217,7 +219,7 @@ public class TicketServiceTest {
         BusinessException exception = assertThrows(BusinessException.class, () -> ticketService.buyTicket(request));
 
         assertTrue(exception.getMessage().contains("aguardando pagamento"));
-        Mockito.verify(ticketRepository, Mockito.never()).save(any());
+        verify(ticketRepository, never()).save(any());
     }
 
     @Test
@@ -235,7 +237,7 @@ public class TicketServiceTest {
                 () -> ticketService.cancelTicket(30L, dono));
 
         assertEquals("O ingresso expirou por falta de pagamento.", exception.getMessage());
-        Mockito.verifyNoInteractions(outboxService);
+        verifyNoInteractions(outboxService);
     }
 
     private void prepararCompraValida(TicketRequestDTO request, long pendentesDoUsuario) {

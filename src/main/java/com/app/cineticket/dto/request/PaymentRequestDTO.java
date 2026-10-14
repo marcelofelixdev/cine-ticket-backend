@@ -13,6 +13,6 @@ import jakarta.validation.constraints.Size;
 public record PaymentRequestDTO(
         @NotBlank(message = "O método de pagamento é obrigatório")
         @Size(max = 255, message = "O método de pagamento excede o tamanho permitido")
-        @Pattern(regexp = "^pm_[A-Za-z0-9_]+$", message = "Método de pagamento inválido (esperado um ID pm_...)")
+        @Pattern(regexp = "^pm_\\w+$", message = "Método de pagamento inválido (esperado um ID pm_...)")
         String paymentMethodId
 ) {}

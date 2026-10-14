@@ -1,5 +1,6 @@
 package com.app.cineticket.service;
 
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
@@ -55,7 +56,7 @@ public class TicketValidationService {
             throw new ConflictException("Ingresso não é válido para entrada (status: " + ticket.getStatus() + ").");
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(AppTimeZone.ZONE);
         LocalDateTime start = ticket.getSession().getHorarioInicio();
         LocalDateTime opensAt = start.minus(opensBefore);
         LocalDateTime endsAt = start.plusMinutes(ticket.getSession().getMovie().getDuracaoEmMinutos());

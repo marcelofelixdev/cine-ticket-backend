@@ -1,5 +1,6 @@
 package com.app.cineticket.service;
 
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.Refund;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.enums.RefundStatus;
@@ -61,7 +62,7 @@ public class RefundService {
             RefundResult result = refundOnGateway(event.paymentIntentId());
             refund.setStatus(RefundStatus.REFUNDED);
             refund.setGatewayRefundId(result.refundId());
-            refund.setRefundedAt(LocalDateTime.now());
+            refund.setRefundedAt(LocalDateTime.now(AppTimeZone.ZONE));
             refund.setLastError(null);
             log.info("[REFUND] Pagamento {} do ingresso {} estornado ({}).",
                     event.paymentIntentId(), event.ticketId(), result.refundId());
