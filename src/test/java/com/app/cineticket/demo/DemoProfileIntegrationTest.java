@@ -1,5 +1,7 @@
 package com.app.cineticket.demo;
 
+import com.app.cineticket.support.TestRoles;
+
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
@@ -143,7 +145,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
         user.setNome("Equipe");
         user.setEmail(email);
         user.setSenha("hash-irrelevante");
-        user.setRoles(new java.util.HashSet<>(java.util.Set.of(roleRepository.findByNome(role).orElseThrow())));
+        user.setRoles(new java.util.HashSet<>(java.util.Set.of(TestRoles.ensure(roleRepository, role))));
         return userRepository.save(user);
     }
 

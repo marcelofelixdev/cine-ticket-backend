@@ -1,5 +1,7 @@
 package com.app.cineticket.controller;
 
+import com.app.cineticket.support.TestRoles;
+
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Role;
@@ -134,7 +136,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
         other = cinemaRepository.save(other);
 
         User otherStaff = user("Funcionário vizinho", OTHER_STAFF_EMAIL);
-        otherStaff.setRoles(new HashSet<>(Set.of(roleRepository.findByNome("ROLE_STAFF").orElseThrow())));
+        otherStaff.setRoles(new HashSet<>(Set.of(TestRoles.ensure(roleRepository, "ROLE_STAFF"))));
         otherStaff.setCinema(other);
         String otherStaffToken = tokenService.generateToken(userRepository.save(otherStaff));
 
@@ -149,7 +151,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
     @Test
     void adminValidaEmQualquerCinema() throws Exception {
         User admin = user("Admin", ADMIN_EMAIL);
-        admin.setRoles(new HashSet<>(Set.of(roleRepository.findByNome("ROLE_ADMIN").orElseThrow())));
+        admin.setRoles(new HashSet<>(Set.of(TestRoles.ensure(roleRepository, "ROLE_ADMIN"))));
         String adminToken = tokenService.generateToken(userRepository.save(admin));
 
         Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.INTEIRA, LocalDateTime.now().plusMinutes(20));

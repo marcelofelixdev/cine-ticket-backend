@@ -1,5 +1,7 @@
 package com.app.cineticket.controller;
 
+import com.app.cineticket.support.TestRoles;
+
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.MovieCastMember;
@@ -174,7 +176,7 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
         user.setNome("Pessoa " + login);
         user.setEmail(login + DOMAIN);
         user.setSenha("hash-irrelevante");
-        user.setRoles(new HashSet<>(Set.of(roleRepository.findByNome(role).orElseThrow())));
+        user.setRoles(new HashSet<>(Set.of(TestRoles.ensure(roleRepository, role))));
         user.setCinema(cinema);
         return tokenService.generateToken(userRepository.save(user));
     }
