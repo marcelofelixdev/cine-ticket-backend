@@ -31,7 +31,7 @@ public class DemoController {
                 "Ambiente de demonstração: pagamento em modo de teste, nenhum valor é cobrado. "
                         + "Reserve em POST /api/v1/tickets e pague em POST /api/v1/tickets/{id}/payment "
                         + "com paymentMethodId pm_card_visa (aprovado) ou pm_card_chargeDeclined (recusado). "
-                        + "O porteiro valida ingressos em POST /api/v1/tickets/validate com o QR de GET /api/v1/tickets/{id}/qr.",
+                        + "O funcionário valida ingressos em POST /api/v1/tickets/validate com o QR de GET /api/v1/tickets/{id}/qr.",
                 demoDataService.getVisitorEmail(),
                 demoDataService.getVisitorPassword(),
                 staffEmail,

@@ -45,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TicketValidationIntegrationTest extends AbstractIntegrationTest {
 
     private static final String VALIDATE = "/api/v1/tickets/validate";
-    private static final String STAFF_EMAIL = "porteiro@teste.com";
+    private static final String STAFF_EMAIL = "funcionario@teste.com";
     private static final String CLIENT_EMAIL = "cliente-entrada@teste.com";
 
     @Autowired private MockMvc mockMvc;
@@ -98,7 +98,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
             role.setNome("ROLE_STAFF");
             return roleRepository.save(role);
         });
-        User staff = user("Porteiro", STAFF_EMAIL);
+        User staff = user("Funcionário", STAFF_EMAIL);
         staff.setRoles(new HashSet<>(Set.of(staffRole)));
         staffToken = tokenService.generateToken(userRepository.save(staff));
 
@@ -119,7 +119,7 @@ class TicketValidationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void porteiroValidaUmaVezSo() throws Exception {
+    void funcionarioValidaUmaVezSo() throws Exception {
         Ticket ticket = ticket(TicketStatus.APPROVED, TicketType.MEIA_ESTUDANTE, LocalDateTime.now().plusMinutes(20));
         String qr = qrCodeService.payloadFor(ticket.getId());
 

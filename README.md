@@ -18,7 +18,7 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 |---|---|
 | **API (Swagger)** | [cineticket-api.onrender.com/swagger-ui.html](https://cineticket-api.onrender.com/swagger-ui.html) |
 | **Visitante** | `visitante@cineticket.dev` / `visitante123456` |
-| **Porteiro** (só valida ingressos) | `porteiro@cineticket.dev` / `porteiro12345678` |
+| **Funcionário** (só valida ingressos) | `funcionario@cineticket.dev` / `funcionario12345` |
 
 No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília).
 
