@@ -10,18 +10,12 @@ import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.RefundStatus;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.RefundEventDTO;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RefundRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
 import com.app.cineticket.security.TokenService;
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +28,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -47,16 +42,11 @@ class RefundIntegrationTest extends AbstractIntegrationTest {
     private static final String EMAIL = "reembolso@teste.com";
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private TestData testData;
     @Autowired private TokenService tokenService;
     @Autowired private OutboxService outboxService;
     @Autowired private TransactionTemplate transactionTemplate;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
-    @Autowired private UserRepository userRepository;
     @Autowired private RefundRepository refundRepository;
 
     private Session session;
@@ -67,54 +57,20 @@ class RefundIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Reembolso");
-        cinema.setCnpj("55555555000155");
-        cinema.setEndereco("Rua R, 5");
-        cinema = cinemaRepository.save(cinema);
-
-        Room room = new Room();
-        room.setNome("Sala R");
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
-
-        seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(1);
-        seat.setRoom(room);
-        seat = seatRepository.save(seat);
-
-        Movie movie = new Movie();
-        movie.setTitulo("Filme Reembolso");
-        movie.setDuracaoEmMinutos(100);
-        movie = movieRepository.save(movie);
-
-        session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("40.00"));
-        session.setAtivo(true);
-        session = sessionRepository.save(session);
-
-        user = new User();
-        user.setNome("Cliente");
-        user.setEmail(EMAIL);
-        user.setSenha("hash-irrelevante");
-        user = userRepository.save(user);
+        Cinema cinema = testData.cinema("Cine Reembolso", "55555555000155");
+        Room room = testData.room("Sala R", cinema, 10);
+        seat = testData.seat(room, "A", 1);
+        Movie movie = testData.movie("Filme Reembolso", 100);
+        session = testData.session(movie, room, LocalDateTime.now().plusDays(1), new BigDecimal("40.00"));
+        user = testData.customer(EMAIL);
+        token = testData.token(user);
         token = tokenService.generateToken(user);
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete);
+        testData.deleteCatalog();
+        testData.deleteUsers(EMAIL);
     }
 
     @Test
@@ -122,8 +78,7 @@ class RefundIntegrationTest extends AbstractIntegrationTest {
         String paymentIntentId = "pi_mock_" + UUID.randomUUID();
         Ticket ticket = approvedTicket(paymentIntentId);
 
-        mockMvc.perform(put("/api/v1/tickets/" + ticket.getId() + "/cancel")
-                        .header("Authorization", "Bearer " + token))
+        mockMvc.perform(authed(put("/api/v1/tickets/" + ticket.getId() + "/cancel"), token, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
@@ -131,8 +86,7 @@ class RefundIntegrationTest extends AbstractIntegrationTest {
         assertEquals(RefundStatus.REFUNDED, refund.getStatus());
         assertEquals(0, new BigDecimal("40.00").compareTo(refund.getAmount()));
 
-        mockMvc.perform(get("/api/v1/tickets/" + ticket.getId())
-                        .header("Authorization", "Bearer " + token))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticket.getId()), token, null))
                 .andExpect(jsonPath("$.reembolso").value("REFUNDED"));
     }
 
@@ -157,13 +111,7 @@ class RefundIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Ticket approvedTicket(String paymentIntentId) {
-        Ticket ticket = new Ticket();
-        ticket.setUser(user);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setValorPago(new BigDecimal("40.00"));
-        ticket.setStatus(TicketStatus.APPROVED);
+        Ticket ticket = testData.ticket(session, seat, user, TicketStatus.APPROVED);
         ticket.setPaymentIntentId(paymentIntentId);
         return ticketRepository.save(ticket);
     }

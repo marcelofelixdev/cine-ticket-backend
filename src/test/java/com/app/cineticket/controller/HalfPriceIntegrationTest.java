@@ -5,29 +5,20 @@ import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
-import com.app.cineticket.domain.entity.User;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
-import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
-import com.app.cineticket.security.TokenService;
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -40,74 +31,29 @@ class HalfPriceIntegrationTest extends AbstractIntegrationTest {
     private String email;
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private TokenService tokenService;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private SessionRepository sessionRepository;
-    @Autowired private TicketRepository ticketRepository;
-    @Autowired private UserRepository userRepository;
+    @Autowired private TestData testData;
 
     private Session session;
-    private final List<Seat> seats = new ArrayList<>();
+    private List<Seat> seats;
     private String token;
 
     @BeforeEach
     void setUp() {
         cleanUp();
         email = "meia-" + System.nanoTime() + "@teste.com";
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Meia");
-        cinema.setCnpj("77777777000177");
-        cinema.setEndereco("Rua M, 7");
-        cinema = cinemaRepository.save(cinema);
-
-        Room room = new Room();
-        room.setNome("Sala M");
-        room.setCapacidade(5); // cota de meia: 2 lugares
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
-
-        seats.clear();
-        for (int numero = 1; numero <= 5; numero++) {
-            Seat seat = new Seat();
-            seat.setFila("A");
-            seat.setNumero(numero);
-            seat.setRoom(room);
-            seats.add(seatRepository.save(seat));
-        }
-
-        Movie movie = new Movie();
-        movie.setTitulo("Filme da Meia");
-        movie.setDuracaoEmMinutos(100);
-        movie = movieRepository.save(movie);
-
-        session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("40.00"));
-        session.setAtivo(true);
-        session = sessionRepository.save(session);
-
-        User user = new User();
-        user.setNome("Comprador");
-        user.setEmail(email);
-        user.setSenha("hash-irrelevante");
-        token = tokenService.generateToken(userRepository.save(user));
+        Cinema cinema = testData.cinema("Cine Meia", "77777777000177");
+        Room room = testData.room("Sala M", cinema, 5); // cota de meia: 2 lugares
+        seats = testData.seats(room, "A", 5);
+        Movie movie = testData.movie("Filme da Meia", 100);
+        session = testData.session(movie, room, LocalDateTime.now().plusDays(1), new BigDecimal("40.00"));
+        token = testData.token(testData.customer(email));
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
+        testData.deleteCatalog();
         if (email != null) {
-            userRepository.findByEmailIgnoreCase(email).ifPresent(userRepository::delete);
+            testData.deleteUsers(email);
         }
     }
 
@@ -115,10 +61,7 @@ class HalfPriceIntegrationTest extends AbstractIntegrationTest {
     void idosoInformaANascimentoNoPerfilEPagaMeia() throws Exception {
         buy(0, "MEIA_IDOSO", null).andExpect(status().isUnprocessableEntity());
 
-        mockMvc.perform(patch("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"dataNascimento\":\"1950-03-10\"}"))
+        mockMvc.perform(authed(patch("/api/v1/users/me"), token, "{\"dataNascimento\":\"1950-03-10\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.dataNascimento").value("1950-03-10"));
 
@@ -141,10 +84,7 @@ class HalfPriceIntegrationTest extends AbstractIntegrationTest {
 
     private ResultActions buy(int seatIndex, String type, String documento) throws Exception {
         String doc = documento == null ? "" : ",\"documentoMeia\":\"" + documento + "\"";
-        return mockMvc.perform(post("/api/v1/tickets")
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"sessionId\":" + session.getId() + ",\"seatId\":" + seats.get(seatIndex).getId()
+        return mockMvc.perform(authed(post("/api/v1/tickets"), token, "{\"sessionId\":" + session.getId() + ",\"seatId\":" + seats.get(seatIndex).getId()
                         + ",\"ticketType\":\"" + type + "\"" + doc + "}"));
     }
 }

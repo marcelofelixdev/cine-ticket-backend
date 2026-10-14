@@ -15,7 +15,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 
 import static com.app.cineticket.support.ApiRequests.authed;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -70,9 +69,8 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        movieRepository.deleteAll();
+        testData.deleteCatalog();
         testData.deleteUsersEndingWith(DOMAIN);
-        testData.deleteCinemas(Set.of(CNPJ));
     }
 
     @Test

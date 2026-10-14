@@ -12,8 +12,6 @@ import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.BoxOfficeSaleRequestDTO;
 import com.app.cineticket.exception.ConflictException;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
 import com.app.cineticket.service.BoxOfficeService;
 import com.app.cineticket.service.TicketQrCodeService;
@@ -32,7 +30,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -65,13 +62,11 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
     @Autowired private TestData testData;
     @Autowired private BoxOfficeService boxOfficeService;
     @Autowired private TicketQrCodeService qrCodeService;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private SessionRepository sessionRepository;
     @Autowired private TicketRepository ticketRepository;
 
     private Movie movie;
     private Room roomA;
-    private final List<Seat> seatsA = new ArrayList<>();
+    private List<Seat> seatsA;
     private Session sessionA;
     private Session sessionB;
     private User staff;
@@ -87,10 +82,7 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
         Cinema cinemaB = testData.cinema("Cine Caixa B", CNPJ_B);
         roomA = testData.room("Sala Caixa A", cinemaA, 10);
         Room roomB = testData.room("Sala Caixa B", cinemaB, 10);
-        seatsA.clear();
-        for (int n = 1; n <= 10; n++) {
-            seatsA.add(testData.seat(roomA, "A", n));
-        }
+        seatsA = testData.seats(roomA, "A", 10);
         testData.seat(roomB, "A", 1);
         movie = testData.movie("Filme do Caixa", 120);
         sessionA = testData.session(movie, roomA, LocalDateTime.now().plusDays(1));
@@ -105,11 +97,8 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        movieRepository.deleteAll();
+        testData.deleteCatalog();
         testData.deleteUsersEndingWith(DOMAIN);
-        testData.deleteCinemas(Set.of(CNPJ_A, CNPJ_B));
     }
 
     @Test

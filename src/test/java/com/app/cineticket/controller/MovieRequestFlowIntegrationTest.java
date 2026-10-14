@@ -17,7 +17,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
-import java.util.Set;
 
 import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.hasSize;
@@ -73,11 +72,8 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        movieRequestRepository.deleteAll();
-        cinemaMovieRepository.deleteAll();
-        movieRepository.deleteAll();
+        testData.deleteCatalog();
         testData.deleteUsersEndingWith(DOMAIN);
-        testData.deleteCinemas(Set.of(CNPJ_A, CNPJ_B));
     }
 
     @Test

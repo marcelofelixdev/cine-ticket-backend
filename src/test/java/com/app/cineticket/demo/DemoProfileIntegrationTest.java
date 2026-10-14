@@ -5,7 +5,6 @@ import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RoomRepository;
@@ -22,7 +21,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -111,12 +109,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void resetApagaComprasEContasDeVisitantesERecriaAProgramacao() {
-        User extraAccount = new User();
-        extraAccount.setNome("Conta criada no demo");
-        extraAccount.setEmail("criado-no-demo@teste.com");
-        extraAccount.setSenha("hash-irrelevante");
-        extraAccount = userRepository.save(extraAccount);
-        ticketRepository.save(ticketFor(extraAccount));
+        ticketFor(testData.customer("criado-no-demo@teste.com"));
 
         demoDataService.reset();
 
@@ -180,14 +173,6 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     private Ticket ticketFor(User user) {
         Session session = sessionRepository.findAll().get(0);
         Seat seat = seatRepository.findByRoomIdOrderByFilaAscNumeroAsc(session.getRoom().getId()).get(0);
-        Ticket ticket = new Ticket();
-        ticket.setUser(user);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setStatus(TicketStatus.PENDING);
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setValorPago(new BigDecimal("30.00"));
-        ticket.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        return ticket;
+        return testData.ticket(session, seat, user, TicketStatus.PENDING);
     }
 }

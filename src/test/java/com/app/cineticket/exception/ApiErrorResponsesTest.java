@@ -1,22 +1,15 @@
 package com.app.cineticket.exception;
 
 import com.app.cineticket.support.AbstractIntegrationTest;
-import com.app.cineticket.domain.entity.Role;
-import com.app.cineticket.domain.entity.User;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.RoleRepository;
-import com.app.cineticket.repository.UserRepository;
-import com.app.cineticket.security.TokenService;
+import com.app.cineticket.support.TestData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.util.HashSet;
-import java.util.Set;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -38,26 +31,20 @@ class ApiErrorResponsesTest extends AbstractIntegrationTest {
                     + "\"cidade\":\"São Paulo\",\"uf\":\"SP\"}";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private TokenService tokenService;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
-    @Autowired private CinemaRepository cinemaRepository;
+    @Autowired private TestData testData;
 
     private String adminToken;
 
     @BeforeEach
     void setUp() {
-        cinemaRepository.deleteAll();
-        userRepository.deleteAll();
-        roleRepository.deleteAll();
-        Role userRole = roleRepository.save(role("ROLE_USER"));
-        Role adminRole = roleRepository.save(role("ROLE_ADMIN"));
-        adminToken = tokenService.generateToken(userRepository.save(admin(userRole, adminRole)));
+        testData.deleteCatalog();
+        testData.deleteUsers("admin@teste.com");
+        adminToken = testData.token("admin@teste.com", "ROLE_ADMIN", null);
     }
 
     @Test
     void recursoInexistenteRetorna404() throws Exception {
-        mockMvc.perform(asAdmin(get(CINEMAS + "/999999")))
+        mockMvc.perform(authed(get(CINEMAS + "/999999"), adminToken, null))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(404))
@@ -69,7 +56,7 @@ class ApiErrorResponsesTest extends AbstractIntegrationTest {
 
     @Test
     void idEmFormatoInvalidoRetorna400() throws Exception {
-        mockMvc.perform(asAdmin(get(CINEMAS + "/abc")))
+        mockMvc.perform(authed(get(CINEMAS + "/abc"), adminToken, null))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Parâmetro inválido"));
@@ -77,14 +64,14 @@ class ApiErrorResponsesTest extends AbstractIntegrationTest {
 
     @Test
     void jsonMalformadoRetorna400() throws Exception {
-        mockMvc.perform(asAdmin(post(CINEMAS)).contentType(MediaType.APPLICATION_JSON).content("{"))
+        mockMvc.perform(authed(post(CINEMAS), adminToken, "{"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.title").value("Corpo da requisição inválido"));
     }
 
     @Test
     void validacaoRetorna422ComListaDeCampos() throws Exception {
-        mockMvc.perform(asAdmin(post(CINEMAS)).contentType(MediaType.APPLICATION_JSON).content("{}"))
+        mockMvc.perform(authed(post(CINEMAS), adminToken, "{}"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.title").value("Erro de validação"))
@@ -95,10 +82,10 @@ class ApiErrorResponsesTest extends AbstractIntegrationTest {
 
     @Test
     void cnpjDuplicadoRetorna409() throws Exception {
-        mockMvc.perform(asAdmin(post(CINEMAS)).contentType(MediaType.APPLICATION_JSON).content(VALID_CINEMA))
+        mockMvc.perform(authed(post(CINEMAS), adminToken, VALID_CINEMA))
                 .andExpect(status().isCreated());
 
-        mockMvc.perform(asAdmin(post(CINEMAS)).contentType(MediaType.APPLICATION_JSON).content(VALID_CINEMA))
+        mockMvc.perform(authed(post(CINEMAS), adminToken, VALID_CINEMA))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.title").value("Conflito"));
     }
@@ -114,42 +101,23 @@ class ApiErrorResponsesTest extends AbstractIntegrationTest {
 
     @Test
     void rotaInexistenteRetorna404() throws Exception {
-        mockMvc.perform(asAdmin(get("/api/v1/rota-que-nao-existe")))
+        mockMvc.perform(authed(get("/api/v1/rota-que-nao-existe"), adminToken, null))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.title").value("Recurso não encontrado"));
     }
 
     @Test
     void metodoNaoSuportadoRetorna405() throws Exception {
-        mockMvc.perform(asAdmin(patch(CINEMAS)).contentType(MediaType.APPLICATION_JSON).content(VALID_CINEMA))
+        mockMvc.perform(authed(patch(CINEMAS), adminToken, VALID_CINEMA))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.title").value("Método não permitido"));
     }
 
     @Test
     void respostaDeErroDevolveCorrelationIdRecebido() throws Exception {
-        mockMvc.perform(asAdmin(get(CINEMAS + "/999999")).header("X-Correlation-ID", "teste-123"))
+        mockMvc.perform(authed(get(CINEMAS + "/999999"), adminToken, null).header("X-Correlation-ID", "teste-123"))
                 .andExpect(status().isNotFound())
                 .andExpect(header().string("X-Correlation-ID", "teste-123"))
                 .andExpect(jsonPath("$.correlationId").value("teste-123"));
-    }
-
-    private MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder request) {
-        return request.header("Authorization", "Bearer " + adminToken);
-    }
-
-    private static Role role(String nome) {
-        Role role = new Role();
-        role.setNome(nome);
-        return role;
-    }
-
-    private static User admin(Role... roles) {
-        User user = new User();
-        user.setNome("Admin");
-        user.setEmail("admin@teste.com");
-        user.setSenha("hash-irrelevante");
-        user.setRoles(new HashSet<>(Set.of(roles)));
-        return user;
     }
 }

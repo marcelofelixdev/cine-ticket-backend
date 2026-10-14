@@ -1,19 +1,15 @@
 package com.app.cineticket.security;
 
 import com.app.cineticket.support.AbstractIntegrationTest;
-import com.app.cineticket.domain.entity.Role;
-import com.app.cineticket.domain.entity.User;
-import com.app.cineticket.repository.RoleRepository;
-import com.app.cineticket.repository.UserRepository;
+import com.app.cineticket.support.TestData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.HashSet;
-import java.util.Set;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -30,21 +26,16 @@ class SecurityErrorResponsesTest extends AbstractIntegrationTest {
     private static final String ADMIN_ROUTE = "/api/v1/cinemas";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private TokenService tokenService;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
+    @Autowired private TestData testData;
 
     private String userToken;
     private String adminToken;
 
     @BeforeEach
     void setUp() {
-        userRepository.deleteAll();
-        roleRepository.deleteAll();
-        Role userRole = roleRepository.save(role("ROLE_USER"));
-        Role adminRole = roleRepository.save(role("ROLE_ADMIN"));
-        userToken = tokenService.generateToken(userRepository.save(user("cliente@teste.com", userRole)));
-        adminToken = tokenService.generateToken(userRepository.save(user("admin@teste.com", userRole, adminRole)));
+        testData.deleteUsers("cliente@teste.com", "admin@teste.com");
+        userToken = testData.token("cliente@teste.com", "ROLE_USER", null);
+        adminToken = testData.token("admin@teste.com", "ROLE_ADMIN", null);
     }
 
     @Test
@@ -68,16 +59,13 @@ class SecurityErrorResponsesTest extends AbstractIntegrationTest {
 
     @Test
     void usuarioAutenticadoAcessaRotaProtegida() throws Exception {
-        mockMvc.perform(get(PROTECTED_ROUTE).header("Authorization", "Bearer " + userToken))
+        mockMvc.perform(authed(get(PROTECTED_ROUTE), userToken, null))
                 .andExpect(status().isOk());
     }
 
     @Test
     void usuarioComumEmRotaDeAdminRetorna403EmProblemDetail() throws Exception {
-        mockMvc.perform(post(ADMIN_ROUTE)
-                        .header("Authorization", "Bearer " + userToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+        mockMvc.perform(authed(post(ADMIN_ROUTE), userToken, "{}"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.status").value(403))
@@ -87,25 +75,7 @@ class SecurityErrorResponsesTest extends AbstractIntegrationTest {
 
     @Test
     void adminPassaPelaSegurancaEChegaNaValidacao() throws Exception {
-        mockMvc.perform(post(ADMIN_ROUTE)
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+        mockMvc.perform(authed(post(ADMIN_ROUTE), adminToken, "{}"))
                 .andExpect(status().isUnprocessableEntity());
-    }
-
-    private static Role role(String nome) {
-        Role role = new Role();
-        role.setNome(nome);
-        return role;
-    }
-
-    private static User user(String email, Role... roles) {
-        User user = new User();
-        user.setNome("Teste");
-        user.setEmail(email);
-        user.setSenha("hash-irrelevante");
-        user.setRoles(new HashSet<>(Set.of(roles)));
-        return user;
     }
 }

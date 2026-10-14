@@ -1,38 +1,26 @@
 package com.app.cineticket.controller;
 
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import com.app.cineticket.domain.entity.Cinema;
 import com.app.cineticket.domain.entity.Movie;
-import com.app.cineticket.domain.entity.Role;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoleRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
-import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
-import com.app.cineticket.security.TokenService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -50,15 +38,8 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
     private static final String SESSIONS = "/api/v1/sessions";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private TokenService tokenService;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
+    @Autowired private TestData testData;
     @Autowired private SessionRepository sessionRepository;
-    @Autowired private TicketRepository ticketRepository;
-    @Autowired private UserRepository userRepository;
-    @Autowired private RoleRepository roleRepository;
 
     private User owner;
     private String ownerToken;
@@ -73,75 +54,70 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Role userRole = roleRepository.save(role("ROLE_USER"));
-        owner = userRepository.save(user("dono@teste.com", userRole));
-        ownerToken = tokenService.generateToken(owner);
-        otherToken = tokenService.generateToken(userRepository.save(user("outro@teste.com", userRole)));
+        owner = testData.customer("dono@teste.com");
+        ownerToken = testData.token(owner);
+        otherToken = testData.token(testData.customer("outro@teste.com"));
 
-        cinema1 = cinema("Cine Centro", "11111111000111");
-        cinema2 = cinema("Cine Shopping", "22222222000122");
-        room1 = room("Sala 1", cinema1);
-        Room room2 = room("Sala 2", cinema2);
-        movieA = movie("Filme A");
-        Movie movieB = movie("Filme B");
+        cinema1 = testData.cinema("Cine Centro", "11111111000111");
+        cinema2 = testData.cinema("Cine Shopping", "22222222000122");
+        room1 = testData.room("Sala 1", cinema1, 10);
+        Room room2 = testData.room("Sala 2", cinema2, 10);
+        movieA = testData.movie("Filme A", 120);
+        Movie movieB = testData.movie("Filme B", 120);
 
         LocalDate amanha = LocalDate.now().plusDays(1);
-        session(movieA, room1, LocalDateTime.now().minusDays(1), true);
-        sessionAmanhaFilmeA = session(movieA, room1, amanha.atTime(15, 0), true);
-        session(movieB, room2, amanha.plusDays(1).atTime(15, 0), true);
-        sessionInativa = session(movieB, room2, amanha.atTime(20, 0), false);
+        testData.session(movieA, room1, LocalDateTime.now().minusDays(1));
+        sessionAmanhaFilmeA = testData.session(movieA, room1, amanha.atTime(15, 0));
+        testData.session(movieB, room2, amanha.plusDays(1).atTime(15, 0));
+        sessionInativa = testData.session(movieB, room2, amanha.atTime(20, 0));
+        sessionInativa.setAtivo(false);
+        sessionInativa = sessionRepository.save(sessionInativa);
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.deleteAll();
-        roleRepository.deleteAll();
+        testData.deleteCatalog();
+        testData.deleteUsers("dono@teste.com", "outro@teste.com");
     }
 
     @Test
     void listaPorPadraoSoSessoesAtivasEFuturas() throws Exception {
-        mockMvc.perform(auth(get(SESSIONS), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS), ownerToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page.totalElements").value(2));
     }
 
     @Test
     void incluiSessoesPassadasQuandoPedido() throws Exception {
-        mockMvc.perform(auth(get(SESSIONS).param("includePast", "true"), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS).param("includePast", "true"), ownerToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.page.totalElements").value(3));
     }
 
     @Test
     void filtraPorFilme() throws Exception {
-        mockMvc.perform(auth(get(SESSIONS).param("movieId", movieA.getId().toString()), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS).param("movieId", movieA.getId().toString()), ownerToken, null))
                 .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].movieTitulo").value("Filme A"));
     }
 
     @Test
     void filtraPorCinema() throws Exception {
-        mockMvc.perform(auth(get(SESSIONS).param("cinemaId", cinema2.getId().toString()), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS).param("cinemaId", cinema2.getId().toString()), ownerToken, null))
                 .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].cinemaNome").value("Cine Shopping"));
     }
 
     @Test
     void filtraPorData() throws Exception {
-        mockMvc.perform(auth(get(SESSIONS).param("date", LocalDate.now().plusDays(1).toString()), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS).param("date", LocalDate.now().plusDays(1).toString()), ownerToken, null))
                 .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].id").value(sessionAmanhaFilmeA.getId()));
     }
 
     @Test
     void detalheDaSessaoAtivaENaoMostraSessaoCancelada() throws Exception {
-        mockMvc.perform(auth(get(SESSIONS + "/" + sessionAmanhaFilmeA.getId()), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS + "/" + sessionAmanhaFilmeA.getId()), ownerToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.movieId").value(movieA.getId()))
                 .andExpect(jsonPath("$.movieTitulo").value("Filme A"))
@@ -149,13 +125,13 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.cinemaId").value(cinema1.getId()))
                 .andExpect(jsonPath("$.cinemaNome").value("Cine Centro"));
 
-        mockMvc.perform(auth(get(SESSIONS + "/" + sessionInativa.getId()), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS + "/" + sessionInativa.getId()), ownerToken, null))
                 .andExpect(status().isNotFound());
     }
 
     @Test
     void detalheDaSala() throws Exception {
-        mockMvc.perform(auth(get("/api/v1/rooms/" + room1.getId()), ownerToken))
+        mockMvc.perform(authed(get("/api/v1/rooms/" + room1.getId()), ownerToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nome").value("Sala 1"))
                 .andExpect(jsonPath("$.cinemaId").value(cinema1.getId()))
@@ -166,18 +142,18 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
     void ingressoSoPodeSerVistoPeloDono() throws Exception {
         Long ticketId = ticket().getId();
 
-        mockMvc.perform(auth(get("/api/v1/tickets/" + ticketId), ownerToken))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticketId), ownerToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.expiresAt").exists());
 
-        mockMvc.perform(auth(get("/api/v1/tickets/" + ticketId), otherToken))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticketId), otherToken, null))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void paginacaoUsaFormatoEstavel() throws Exception {
-        mockMvc.perform(auth(get(SESSIONS).param("size", "1"), ownerToken))
+        mockMvc.perform(authed(get(SESSIONS).param("size", "1"), ownerToken, null))
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.page.size").value(1))
                 .andExpect(jsonPath("$.page.number").value(0))
@@ -192,7 +168,7 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
         String body = "{\"sessionId\":" + sessionAmanhaFilmeA.getId() + ",\"seatId\":" + seat.getId()
                 + ",\"ticketType\":\"INTEIRA\"}";
 
-        mockMvc.perform(auth(post("/api/v1/tickets"), ownerToken)
+        mockMvc.perform(authed(post("/api/v1/tickets"), ownerToken, null)
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andExpect(header().string("Location",
@@ -207,90 +183,25 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
     void cancelamentoDuplicadoViaDeleteFoiRemovido() throws Exception {
         Long ticketId = ticket().getId();
 
-        mockMvc.perform(auth(delete("/api/v1/tickets/" + ticketId), ownerToken))
+        mockMvc.perform(authed(delete("/api/v1/tickets/" + ticketId), ownerToken, null))
                 .andExpect(status().isMethodNotAllowed());
     }
 
     @Test
     void retornaOUsuarioLogado() throws Exception {
-        mockMvc.perform(auth(get("/api/v1/users/me"), ownerToken))
+        mockMvc.perform(authed(get("/api/v1/users/me"), ownerToken, null))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("dono@teste.com"))
                 .andExpect(jsonPath("$.roles", hasItem("ROLE_USER")))
                 .andExpect(jsonPath("$.senha").doesNotExist());
     }
 
-    private MockHttpServletRequestBuilder auth(MockHttpServletRequestBuilder request, String token) {
-        return request.header("Authorization", "Bearer " + token);
-    }
 
     private Seat seat() {
-        Seat seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(1);
-        seat.setRoom(room1);
-        return seatRepository.save(seat);
+        return testData.seat(room1, "A", 1);
     }
 
     private Ticket ticket() {
-        Seat seat = seat();
-
-        Ticket ticket = new Ticket();
-        ticket.setStatus(TicketStatus.PENDING);
-        ticket.setValorPago(new BigDecimal("30.00"));
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setSession(sessionAmanhaFilmeA);
-        ticket.setSeat(seat);
-        ticket.setUser(owner);
-        ticket.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        return ticketRepository.save(ticket);
-    }
-
-    private Cinema cinema(String nome, String cnpj) {
-        Cinema cinema = new Cinema();
-        cinema.setNome(nome);
-        cinema.setCnpj(cnpj);
-        cinema.setEndereco("Rua A, 1");
-        return cinemaRepository.save(cinema);
-    }
-
-    private Room room(String nome, Cinema cinema) {
-        Room room = new Room();
-        room.setNome(nome);
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        return roomRepository.save(room);
-    }
-
-    private Movie movie(String titulo) {
-        Movie movie = new Movie();
-        movie.setTitulo(titulo);
-        movie.setDuracaoEmMinutos(120);
-        return movieRepository.save(movie);
-    }
-
-    private Session session(Movie movie, Room room, LocalDateTime inicio, boolean ativa) {
-        Session session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(inicio);
-        session.setValorBase(new BigDecimal("30.00"));
-        session.setAtivo(ativa);
-        return sessionRepository.save(session);
-    }
-
-    private static Role role(String nome) {
-        Role role = new Role();
-        role.setNome(nome);
-        return role;
-    }
-
-    private static User user(String email, Role... roles) {
-        User user = new User();
-        user.setNome("Teste");
-        user.setEmail(email);
-        user.setSenha("hash-irrelevante");
-        user.setRoles(new HashSet<>(Set.of(roles)));
-        return user;
+        return testData.ticket(sessionAmanhaFilmeA, seat(), owner, TicketStatus.PENDING);
     }
 }

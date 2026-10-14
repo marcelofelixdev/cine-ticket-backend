@@ -1,28 +1,18 @@
 package com.app.cineticket.service;
 
 import com.app.cineticket.support.AbstractIntegrationTest;
-import com.app.cineticket.domain.entity.Cinema;
-import com.app.cineticket.domain.entity.Movie;
+import com.app.cineticket.support.TestData;
 import com.app.cineticket.domain.entity.Room;
-import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -32,14 +22,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 class PendingTicketExpirationJobTest extends AbstractIntegrationTest {
 
+    @Autowired private TestData testData;
     @Autowired private PendingTicketExpirationJob job;
     @Autowired private TicketRepository ticketRepository;
-    @Autowired private SessionRepository sessionRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private UserRepository userRepository;
 
     private Session session;
     private Room room;
@@ -48,47 +33,15 @@ class PendingTicketExpirationJobTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Teste");
-        cinema.setCnpj("12345678000199");
-        cinema.setEndereco("Rua A, 1");
-        cinema = cinemaRepository.save(cinema);
-
-        room = new Room();
-        room.setNome("Sala 1");
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
-
-        Movie movie = new Movie();
-        movie.setTitulo("Filme Teste");
-        movie.setDuracaoEmMinutos(120);
-        movie = movieRepository.save(movie);
-
-        session = new Session();
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("30.00"));
-        session.setAtivo(true);
-        session.setMovie(movie);
-        session.setRoom(room);
-        session = sessionRepository.save(session);
-
-        user = new User();
-        user.setNome("Cliente");
-        user.setEmail("cliente-expiracao@teste.com");
-        user.setSenha("hash-irrelevante");
-        user = userRepository.save(user);
+        room = testData.room("Sala 1", testData.cinema("Cine Teste", "12345678000199"), 10);
+        session = testData.session(testData.movie("Filme Teste", 120), room, LocalDateTime.now().plusDays(1));
+        user = testData.customer("cliente-expiracao@teste.com");
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase("cliente-expiracao@teste.com").ifPresent(userRepository::delete);
+        testData.deleteCatalog();
+        testData.deleteUsers("cliente-expiracao@teste.com");
     }
 
     @Test
@@ -106,19 +59,7 @@ class PendingTicketExpirationJobTest extends AbstractIntegrationTest {
     }
 
     private Long ticket(int seatNumber, TicketStatus status, LocalDateTime expiresAt) {
-        Seat seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(seatNumber);
-        seat.setRoom(room);
-        seat = seatRepository.save(seat);
-
-        Ticket ticket = new Ticket();
-        ticket.setStatus(status);
-        ticket.setValorPago(new BigDecimal("30.00"));
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setUser(user);
+        Ticket ticket = testData.ticket(session, testData.seat(room, "A", seatNumber), user, status);
         ticket.setExpiresAt(expiresAt);
         return ticketRepository.save(ticket).getId();
     }

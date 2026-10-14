@@ -6,7 +6,6 @@ import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.enums.ProgramacaoStatus;
 import com.app.cineticket.domain.enums.SessionAudio;
-import com.app.cineticket.repository.CinemaMovieRepository;
 import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.support.AbstractIntegrationTest;
@@ -19,7 +18,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 
 import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.hasItem;
@@ -42,7 +40,6 @@ class ManagerSessionIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private TestData testData;
     @Autowired private MovieRepository movieRepository;
-    @Autowired private CinemaMovieRepository cinemaMovieRepository;
     @Autowired private SessionRepository sessionRepository;
 
     private Cinema cinemaA;
@@ -77,11 +74,8 @@ class ManagerSessionIntegrationTest extends AbstractIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        sessionRepository.deleteAll();
-        cinemaMovieRepository.deleteAll();
-        movieRepository.deleteAll();
+        testData.deleteCatalog();
         testData.deleteUsersEndingWith(DOMAIN);
-        testData.deleteCinemas(Set.of(CNPJ_A, CNPJ_B));
     }
 
     @Test

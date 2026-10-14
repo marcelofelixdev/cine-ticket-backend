@@ -1,22 +1,12 @@
 package com.app.cineticket.security;
 
-import com.app.cineticket.domain.entity.Cinema;
-import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Room;
-import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
-import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,10 +17,10 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
@@ -47,14 +37,7 @@ class SecurityMatrixTest extends AbstractIntegrationTest {
     private static final String OTHER_EMAIL = "matriz-outro@teste.com";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private TokenService tokenService;
-    @Autowired private UserRepository userRepository;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private SessionRepository sessionRepository;
-    @Autowired private TicketRepository ticketRepository;
+    @Autowired private TestData testData;
 
     private User owner;
     private String ownerToken;
@@ -64,22 +47,16 @@ class SecurityMatrixTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        owner = userRepository.save(user(OWNER_EMAIL));
-        ownerToken = tokenService.generateToken(owner);
-        otherToken = tokenService.generateToken(userRepository.save(user(OTHER_EMAIL)));
+        owner = testData.customer(OWNER_EMAIL);
+        ownerToken = testData.token(owner);
+        otherToken = testData.token(testData.customer(OTHER_EMAIL));
         ticketId = approvedTicketOf(owner).getId();
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase(OWNER_EMAIL).ifPresent(userRepository::delete);
-        userRepository.findByEmailIgnoreCase(OTHER_EMAIL).ifPresent(userRepository::delete);
+        testData.deleteCatalog();
+        testData.deleteUsers(OWNER_EMAIL, OTHER_EMAIL);
     }
 
     // --- Validade do token -------------------------------------------------------
@@ -88,7 +65,7 @@ class SecurityMatrixTest extends AbstractIntegrationTest {
     void tokenExpiradoRetorna401() throws Exception {
         String expired = new TokenService(SECRET, Duration.ofSeconds(-60)).generateToken(owner);
 
-        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + expired))
+        mockMvc.perform(authed(get("/api/v1/users/me"), expired, null))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -96,13 +73,13 @@ class SecurityMatrixTest extends AbstractIntegrationTest {
     void tokenAssinadoComOutroSegredoRetorna401() throws Exception {
         String forged = new TokenService("outro_segredo_com_mais_de_32_caracteres!!").generateToken(owner);
 
-        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + forged))
+        mockMvc.perform(authed(get("/api/v1/users/me"), forged, null))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void tokenValidoAcessaRotaProtegida() throws Exception {
-        mockMvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + ownerToken))
+        mockMvc.perform(authed(get("/api/v1/users/me"), ownerToken, null))
                 .andExpect(status().isOk());
     }
 
@@ -124,10 +101,7 @@ class SecurityMatrixTest extends AbstractIntegrationTest {
             "DELETE, /api/v1/sessions/1"
     })
     void escritaNoCatalogoExigeAdmin(String method, String path) throws Exception {
-        mockMvc.perform(request(HttpMethod.valueOf(method), path)
-                        .header("Authorization", "Bearer " + ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+        mockMvc.perform(authed(request(HttpMethod.valueOf(method), path), ownerToken, "{}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -135,69 +109,25 @@ class SecurityMatrixTest extends AbstractIntegrationTest {
 
     @Test
     void outroUsuarioNaoVeNaoBaixaENaoCancelaOIngresso() throws Exception {
-        mockMvc.perform(get("/api/v1/tickets/" + ticketId).header("Authorization", "Bearer " + otherToken))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticketId), otherToken, null))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/v1/tickets/" + ticketId + "/pdf").header("Authorization", "Bearer " + otherToken))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticketId + "/pdf"), otherToken, null))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(put("/api/v1/tickets/" + ticketId + "/cancel").header("Authorization", "Bearer " + otherToken))
+        mockMvc.perform(authed(put("/api/v1/tickets/" + ticketId + "/cancel"), otherToken, null))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void donoBaixaOPdfDoProprioIngresso() throws Exception {
-        mockMvc.perform(get("/api/v1/tickets/" + ticketId + "/pdf").header("Authorization", "Bearer " + ownerToken))
+        mockMvc.perform(authed(get("/api/v1/tickets/" + ticketId + "/pdf"), ownerToken, null))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
                         .content().contentType(MediaType.APPLICATION_PDF));
     }
 
     private Ticket approvedTicketOf(User user) {
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Matriz");
-        cinema.setCnpj("55555555000155");
-        cinema.setEndereco("Rua D, 4");
-        cinema = cinemaRepository.save(cinema);
-
-        Room room = new Room();
-        room.setNome("Sala M");
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
-
-        Seat seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(1);
-        seat.setRoom(room);
-        seat = seatRepository.save(seat);
-
-        Movie movie = new Movie();
-        movie.setTitulo("Filme Matriz");
-        movie.setDuracaoEmMinutos(110);
-        movie = movieRepository.save(movie);
-
-        Session session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("30.00"));
-        session.setAtivo(true);
-        session = sessionRepository.save(session);
-
-        Ticket ticket = new Ticket();
-        ticket.setUser(user);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setStatus(TicketStatus.APPROVED);
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setValorPago(new BigDecimal("30.00"));
-        return ticketRepository.save(ticket);
-    }
-
-    private static User user(String email) {
-        User user = new User();
-        user.setNome("Matriz");
-        user.setEmail(email);
-        user.setSenha("hash-irrelevante");
-        return user;
+        Room room = testData.room("Sala M", testData.cinema("Cine Matriz", "55555555000155"), 10);
+        Session session = testData.session(testData.movie("Filme Matriz", 110), room, LocalDateTime.now().plusDays(1));
+        return testData.ticket(session, testData.seat(room, "A", 1), user, TicketStatus.APPROVED);
     }
 }

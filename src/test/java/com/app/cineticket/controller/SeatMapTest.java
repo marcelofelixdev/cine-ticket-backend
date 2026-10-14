@@ -1,22 +1,16 @@
 package com.app.cineticket.controller;
 
 import com.app.cineticket.support.AbstractIntegrationTest;
-import com.app.cineticket.domain.entity.Cinema;
+import com.app.cineticket.support.TestData;
 import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
-import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.RoomRequestDTO;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
-import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
 import com.app.cineticket.service.RoomService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -38,14 +31,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SeatMapTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private TestData testData;
     @Autowired private RoomService roomService;
-    @Autowired private CinemaRepository cinemaRepository;
     @Autowired private RoomRepository roomRepository;
     @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
     @Autowired private SessionRepository sessionRepository;
-    @Autowired private TicketRepository ticketRepository;
-    @Autowired private UserRepository userRepository;
 
     private Session session;
     private List<Seat> seats;
@@ -54,44 +44,21 @@ class SeatMapTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Teste");
-        cinema.setCnpj("12345678000199");
-        cinema.setEndereco("Rua A, 1");
-        Long cinemaId = cinemaRepository.save(cinema).getId();
+        Long cinemaId = testData.cinema("Cine Teste", "12345678000199").getId();
 
         Long roomId = roomService.create(new RoomRequestDTO("Sala 1", 12, cinemaId)).id();
         seats = seatRepository.findByRoomIdOrderByFilaAscNumeroAsc(roomId);
 
-        Movie movie = new Movie();
-        movie.setTitulo("Filme Teste");
-        movie.setDuracaoEmMinutos(120);
-        movie = movieRepository.save(movie);
+        Movie movie = testData.movie("Filme Teste", 120);
+        session = testData.session(movie, roomRepository.findById(roomId).orElseThrow(), LocalDateTime.now().plusDays(1));
 
-        session = new Session();
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("30.00"));
-        session.setAtivo(true);
-        session.setMovie(movie);
-        session.setRoom(roomRepository.findById(roomId).orElseThrow());
-        session = sessionRepository.save(session);
-
-        user = new User();
-        user.setNome("Cliente");
-        user.setEmail("cliente-mapa@teste.com");
-        user.setSenha("hash-irrelevante");
-        user = userRepository.save(user);
+        user = testData.customer("cliente-mapa@teste.com");
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase("cliente-mapa@teste.com").ifPresent(userRepository::delete);
+        testData.deleteCatalog();
+        testData.deleteUsers("cliente-mapa@teste.com");
     }
 
     @Test
@@ -132,14 +99,6 @@ class SeatMapTest extends AbstractIntegrationTest {
     }
 
     private void ticket(Seat seat, TicketStatus status) {
-        Ticket ticket = new Ticket();
-        ticket.setStatus(status);
-        ticket.setValorPago(new BigDecimal("30.00"));
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setUser(user);
-        ticket.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        ticketRepository.save(ticket);
+        testData.ticket(session, seat, user, status);
     }
 }

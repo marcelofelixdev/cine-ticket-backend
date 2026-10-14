@@ -6,23 +6,15 @@ import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
-import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
-import com.app.cineticket.security.TokenService;
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -30,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
+import static com.app.cineticket.support.ApiRequests.authed;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -48,14 +41,8 @@ class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
     private static final String EMAIL = "pagamento@teste.com";
 
     @Autowired private MockMvc mockMvc;
-    @Autowired private TokenService tokenService;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private SessionRepository sessionRepository;
+    @Autowired private TestData testData;
     @Autowired private TicketRepository ticketRepository;
-    @Autowired private UserRepository userRepository;
 
     private String token;
     private Session session;
@@ -64,53 +51,18 @@ class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Pagamento");
-        cinema.setCnpj("33333333000133");
-        cinema.setEndereco("Rua B, 2");
-        cinema = cinemaRepository.save(cinema);
-
-        Room room = new Room();
-        room.setNome("Sala P");
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
-
-        seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(1);
-        seat.setRoom(room);
-        seat = seatRepository.save(seat);
-
-        Movie movie = new Movie();
-        movie.setTitulo("Filme Pagamento");
-        movie.setDuracaoEmMinutos(100);
-        movie = movieRepository.save(movie);
-
-        session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("40.00"));
-        session.setAtivo(true);
-        session = sessionRepository.save(session);
-
-        User user = new User();
-        user.setNome("Comprador");
-        user.setEmail(EMAIL);
-        user.setSenha("hash-irrelevante");
-        token = tokenService.generateToken(userRepository.save(user));
+        Cinema cinema = testData.cinema("Cine Pagamento", "33333333000133");
+        Room room = testData.room("Sala P", cinema, 10);
+        seat = testData.seat(room, "A", 1);
+        Movie movie = testData.movie("Filme Pagamento", 100);
+        session = testData.session(movie, room, LocalDateTime.now().plusDays(1), new BigDecimal("40.00"));
+        token = testData.token(testData.customer(EMAIL));
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        userRepository.findByEmailIgnoreCase(EMAIL).ifPresent(userRepository::delete);
+        testData.deleteCatalog();
+        testData.deleteUsers(EMAIL);
     }
 
     @Test
@@ -153,10 +105,7 @@ class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
     private Long buy() throws Exception {
         String body = "{\"sessionId\":" + session.getId() + ",\"seatId\":" + seat.getId()
                 + ",\"ticketType\":\"MEIA_ESTUDANTE\",\"documentoMeia\":\"CIE-2026-0001\"}";
-        String response = mockMvc.perform(post("/api/v1/tickets")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body))
+        String response = mockMvc.perform(authed(post("/api/v1/tickets"), token, body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andReturn().getResponse().getContentAsString();
@@ -164,10 +113,7 @@ class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     private ResultActions pay(Long ticketId, String paymentMethodId) throws Exception {
-        return mockMvc.perform(post("/api/v1/tickets/" + ticketId + "/payment")
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"paymentMethodId\":\"" + paymentMethodId + "\"}"));
+        return mockMvc.perform(authed(post("/api/v1/tickets/" + ticketId + "/payment"), token, "{\"paymentMethodId\":\"" + paymentMethodId + "\"}"));
     }
 
     /** Espera o consumidor processar a mensagem (até 15 s). */

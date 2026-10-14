@@ -1,7 +1,5 @@
 package com.app.cineticket.service;
 
-import com.app.cineticket.domain.entity.Cinema;
-import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
@@ -11,21 +9,15 @@ import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.TicketRequestDTO;
 import com.app.cineticket.exception.ConflictException;
-import com.app.cineticket.repository.CinemaRepository;
-import com.app.cineticket.repository.MovieRepository;
-import com.app.cineticket.repository.RoomRepository;
-import com.app.cineticket.repository.SeatRepository;
-import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
-import com.app.cineticket.repository.UserRepository;
 import com.app.cineticket.support.AbstractIntegrationTest;
+import com.app.cineticket.support.TestData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,16 +47,11 @@ class OverbookingConcurrencyTest extends AbstractIntegrationTest {
 
     /** Abaixo do pool de conexões do perfil dev (10), para não medir falta de conexão. */
     private static final int BUYERS = 8;
-    private static final String EMAIL_PREFIX = "comprador-concorrente-";
+    private static final String EMAIL_DOMAIN = "@concorrencia.teste";
 
     @Autowired private TicketService ticketService;
+    @Autowired private TestData testData;
     @Autowired private TicketRepository ticketRepository;
-    @Autowired private SessionRepository sessionRepository;
-    @Autowired private SeatRepository seatRepository;
-    @Autowired private RoomRepository roomRepository;
-    @Autowired private CinemaRepository cinemaRepository;
-    @Autowired private MovieRepository movieRepository;
-    @Autowired private UserRepository userRepository;
 
     private Session session;
     private Seat seat;
@@ -73,58 +60,20 @@ class OverbookingConcurrencyTest extends AbstractIntegrationTest {
     @BeforeEach
     void setUp() {
         cleanUp();
-        Cinema cinema = new Cinema();
-        cinema.setNome("Cine Concorrência");
-        cinema.setCnpj("44444444000144");
-        cinema.setEndereco("Rua C, 3");
-        cinema = cinemaRepository.save(cinema);
-
-        Room room = new Room();
-        room.setNome("Sala Disputada");
-        room.setCapacidade(10);
-        room.setCinema(cinema);
-        room = roomRepository.save(room);
-
-        seat = new Seat();
-        seat.setFila("A");
-        seat.setNumero(1);
-        seat.setRoom(room);
-        seat = seatRepository.save(seat);
-
-        Movie movie = new Movie();
-        movie.setTitulo("Estreia Disputada");
-        movie.setDuracaoEmMinutos(120);
-        movie = movieRepository.save(movie);
-
-        session = new Session();
-        session.setMovie(movie);
-        session.setRoom(room);
-        session.setHorarioInicio(LocalDateTime.now().plusDays(1));
-        session.setValorBase(new BigDecimal("30.00"));
-        session.setAtivo(true);
-        session = sessionRepository.save(session);
+        Room room = testData.room("Sala Disputada", testData.cinema("Cine Concorrência", "44444444000144"), 10);
+        seat = testData.seat(room, "A", 1);
+        session = testData.session(testData.movie("Estreia Disputada", 120), room, LocalDateTime.now().plusDays(1));
 
         buyers.clear();
         for (int i = 0; i < BUYERS; i++) {
-            User user = new User();
-            user.setNome("Comprador " + i);
-            user.setEmail(EMAIL_PREFIX + i + "@teste.com");
-            user.setSenha("hash-irrelevante");
-            buyers.add(userRepository.save(user));
+            buyers.add(testData.customer("comprador-" + i + EMAIL_DOMAIN));
         }
     }
 
     @AfterEach
     void cleanUp() {
-        ticketRepository.deleteAll();
-        sessionRepository.deleteAll();
-        seatRepository.deleteAll();
-        roomRepository.deleteAll();
-        cinemaRepository.deleteAll();
-        movieRepository.deleteAll();
-        for (int i = 0; i < BUYERS; i++) {
-            userRepository.findByEmailIgnoreCase(EMAIL_PREFIX + i + "@teste.com").ifPresent(userRepository::delete);
-        }
+        testData.deleteCatalog();
+        testData.deleteUsersEndingWith(EMAIL_DOMAIN);
     }
 
     @Test
@@ -199,14 +148,6 @@ class OverbookingConcurrencyTest extends AbstractIntegrationTest {
     }
 
     private Ticket ticket(User user, TicketStatus status) {
-        Ticket ticket = new Ticket();
-        ticket.setUser(user);
-        ticket.setSession(session);
-        ticket.setSeat(seat);
-        ticket.setStatus(status);
-        ticket.setTicketType(TicketType.INTEIRA);
-        ticket.setValorPago(new BigDecimal("30.00"));
-        ticket.setExpiresAt(LocalDateTime.now().plusMinutes(10));
-        return ticket;
+        return testData.ticket(session, seat, user, status);
     }
 }
