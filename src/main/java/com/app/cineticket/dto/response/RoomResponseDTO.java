@@ -5,5 +5,7 @@ public record RoomResponseDTO (
         String nome,
         Integer capacidade,
         Long cinemaId,
-        String cinemaNome
+        String cinemaNome,
+        Integer cadeirasPorFila,
+        java.util.List<Integer> corredores
 ) {}

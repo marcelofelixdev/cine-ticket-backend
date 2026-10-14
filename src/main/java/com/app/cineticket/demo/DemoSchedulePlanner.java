@@ -1,5 +1,7 @@
 package com.app.cineticket.demo;
 
+import com.app.cineticket.service.SessionService;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -8,14 +10,13 @@ import java.util.List;
 
 /**
  * Monta a grade de um dia para uma sala, sem sobreposição: cada sessão começa depois
- * do fim da anterior + 30 min de limpeza (a mesma regra do SessionService),
+ * do fim da anterior + a limpeza (a mesma regra do SessionService),
  * arredondado para múltiplos de 15 min. Função pura, sem banco.
  */
 public final class DemoSchedulePlanner {
 
     static final LocalTime FIRST_START = LocalTime.of(13, 0);
     static final LocalTime LAST_START = LocalTime.of(22, 30);
-    static final int CLEANING_MINUTES = 30;
     private static final int ROUND_MINUTES = 15;
 
     private DemoSchedulePlanner() {
@@ -48,7 +49,7 @@ public final class DemoSchedulePlanner {
             if (start.isAfter(notBefore)) {
                 slots.add(new Slot(start, movieIndex));
             }
-            start = roundUp(start.plusMinutes((long) durations.get(movieIndex) + CLEANING_MINUTES));
+            start = roundUp(SessionService.occupiedUntil(start, durations.get(movieIndex)));
             sequence++;
         }
         return slots;

@@ -1,12 +1,15 @@
 package com.app.cineticket.demo;
 
+import com.app.cineticket.domain.entity.MovieRequest;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
+import com.app.cineticket.domain.enums.MovieRequestStatus;
 import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.MovieRepository;
+import com.app.cineticket.repository.MovieRequestRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
@@ -46,6 +49,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private DemoDataService demoDataService;
     @Autowired private MovieRepository movieRepository;
+    @Autowired private MovieRequestRepository movieRequestRepository;
     @Autowired private CinemaRepository cinemaRepository;
     @Autowired private RoomRepository roomRepository;
     @Autowired private SeatRepository seatRepository;
@@ -60,6 +64,7 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
         assertEquals(2, cinemaRepository.count());
         assertEquals(4, roomRepository.count());
         assertEquals(120 + 80 + 100 + 40, seatRepository.count());
+        assertTrue(roomRepository.findAll().stream().allMatch(room -> DemoCatalog.CORREDORES.equals(room.getCorredores())));
         assertTrue(userRepository.existsByEmailIgnoreCase(demoDataService.getVisitorEmail()));
         // TMDB fora do ar neste teste: direção e gêneros vêm do plano B do catálogo local.
         assertTrue(movieRepository.findAll().stream().allMatch(movie -> movie.getDiretor() != null && movie.getGeneros() != null));
@@ -108,12 +113,19 @@ class DemoProfileIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void resetApagaComprasEContasDeVisitantesERecriaAProgramacao() {
+    void resetApagaComprasPedidosEContasDeVisitantesERecriaAProgramacao() {
         ticketFor(testData.customer("criado-no-demo@teste.com"));
+        MovieRequest request = new MovieRequest();
+        request.setTmdbId(550L);
+        request.setTitulo("Pedido do gerente público");
+        request.setCinema(cinemaRepository.findAll().get(0));
+        request.setStatus(MovieRequestStatus.AGUARDANDO_ADMIN);
+        movieRequestRepository.save(request);
 
         demoDataService.reset();
 
         assertEquals(0, ticketRepository.count());
+        assertEquals(0, movieRequestRepository.count());
         assertFalse(userRepository.existsByEmailIgnoreCase("criado-no-demo@teste.com"));
         assertTrue(userRepository.existsByEmailIgnoreCase(demoDataService.getVisitorEmail()));
         assertEquals(DemoCatalog.MOVIES.size(), movieRepository.count());

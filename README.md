@@ -21,7 +21,7 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 | **Funcionário** do Cine 1 (só valida ingressos) | `funcionario@cineticket.dev` / `funcionario12345` |
 | **Gerente** do Cine 1 (equipe do próprio cinema) | `gerente@cineticket.dev` / `gerente12345` |
 
-No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília). Como os logins são públicos, o gerente não cancela sessões nem vendas ali, e nenhuma dessas contas é bloqueada por senha errada.
+No ambiente de demonstração, as compras, os pedidos de filme e as contas criadas são apagados todos os dias às 04:00 (horário de Brasília). Como os logins são públicos, o gerente não cancela sessões nem vendas ali, e nenhuma dessas contas é bloqueada por senha errada.
 
 **Comprar pelo Swagger:** reserve em `POST /api/v1/tickets` e pague em `POST /api/v1/tickets/{id}/payment` com
 `{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado). Acompanhe a aprovação em `GET /api/v1/tickets/{id}`.
@@ -41,7 +41,7 @@ No ambiente de demonstração, as compras e as contas criadas são apagadas todo
 - **Mapa de assentos** por sessão, com status livre ou ocupado.
 - **Compra de ingresso** com inteira e meia: **reserva que expira em 10 minutos** e pagamento pelo **Stripe em modo de teste** (ou simulador), com aprovação assíncrona via webhook assinado, outbox e RabbitMQ.
 - **Ingresso em PDF** com QR Code, cancelamento até 30 minutos antes da sessão e reembolso.
-- **Área administrativa:** cadastro de cinemas, salas (com geração automática de assentos), filmes e sessões, e cancelamento emergencial de sessão.
+- **Área administrativa:** cadastro de cinemas, salas (cadeiras por fila, corredores e geração automática de assentos, de A a Z), filmes e sessões, e cancelamento emergencial de sessão.
 - **Autenticação para SPA:** JWT de 15 minutos e refresh token rotativo em cookie `HttpOnly`.
 - **Contrato OpenAPI** em `/swagger-ui.html` e erros no padrão **RFC 9457** (`application/problem+json`).
 

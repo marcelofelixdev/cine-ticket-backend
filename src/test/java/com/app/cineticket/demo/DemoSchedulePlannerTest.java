@@ -1,5 +1,6 @@
 package com.app.cineticket.demo;
 
+import com.app.cineticket.service.SessionService;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -25,7 +26,7 @@ class DemoSchedulePlannerTest {
         for (int i = 1; i < slots.size(); i++) {
             DemoSchedulePlanner.Slot previous = slots.get(i - 1);
             LocalDateTime previousEnd = previous.start()
-                    .plusMinutes(DURATIONS.get(previous.movieIndex()) + DemoSchedulePlanner.CLEANING_MINUTES);
+                    .plusMinutes((long) DURATIONS.get(previous.movieIndex()) + SessionService.CLEANING_MINUTES);
             assertFalse(slots.get(i).start().isBefore(previousEnd), "sessão começa antes do fim da anterior");
         }
     }
