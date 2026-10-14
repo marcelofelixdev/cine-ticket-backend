@@ -1,0 +1,30 @@
+$kind: http-request
+name: Pay Ticket
+description: |-
+  Paga a reserva. Em modo de teste: pm_card_visa (aprovado) ou pm_card_chargeDeclined (recusado).
+  Responde 202; a aprovação chega pelo webhook do Stripe (ou pelo simulador) e é processada pelo RabbitMQ.
+method: POST
+url: '{{baseUrl}}/api/v1/tickets/{{ticketId}}/payment'
+order: 1500
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{userToken}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "paymentMethodId": "pm_card_visa"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("Status 202: pagamento aceito", () => pm.response.to.have.status(202));
+      pm.test("Aprovação assíncrona: ainda PENDING", () => pm.expect(pm.response.json().status).to.eql("PENDING"));
+      // Dá tempo para o outbox, o RabbitMQ e o consumidor aprovarem antes do próximo passo.
+      setTimeout(() => {}, 3000);

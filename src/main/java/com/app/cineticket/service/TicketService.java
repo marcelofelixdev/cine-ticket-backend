@@ -4,7 +4,6 @@ import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
-import com.app.cineticket.dto.request.PaymentEventDTO;
 import com.app.cineticket.dto.request.TicketRequestDTO;
 import com.app.cineticket.dto.response.TicketResponseDTO;
 import com.app.cineticket.exception.BusinessException;
@@ -130,12 +129,8 @@ public class TicketService {
         ticket.setStatus(TicketStatus.PENDING);
         ticket.setExpiresAt(LocalDateTime.now().plus(pendingTtl));
 
+        // Só reserva o assento: o pagamento é feito em POST /tickets/{id}/payment.
         Ticket savedTicket = ticketRepository.save(ticket);
-
-        outboxService.paymentRequested(new PaymentEventDTO(
-                savedTicket.getId(),
-                savedTicket.getValorPago()
-        ));
 
         return ticketMapper.toResponseDTO(savedTicket);
     }
@@ -189,7 +184,7 @@ public class TicketService {
         if (previousStatus == TicketStatus.APPROVED) {
             log.info("Ticket {} cancelado. Preparando reembolso...", ticket.getId());
             outboxService.refundRequested(new com.app.cineticket.dto.request.RefundEventDTO(
-                    ticket.getId(), ticket.getValorPago()));
+                    ticket.getId(), ticket.getPaymentIntentId(), ticket.getValorPago()));
         }
 
         return ticketMapper.toResponseDTO(ticket);

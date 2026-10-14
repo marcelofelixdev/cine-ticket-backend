@@ -10,7 +10,7 @@
 API REST de bilheteria de cinema: catálogo de filmes, cinemas e sessões, mapa de assentos,
 compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 
-> Projeto de estudo e portfólio. **O pagamento é simulado**: nenhum valor é cobrado.
+> Projeto de estudo e portfólio. **O pagamento roda em modo de teste** (Stripe ou simulador): nenhum valor é cobrado.
 
 ## 🔗 Demo
 
@@ -21,6 +21,9 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 
 No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília).
 
+**Comprar pelo Swagger:** reserve em `POST /api/v1/tickets` e pague em `POST /api/v1/tickets/{id}/payment` com
+`{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado). Acompanhe a aprovação em `GET /api/v1/tickets/{id}`.
+
 > ⏳ Hospedado no plano gratuito do Render: depois de 15 minutos sem acesso o serviço dorme, e a primeira requisição pode levar cerca de 1 minuto para acordá-lo.
 
 ---
@@ -29,7 +32,7 @@ No ambiente de demonstração, as compras e as contas criadas são apagadas todo
 
 - **Catálogo público:** filmes (enriquecidos pelo [TMDB](https://www.themoviedb.org/)), cinemas e sessões com filtros por filme, cinema e data.
 - **Mapa de assentos** por sessão, com status livre ou ocupado.
-- **Compra de ingresso** com inteira e meia, pagamento assíncrono via RabbitMQ e **reserva que expira em 10 minutos**.
+- **Compra de ingresso** com inteira e meia: **reserva que expira em 10 minutos** e pagamento pelo **Stripe em modo de teste** (ou simulador), com aprovação assíncrona via webhook assinado, outbox e RabbitMQ.
 - **Ingresso em PDF** com QR Code, cancelamento até 30 minutos antes da sessão e reembolso.
 - **Área administrativa:** cadastro de cinemas, salas (com geração automática de assentos), filmes e sessões, e cancelamento emergencial de sessão.
 - **Autenticação para SPA:** JWT de 15 minutos e refresh token rotativo em cookie `HttpOnly`.
@@ -67,12 +70,18 @@ sequenceDiagram
     participant MQ as RabbitMQ
     participant PC as Consumer de pagamento
 
+    participant ST as Stripe (teste)
+
     U->>A: POST /tickets (sessão, assento)
     A->>DB: SELECT assento FOR UPDATE
     A->>DB: INSERT ticket PENDING (expira em 10 min)
     A-->>U: 201 Created + Location
-    A->>DB: INSERT outbox (mesma transação)
-    A-->>MQ: relay publica o evento (com confirmação do broker)
+    U->>A: POST /tickets/{id}/payment (pm_card_visa)
+    A->>ST: cria e confirma o PaymentIntent (idempotency key)
+    A-->>U: 202 Accepted
+    ST->>A: webhook payment_intent.succeeded (assinado)
+    A->>DB: valida assinatura, deduplica e INSERT outbox
+    A-->>MQ: relay publica a confirmação (publisher confirm)
     MQ->>PC: entrega a mensagem
     PC->>DB: UPDATE ... SET APPROVED WHERE status = PENDING
     U->>A: GET /tickets/{id}
@@ -85,6 +94,7 @@ sequenceDiagram
 |---|---|---|
 | **Venda dupla do mesmo assento** | Lock pessimista no assento **e** índice único parcial `(session_id, seat_id) WHERE status IN ('PENDING','APPROVED')` | Duas camadas: o lock serializa os compradores e o índice garante a regra no banco mesmo que o código falhe. Um teste com 8 compras simultâneas comprova exatamente 1 venda. |
 | **Pagamento lento ou instável** | Compra nasce `PENDING`; o evento é gravado no **outbox na mesma transação** e um relay o publica no RabbitMQ com *publisher confirms*; aprovação por `UPDATE` condicional | A requisição não fica presa ao gateway; se o broker cair, nenhum evento se perde (fica no banco até ser entregue); a entrega é "pelo menos uma vez" e a aprovação é idempotente; mensagens com erro vão para a DLQ. |
+| **Pagamento real sem tocar em dado de cartão** | Stripe em modo de teste: a API recebe só um `paymentMethodId` (`pm_...`), cria o PaymentIntent com *idempotency key* e aprova pelo **webhook assinado** (`Stripe-Signature`, tolerância de 5 min), deduplicado pelo ID do evento | O número do cartão nunca passa pela API; duplo clique não cobra duas vezes; webhook forjado ou repetido não aprova nada. Pagamento que chega depois de a reserva expirar gera reembolso automático. |
 | **Assentos travados por quem não paga** | `expires_at` + job que marca `EXPIRED` e limite de 4 reservas pendentes por usuário | O índice parcial ignora `EXPIRED`, então o assento volta a ficar livre sozinho. |
 | **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Só o hash SHA-256 fica no banco. |
 | **CSRF com cookie entre domínios** | Validação do header `Origin` nas rotas de refresh e logout | O resto da API usa `Authorization: Bearer`, que o navegador não envia sozinho. |
@@ -131,9 +141,19 @@ defina `PROFILE=dev,demo` no `.env` e rode o `docker compose up -d --build` de n
 
 | Perfil | Uso |
 |---|---|
-| `dev` | Local: pagamento simulado, admin padrão, cookies sem `Secure`. |
-| `prod` | Produção: CORS obrigatório, cookies `Secure` + `SameSite=None`, vendas desligadas até existir um gateway real. |
-| `demo` | Combinado com outro (`prod,demo`): popula o catálogo, cria o visitante, liga o pagamento simulado e faz o reset diário. |
+| `dev` | Local: compras liberadas (simulador por padrão), admin padrão, cookies sem `Secure`. |
+| `prod` | Produção: CORS obrigatório, cookies `Secure` + `SameSite=None`, vendas desligadas a menos que `PAYMENTS_ENABLED=true` (gateway padrão: Stripe). |
+| `demo` | Combinado com outro (`prod,demo`): popula o catálogo, cria o visitante, libera as compras (simulador ou Stripe de teste) e faz o reset diário. |
+
+### Pagamento com o Stripe (modo de teste)
+
+1. Crie uma conta no [Stripe](https://dashboard.stripe.com/register) e copie a chave **`sk_test_...`** (o modo de teste não exige ativar a conta).
+2. No `.env`: `PAYMENTS_PROVIDER=stripe` e `STRIPE_SECRET_KEY=sk_test_...`.
+3. Encaminhe os webhooks para a API local com o [Stripe CLI](https://docs.stripe.com/stripe-cli):
+   `stripe listen --forward-to localhost:8080/api/v1/payments/webhook` e copie o `whsec_...` exibido para `STRIPE_WEBHOOK_SECRET`.
+4. Pague com `pm_card_visa` (aprovado) ou `pm_card_chargeDeclined` (recusado).
+
+Sem essas variáveis, o simulador (`PAYMENTS_PROVIDER=mock`) aprova os mesmos IDs de teste sem rede.
 
 ## 🧪 Testes
 
@@ -141,7 +161,7 @@ defina `PROFILE=dev,demo` no `.env` e rode o `docker compose up -d --build` de n
 ./mvnw verify          # Windows: mvnw.cmd verify
 ```
 
-- **114 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
+- **132 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
 - Destaques: concorrência de compra do mesmo assento, fluxo assíncrono de pagamento, rotação e reuso de refresh token, matriz de autorização (admin e dono do recurso) e perfil de demonstração.
 - Cobertura (JaCoCo): `target/site/jacoco/index.html`.
 
@@ -155,7 +175,8 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Filmes e cinemas | `GET` (lista e detalhe) | | `POST`, `PUT`, `DELETE` |
 | Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
-| Ingressos | | `POST`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `PUT /{id}/cancel` | |
+| Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `PUT /{id}/cancel` | |
+| Pagamentos | `POST /payments/webhook` (somente Stripe, com assinatura) | | |
 
 Exemplo de erro:
 
@@ -184,6 +205,8 @@ Veja o [`.env.example`](.env.example) para a lista completa. As principais:
 | `TMDB_API_KEY` | Chave da API do TMDB (opcional; sem ela os filmes ficam sem pôster) |
 | `CORS_ALLOWED_ORIGINS` | Origens do frontend, separadas por vírgula |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_BOOTSTRAP_ENABLED` | Admin criado no boot |
+| `PAYMENTS_PROVIDER` | `mock` (simulador) ou `stripe` (modo de teste) |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Chave `sk_test_...` e signing secret `whsec_...` do Stripe |
 
 ## 📁 Estrutura
 
@@ -205,7 +228,7 @@ src/main/java/com/app/cineticket
 
 ## 🗺️ Próximos passos
 
-- [ ] Pagamento em **modo de teste do Stripe** com webhook assinado.
+- [x] Pagamento em **modo de teste do Stripe** com webhook assinado.
 - [x] **Transactional outbox** para os eventos de pagamento e reembolso.
 - [ ] Consumidor de reembolso idempotente.
 - [ ] **QR Code assinado** (HMAC), sem dados pessoais, com validação de uso único na entrada.

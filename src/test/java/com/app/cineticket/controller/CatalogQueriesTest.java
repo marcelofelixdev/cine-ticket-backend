@@ -190,7 +190,7 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
     void compraResponde201ComLocationEIdsDaSessaoEDoAssento() throws Exception {
         Seat seat = seat();
         String body = "{\"sessionId\":" + sessionAmanhaFilmeA.getId() + ",\"seatId\":" + seat.getId()
-                + ",\"ticketType\":\"INTEIRA\",\"cartaoToken\":\"tok_test\"}";
+                + ",\"ticketType\":\"INTEIRA\"}";
 
         mockMvc.perform(auth(post("/api/v1/tickets"), ownerToken)
                         .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content(body))

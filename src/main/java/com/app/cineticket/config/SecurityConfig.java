@@ -64,6 +64,8 @@ public class SecurityConfig {
                                 "/api/v1/cinemas", "/api/v1/cinemas/*",
                                 "/api/v1/sessions", "/api/v1/sessions/*", "/api/v1/sessions/*/seats",
                                 "/api/v1/demo/info").permitAll()
+                        // Webhook do Stripe: sem JWT, autenticado pela assinatura Stripe-Signature.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/payments/webhook").permitAll()
                         // Documentação da API (contrato oficial para o frontend).
                         .requestMatchers(HttpMethod.GET,
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()

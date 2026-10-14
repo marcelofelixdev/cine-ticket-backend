@@ -132,7 +132,7 @@ class OverbookingConcurrencyTest extends AbstractIntegrationTest {
     @Test
     void comprasSimultaneasDoMesmoAssentoVendemExatamenteUmIngresso() throws Exception {
         TicketRequestDTO request = new TicketRequestDTO(
-                session.getId(), seat.getId(), TicketType.INTEIRA, "tok_test");
+                session.getId(), seat.getId(), TicketType.INTEIRA);
         CountDownLatch ready = new CountDownLatch(BUYERS);
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService pool = Executors.newFixedThreadPool(BUYERS);

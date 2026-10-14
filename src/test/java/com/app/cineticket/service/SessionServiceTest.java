@@ -44,6 +44,7 @@ class SessionServiceTest {
         session.setAtivo(true);
         var pending = ticket(10L, TicketStatus.PENDING);
         var approved = ticket(11L, TicketStatus.APPROVED);
+        approved.setPaymentIntentId("pi_test_11");
         when(sessionRepository.findByIdWithLock(1L)).thenReturn(Optional.of(session));
         when(ticketRepository.findBySessionIdForUpdate(1L)).thenReturn(List.of(pending, approved));
 
@@ -51,7 +52,7 @@ class SessionServiceTest {
 
         assertEquals(TicketStatus.EMERGENCY_CANCELLED, pending.getStatus());
         assertEquals(TicketStatus.EMERGENCY_CANCELLED, approved.getStatus());
-        verify(outboxService).refundRequested(new RefundEventDTO(11L, new BigDecimal("40.00")));
+        verify(outboxService).refundRequested(new RefundEventDTO(11L, "pi_test_11", new BigDecimal("40.00")));
     }
 
     @Test

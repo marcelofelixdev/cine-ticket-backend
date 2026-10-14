@@ -5,6 +5,7 @@ import com.app.cineticket.domain.entity.Movie;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Seat;
 import com.app.cineticket.domain.entity.Session;
+import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.repository.CinemaRepository;
@@ -23,18 +24,22 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Fluxo assíncrono completo com RabbitMQ real: a compra nasce PENDING, o evento é
- * publicado após o commit, o consumidor (simulador de pagamento do perfil dev) consome
- * a mensagem e o ingresso fica APPROVED.
+ * Fluxo completo com RabbitMQ real e o gateway simulado (payments.provider=mock):
+ * a compra reserva o assento (PENDING), o pagamento grava a confirmação no outbox,
+ * o relay publica, o consumidor aprova e o ingresso fica APPROVED.
  */
 class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
 
@@ -107,23 +112,60 @@ class PaymentFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void compraPendenteEAprovadaPeloConsumidorDePagamento() throws Exception {
-        String body = "{\"sessionId\":" + session.getId() + ",\"seatId\":" + seat.getId()
-                + ",\"ticketType\":\"MEIA_ESTUDANTE\",\"cartaoToken\":\"tok_test\"}";
+    void reservaPagaComCartaoDeTesteEAprovadaPeloConsumidor() throws Exception {
+        Long ticketId = buy();
 
+        pay(ticketId, "pm_card_visa")
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        TicketStatus status = waitForStatusOtherThanPending(ticketId);
+
+        assertEquals(TicketStatus.APPROVED, status);
+        Ticket ticket = ticketRepository.findById(ticketId).orElseThrow();
+        assertEquals(0, new BigDecimal("20.00").compareTo(ticket.getValorPago()));
+        assertTrue(ticket.getPaymentIntentId().startsWith("pi_mock_"));
+    }
+
+    @Test
+    void cartaoRecusadoRetorna422EMantemAReserva() throws Exception {
+        Long ticketId = buy();
+
+        pay(ticketId, "pm_card_chargeDeclined")
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.title").value("Pagamento recusado"));
+
+        Ticket ticket = ticketRepository.findById(ticketId).orElseThrow();
+        assertEquals(TicketStatus.PENDING, ticket.getStatus());
+        assertNull(ticket.getPaymentIntentId());
+    }
+
+    @Test
+    void segundoPagamentoDoMesmoIngressoRetorna409() throws Exception {
+        Long ticketId = buy();
+        pay(ticketId, "pm_card_visa").andExpect(status().isAccepted());
+
+        pay(ticketId, "pm_card_mastercard").andExpect(status().isConflict());
+    }
+
+    private Long buy() throws Exception {
+        String body = "{\"sessionId\":" + session.getId() + ",\"seatId\":" + seat.getId()
+                + ",\"ticketType\":\"MEIA_ESTUDANTE\"}";
         String response = mockMvc.perform(post("/api/v1/tickets")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"))
                 .andReturn().getResponse().getContentAsString();
-        Long ticketId = ((Number) JsonPath.read(response, "$.id")).longValue();
+        return ((Number) JsonPath.read(response, "$.id")).longValue();
+    }
 
-        TicketStatus status = waitForStatusOtherThanPending(ticketId);
-
-        assertEquals(TicketStatus.APPROVED, status);
-        assertEquals(0, new BigDecimal("20.00").compareTo(
-                ticketRepository.findById(ticketId).orElseThrow().getValorPago()));
+    private ResultActions pay(Long ticketId, String paymentMethodId) throws Exception {
+        return mockMvc.perform(post("/api/v1/tickets/" + ticketId + "/payment")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"paymentMethodId\":\"" + paymentMethodId + "\"}"));
     }
 
     /** Espera o consumidor processar a mensagem (até 15 s). */

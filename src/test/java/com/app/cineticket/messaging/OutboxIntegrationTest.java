@@ -40,7 +40,7 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
         long ticketId = 910_001L;
 
         transactionTemplate.executeWithoutResult(status -> {
-            outboxService.refundRequested(new RefundEventDTO(ticketId, new BigDecimal("10.00")));
+            outboxService.refundRequested(new RefundEventDTO(ticketId, "pi_test_rollback", new BigDecimal("10.00")));
             status.setRollbackOnly();
         });
 
@@ -49,7 +49,7 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void registrarEventoForaDeTransacaoEProibido() {
-        RefundEventDTO event = new RefundEventDTO(910_002L, new BigDecimal("10.00"));
+        RefundEventDTO event = new RefundEventDTO(910_002L, "pi_test_notx", new BigDecimal("10.00"));
 
         assertThrows(IllegalTransactionStateException.class, () -> outboxService.refundRequested(event));
     }
@@ -60,7 +60,7 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
         amqpAdmin.purgeQueue(RabbitMQConfig.FILA_REEMBOLSOS, false);
 
         transactionTemplate.executeWithoutResult(status ->
-                outboxService.refundRequested(new RefundEventDTO(ticketId, new BigDecimal("25.00"))));
+                outboxService.refundRequested(new RefundEventDTO(ticketId, "pi_test_publish", new BigDecimal("25.00"))));
 
         outboxRelay.publishPending();
         OutboxEvent published = waitUntilPublished(ticketId);

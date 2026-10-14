@@ -125,7 +125,7 @@ public class SessionService {
             ticket.setStatus(TicketStatus.EMERGENCY_CANCELLED);
             if (previousStatus == TicketStatus.APPROVED) {
                 outboxService.refundRequested(new com.app.cineticket.dto.request.RefundEventDTO(
-                        ticket.getId(), ticket.getValorPago()));
+                        ticket.getId(), ticket.getPaymentIntentId(), ticket.getValorPago()));
             }
         }
     }

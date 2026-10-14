@@ -3,10 +3,12 @@ package com.app.cineticket.dto.request;
 import java.math.BigDecimal;
 
 /**
- * Pedido de cobrança de um ingresso. Não carrega o token do cartão: o evento fica
- * gravado no outbox (banco) e na fila, e dado de pagamento não deve ficar em nenhum dos dois.
+ * Pagamento confirmado pelo gateway (webhook do Stripe ou simulador).
+ * O consumidor aprova o ingresso se ele ainda estiver aguardando pagamento;
+ * caso contrário, pede o reembolso.
  */
 public record PaymentEventDTO(
         Long ticketId,
+        String paymentIntentId,
         BigDecimal valor
 ) {}

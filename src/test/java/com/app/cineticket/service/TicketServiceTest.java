@@ -58,7 +58,7 @@ public class TicketServiceTest {
     @Test
     @DisplayName("Deve lançar BusinessException ao tentar comprar uma cadeira já vendida")
     void deveLancarErroQuandoCadeiraJaVendida() {
-        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA);
 
         com.app.cineticket.domain.entity.Room room = new com.app.cineticket.domain.entity.Room();
         room.setId(10L);
@@ -155,6 +155,7 @@ public class TicketServiceTest {
         ticket.setSession(session);
         ticket.setStatus(TicketStatus.APPROVED);
         ticket.setValorPago(new BigDecimal("30.00"));
+        ticket.setPaymentIntentId("pi_test_21");
 
         when(ticketRepository.findByIdForUpdate(21L)).thenReturn(Optional.of(ticket));
 
@@ -162,7 +163,7 @@ public class TicketServiceTest {
 
         assertEquals(TicketStatus.CANCELLED, ticket.getStatus());
         Mockito.verify(outboxService).refundRequested(
-                new com.app.cineticket.dto.request.RefundEventDTO(21L, new BigDecimal("30.00")));
+                new com.app.cineticket.dto.request.RefundEventDTO(21L, "pi_test_21", new BigDecimal("30.00")));
     }
 
     @Test
@@ -176,7 +177,7 @@ public class TicketServiceTest {
         session.setRoom(room);
         session.setAtivo(false);
         session.setHorarioInicio(java.time.LocalDateTime.now().plusHours(2));
-        var request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+        var request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA);
 
         when(seatRepository.findByIdWithLock(2L)).thenReturn(Optional.of(seat));
         when(sessionRepository.findById(1L)).thenReturn(Optional.of(session));
@@ -191,7 +192,7 @@ public class TicketServiceTest {
     @Test
     @DisplayName("Deve reservar o assento com prazo de pagamento de 10 minutos")
     void deveDefinirPrazoDeExpiracaoNaCompra() {
-        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA);
         prepararCompraValida(request, 0L);
         when(ticketMapper.toEntity(request)).thenReturn(new Ticket());
         when(ticketRepository.save(any(Ticket.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -210,7 +211,7 @@ public class TicketServiceTest {
     @Test
     @DisplayName("Deve bloquear nova reserva quando o usuário atingiu o limite de pendentes")
     void deveBloquearCompraAcimaDoLimiteDePendentes() {
-        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA, "tok_fake_123");
+        TicketRequestDTO request = new TicketRequestDTO(1L, 2L, TicketType.INTEIRA);
         prepararCompraValida(request, 4L);
 
         BusinessException exception = assertThrows(BusinessException.class, () -> ticketService.buyTicket(request));

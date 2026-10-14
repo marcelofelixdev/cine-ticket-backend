@@ -28,8 +28,8 @@ public class OutboxService {
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void paymentRequested(PaymentEventDTO event) {
-        enqueue(TICKET, event.ticketId(), "PaymentRequested", RabbitMQConfig.ROUTING_KEY_PAGAMENTO, event);
+    public void paymentConfirmed(PaymentEventDTO event) {
+        enqueue(TICKET, event.ticketId(), "PaymentConfirmed", RabbitMQConfig.ROUTING_KEY_PAGAMENTO, event);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
