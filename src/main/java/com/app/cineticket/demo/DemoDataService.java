@@ -265,7 +265,7 @@ public class DemoDataService {
         }
     }
 
-    /** No demo, todo filme está em cartaz em todos os cinemas. */
+    /** No demo, cada filme está em cartaz em todos os cinemas. */
     private void seedProgramacao() {
         List<Cinema> cinemas = cinemaRepository.findAll(Sort.by("id"));
         for (Movie movie : movieRepository.findAll(Sort.by("id"))) {

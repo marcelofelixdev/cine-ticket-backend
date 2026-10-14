@@ -31,23 +31,26 @@ public final class DemoCatalog {
     /** Filmes brasileiros: sessões com áudio NACIONAL. */
     public static final java.util.Set<Long> NATIONAL_MOVIES = java.util.Set.of(598L, 1000837L);
 
+    private static final String NOLAN = "Christopher Nolan";
+    private static final String DRAMA_CRIME = "Drama, Crime";
+
     public static final List<DemoMovie> MOVIES = List.of(
             // Clássicos
-            new DemoMovie(238, "O Poderoso Chefão", 175, "Francis Ford Coppola", "Drama, Crime"),
+            new DemoMovie(238, "O Poderoso Chefão", 175, "Francis Ford Coppola", DRAMA_CRIME),
             new DemoMovie(105, "De Volta para o Futuro", 116, "Robert Zemeckis", "Aventura, Comédia, Ficção científica"),
             new DemoMovie(13, "Forrest Gump: O Contador de Histórias", 142, "Robert Zemeckis", "Comédia, Drama, Romance"),
             new DemoMovie(680, "Pulp Fiction: Tempo de Violência", 154, "Quentin Tarantino", "Thriller, Crime"),
-            new DemoMovie(278, "Um Sonho de Liberdade", 142, "Frank Darabont", "Drama, Crime"),
+            new DemoMovie(278, "Um Sonho de Liberdade", 142, "Frank Darabont", DRAMA_CRIME),
             new DemoMovie(550, "Clube da Luta", 139, "David Fincher", "Drama"),
             new DemoMovie(603, "Matrix", 136, "Lana Wachowski, Lilly Wachowski", "Ação, Ficção científica"),
             new DemoMovie(129, "A Viagem de Chihiro", 125, "Hayao Miyazaki", "Animação, Família, Fantasia"),
-            new DemoMovie(598, "Cidade de Deus", 130, "Fernando Meirelles", "Drama, Crime"),
-            new DemoMovie(155, "Batman: O Cavaleiro das Trevas", 152, "Christopher Nolan", "Ação, Crime, Drama"),
-            new DemoMovie(27205, "A Origem", 148, "Christopher Nolan", "Ação, Ficção científica, Aventura"),
+            new DemoMovie(598, "Cidade de Deus", 130, "Fernando Meirelles", DRAMA_CRIME),
+            new DemoMovie(155, "Batman: O Cavaleiro das Trevas", 152, NOLAN, "Ação, Crime, Drama"),
+            new DemoMovie(27205, "A Origem", 148, NOLAN, "Ação, Ficção científica, Aventura"),
             // Recentes
-            new DemoMovie(157336, "Interestelar", 169, "Christopher Nolan", "Aventura, Drama, Ficção científica"),
+            new DemoMovie(157336, "Interestelar", 169, NOLAN, "Aventura, Drama, Ficção científica"),
             new DemoMovie(496243, "Parasita", 133, "Bong Joon-ho", "Comédia, Thriller, Drama"),
-            new DemoMovie(872585, "Oppenheimer", 180, "Christopher Nolan", "Drama, História"),
+            new DemoMovie(872585, "Oppenheimer", 180, NOLAN, "Drama, História"),
             new DemoMovie(693134, "Duna: Parte Dois", 167, "Denis Villeneuve", "Ficção científica, Aventura"),
             new DemoMovie(1022789, "Divertida Mente 2", 97, "Kelsey Mann", "Animação, Família, Comédia"),
             new DemoMovie(1000837, "Ainda Estou Aqui", 137, "Walter Salles", "Drama, História")

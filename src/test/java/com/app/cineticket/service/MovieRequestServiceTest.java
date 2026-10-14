@@ -83,8 +83,8 @@ class MovieRequestServiceTest {
         when(userRepository.getReferenceById(9L)).thenReturn(manager);
         when(movieService.fetchDetails(27205L)).thenThrow(new TmdbUnavailableException("fora do ar", null));
 
-        assertThrows(TmdbUnavailableException.class,
-                () -> movieRequestService.create(new MovieRequestCreateDTO(27205L), manager));
+        MovieRequestCreateDTO request = new MovieRequestCreateDTO(27205L);
+        assertThrows(TmdbUnavailableException.class, () -> movieRequestService.create(request, manager));
         verify(movieRequestRepository, never()).save(any());
     }
 
@@ -92,7 +92,7 @@ class MovieRequestServiceTest {
     void gerenteSemCinemaRecebe403() {
         manager.setCinema(null);
 
-        assertThrows(ForbiddenException.class,
-                () -> movieRequestService.create(new MovieRequestCreateDTO(27205L), manager));
+        MovieRequestCreateDTO request = new MovieRequestCreateDTO(27205L);
+        assertThrows(ForbiddenException.class, () -> movieRequestService.create(request, manager));
     }
 }

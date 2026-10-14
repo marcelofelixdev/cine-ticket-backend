@@ -14,7 +14,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.app.cineticket.support.ApiRequests.authed;

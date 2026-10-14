@@ -19,7 +19,7 @@ public interface MovieMapper {
     MovieResponseDTO toResponseDTO(Movie entity);
 
     // @Named tira estes métodos da escolha automática do MapStruct (senão trailerUrl seria
-    // aplicado a todo campo String -> String).
+    // aplicado a qualquer campo String -> String).
     @Named("splitGeneros")
     default List<String> splitGeneros(String generos) {
         if (generos == null || generos.isBlank()) {

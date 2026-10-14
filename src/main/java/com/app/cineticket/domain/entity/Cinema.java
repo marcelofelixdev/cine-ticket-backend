@@ -3,6 +3,9 @@ package com.app.cineticket.domain.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -10,7 +13,10 @@ import lombok.*;
 @EqualsAndHashCode(of = "id")
 @Entity
 @Table(name = "tb_cinema")
-public class Cinema extends AuditableEntity {
+public class Cinema extends AuditableEntity implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

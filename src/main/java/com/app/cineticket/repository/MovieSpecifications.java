@@ -17,6 +17,8 @@ import java.util.List;
 /** Filtros da listagem pública de filmes. */
 public final class MovieSpecifications {
 
+    private static final String DATA_ESTREIA = "dataEstreia";
+
     private MovieSpecifications() {
     }
 
@@ -27,14 +29,14 @@ public final class MovieSpecifications {
     public static Specification<Movie> emCartaz(Long cinemaId, String cidade, LocalDate today) {
         return (root, query, cb) -> cb.and(
                 cb.exists(programacao(root, query, cb, true, cinemaId, cidade)),
-                cb.or(cb.isNull(root.get("dataEstreia")), cb.lessThanOrEqualTo(root.get("dataEstreia"), today)));
+                cb.or(cb.isNull(root.get(DATA_ESTREIA)), cb.lessThanOrEqualTo(root.get(DATA_ESTREIA), today)));
     }
 
     /** Em breve: na programação de algum cinema (ativo ou aguardando) e com estreia depois de hoje. */
     public static Specification<Movie> emBreve(String cidade, LocalDate today) {
         return (root, query, cb) -> cb.and(
                 cb.exists(programacao(root, query, cb, false, null, cidade)),
-                cb.greaterThan(root.get("dataEstreia"), today));
+                cb.greaterThan(root.get(DATA_ESTREIA), today));
     }
 
     private static Subquery<Long> programacao(Root<Movie> root, CriteriaQuery<?> query, CriteriaBuilder cb,

@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -95,18 +96,18 @@ public class BusinessMetrics {
     public void refresh() {
         tickets.values().forEach(byType -> byType.values().forEach(value -> value.set(0)));
         for (Object[] row : ticketRepository.countGroupedByStatusAndType()) {
-            tickets.get((TicketStatus) row[0]).get((TicketType) row[1]).set((Long) row[2]);
+            tickets.get(row[0]).get(row[1]).set((Long) row[2]);
         }
 
         refunds.values().forEach(value -> value.set(0));
         for (Object[] row : refundRepository.countGroupedByStatus()) {
-            refunds.get((RefundStatus) row[0]).set((Long) row[1]);
+            refunds.get(row[0]).set((Long) row[1]);
         }
 
         ticketsUsed.set(ticketRepository.countByUsedAtIsNotNull());
         outboxPending.set(outboxRepository.countByPublishedAtIsNull());
         LocalDateTime oldest = outboxRepository.findOldestPendingCreatedAt();
         outboxOldestPendingSeconds.set(oldest == null ? 0
-                : Math.max(0, Duration.between(oldest, LocalDateTime.now(AppTimeZone.ZONE)).toSeconds()));
+                : Math.max(0, Duration.between(oldest.atZone(AppTimeZone.ZONE), ZonedDateTime.now(AppTimeZone.ZONE)).toSeconds()));
     }
 }

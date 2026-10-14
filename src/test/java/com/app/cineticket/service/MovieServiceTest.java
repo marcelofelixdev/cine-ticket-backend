@@ -68,8 +68,8 @@ class MovieServiceTest {
     void filmeJaNoCatalogoRecebe409SemChamarOTmdb() {
         when(movieRepository.existsByTmdbId("693134")).thenReturn(true);
 
-        assertThrows(ConflictException.class,
-                () -> movieService.create(new MovieRequestDTO(null, null, 693134L, null, null, null)));
+        MovieRequestDTO request = new MovieRequestDTO(null, null, 693134L, null, null, null);
+        assertThrows(ConflictException.class, () -> movieService.create(request));
         verify(tmdbClient, never()).getMovieDetails(693134L);
     }
 
@@ -79,8 +79,8 @@ class MovieServiceTest {
         when(tmdbClient.getMovieDetails(1L)).thenThrow(
                 HttpClientErrorException.create(HttpStatus.NOT_FOUND, "Not Found", new HttpHeaders(), new byte[0], null));
 
-        assertThrows(ResourceNotFoundException.class,
-                () -> movieService.create(new MovieRequestDTO(null, null, 1L, null, null, null)));
+        MovieRequestDTO request = new MovieRequestDTO(null, null, 1L, null, null, null);
+        assertThrows(ResourceNotFoundException.class, () -> movieService.create(request));
         verify(movieRepository, never()).save(any());
     }
 
@@ -89,8 +89,8 @@ class MovieServiceTest {
         when(movieRepository.existsByTmdbId("2")).thenReturn(false);
         when(tmdbClient.getMovieDetails(2L)).thenThrow(new ResourceAccessException("timeout"));
 
-        assertThrows(TmdbUnavailableException.class,
-                () -> movieService.create(new MovieRequestDTO(null, null, 2L, null, null, null)));
+        MovieRequestDTO request = new MovieRequestDTO(null, null, 2L, null, null, null);
+        assertThrows(TmdbUnavailableException.class, () -> movieService.create(request));
     }
 
     @Test

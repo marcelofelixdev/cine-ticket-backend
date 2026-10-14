@@ -23,8 +23,8 @@ public record TmdbMovieDetailsDTO(
 ) {
 
     /** Atalho para os testes e o plano B: só os campos básicos. */
-    public TmdbMovieDetailsDTO(Long id, String title, String overview, String poster_path, Integer runtime) {
-        this(id, title, null, overview, poster_path, null, runtime, null, null, null, null, null, null);
+    public TmdbMovieDetailsDTO(Long id, String title, String overview, String posterPath, Integer runtime) {
+        this(id, title, null, overview, posterPath, null, runtime, null, null, null, null, null, null);
     }
 
     public record Named(String name) {

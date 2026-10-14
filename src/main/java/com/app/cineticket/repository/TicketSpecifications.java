@@ -15,6 +15,8 @@ import java.util.Locale;
 /** Filtros da lista de ingressos do painel. */
 public final class TicketSpecifications {
 
+    private static final String SESSION = "session";
+
     private TicketSpecifications() {
     }
 
@@ -22,13 +24,13 @@ public final class TicketSpecifications {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (filter.cinemaId() != null) {
-                predicates.add(cb.equal(root.get("session").get("room").get("cinema").get("id"), filter.cinemaId()));
+                predicates.add(cb.equal(root.get(SESSION).get("room").get("cinema").get("id"), filter.cinemaId()));
             }
             if (filter.sessionId() != null) {
-                predicates.add(cb.equal(root.get("session").get("id"), filter.sessionId()));
+                predicates.add(cb.equal(root.get(SESSION).get("id"), filter.sessionId()));
             }
             if (filter.date() != null) {
-                predicates.add(cb.between(root.get("session").get("horarioInicio"),
+                predicates.add(cb.between(root.get(SESSION).get("horarioInicio"),
                         filter.date().atStartOfDay(), filter.date().plusDays(1).atStartOfDay().minusNanos(1)));
             }
             if (filter.status() != null) {
