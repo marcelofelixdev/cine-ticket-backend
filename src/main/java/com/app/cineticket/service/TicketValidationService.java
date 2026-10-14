@@ -98,7 +98,7 @@ public class TicketValidationService {
     public TicketQrCodeDTO qrCodeFor(Long ticketId, User loggedUser) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
-        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+        if (!ticket.isOwnedBy(loggedUser)) {
             throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
         if (ticket.getStatus() != TicketStatus.APPROVED) {

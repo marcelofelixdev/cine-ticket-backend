@@ -68,7 +68,7 @@ public class TicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
-        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+        if (!ticket.isOwnedBy(loggedUser)) {
             throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
 
@@ -204,7 +204,7 @@ public class TicketService {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
-        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+        if (!ticket.isOwnedBy(loggedUser)) {
             throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
 
@@ -216,7 +216,7 @@ public class TicketService {
         Ticket ticket = ticketRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
-        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+        if (!ticket.isOwnedBy(loggedUser)) {
             throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
 
@@ -229,6 +229,10 @@ public class TicketService {
         }
         if (ticket.getUsedAt() != null) {
             throw new ConflictException("Ingresso já utilizado na entrada não pode ser cancelado.");
+        }
+        if (ticket.getCanal() == com.app.cineticket.domain.enums.TicketChannel.BALCAO) {
+            throw new BusinessException("Ingresso comprado no balcão: o cancelamento e a devolução do valor "
+                    + "são feitos no caixa do cinema.");
         }
 
         LocalDateTime deadlineCancelamento = ticket.getSession().getHorarioInicio().minusMinutes(30);

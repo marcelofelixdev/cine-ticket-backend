@@ -39,7 +39,8 @@ public class PdfService{
             document.add(new Paragraph("Assento: " + ticket.getSeat().getFila() + "-" + ticket.getSeat().getNumero(), titleFont));
 
             document.add(new Paragraph(" "));
-            document.add(new Paragraph("Comprador: " + ticket.getUser().getNome(), textFont));
+            String comprador = ticket.getUser() != null ? ticket.getUser().getNome() : "Venda no balcão";
+            document.add(new Paragraph("Comprador: " + comprador, textFont));
             document.add(new Paragraph("Status: " + ticket.getStatus().name(), textFont));
             document.add(new Paragraph("Tipo: " + ticket.getTicketType().name() + " - R$ " + ticket.getValorPago(), textFont));
 

@@ -94,6 +94,8 @@ public class SecurityConfig {
                         // Equipe: o admin cuida da rede toda; o gerente, só do próprio cinema (checado no serviço).
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/manager/**").hasRole("MANAGER")
+                        // Caixa: funcionário e gerente, só no próprio cinema (checado no serviço).
+                        .requestMatchers("/api/v1/box-office/**").hasAnyRole("STAFF", "MANAGER")
                         .anyRequest().authenticated()
                 )
 

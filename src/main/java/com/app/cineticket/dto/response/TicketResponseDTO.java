@@ -15,5 +15,7 @@ public record TicketResponseDTO (
     /** Status do reembolso do pagamento deste ingresso (PENDING, REFUNDED, FAILED...), ou null. */
     String reembolso,
     /** Quando o ingresso foi usado na entrada da sala, ou null. */
-    java.time.LocalDateTime utilizadoEm
+    java.time.LocalDateTime utilizadoEm,
+    /** ONLINE ou BALCAO. */
+    com.app.cineticket.domain.enums.TicketChannel canal
 ){}

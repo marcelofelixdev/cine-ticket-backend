@@ -55,7 +55,7 @@ public class PaymentService {
         Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
 
-        if (!ticket.getUser().getId().equals(loggedUser.getId())) {
+        if (!ticket.isOwnedBy(loggedUser)) {
             throw new ForbiddenException("Você não tem permissão para acessar este ingresso.");
         }
         if (ticket.getStatus() != TicketStatus.PENDING) {

@@ -20,6 +20,10 @@ public interface TicketMapper {
     @Mapping(target = "documentoMeia", ignore = true)
     @Mapping(target = "usedAt", ignore = true)
     @Mapping(target = "usedBy", ignore = true)
+    @Mapping(target = "canal", ignore = true)
+    @Mapping(target = "formaPagamento", ignore = true)
+    @Mapping(target = "vendidoPor", ignore = true)
+    @Mapping(target = "clienteEmail", ignore = true)
     Ticket toEntity(TicketRequestDTO requestDTO);
 
     @Mapping(source = "session.id", target = "sessionId")
