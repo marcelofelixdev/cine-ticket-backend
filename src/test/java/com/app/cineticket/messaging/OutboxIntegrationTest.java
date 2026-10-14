@@ -18,8 +18,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -89,16 +91,12 @@ class OutboxIntegrationTest extends AbstractIntegrationTest {
     }
 
     /** O relay agendado também roda no teste; espera quem chegar primeiro publicar. */
-    private OutboxEvent waitUntilPublished(long ticketId) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 10_000;
-        while (System.currentTimeMillis() < deadline) {
-            List<OutboxEvent> events = eventsFor(ticketId);
-            if (events.size() == 1 && events.get(0).getPublishedAt() != null) {
-                return events.get(0);
-            }
-            Thread.sleep(200);
-        }
-        throw new AssertionError("O evento do ingresso " + ticketId + " não foi publicado a tempo");
+    private OutboxEvent waitUntilPublished(long ticketId) {
+        return await("evento do ingresso " + ticketId + " publicado")
+                .atMost(Duration.ofSeconds(10))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> eventsFor(ticketId), events -> events.size() == 1 && events.get(0).getPublishedAt() != null)
+                .get(0);
     }
 
     private Message receive(String queue, String messageId) {

@@ -31,11 +31,13 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -174,14 +176,12 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
         assertEquals(TicketStatus.EXPIRED, ticketRepository.findById(ticket.getId()).orElseThrow().getStatus());
 
         // O RefundConsumer estorna o pagamento (pelo gateway simulado, nos testes).
-        long deadline = System.currentTimeMillis() + 15_000;
-        while (refundRepository.findByPaymentIntentId(paymentIntentId)
-                .filter(r -> r.getStatus() == com.app.cineticket.domain.enums.RefundStatus.REFUNDED).isEmpty()) {
-            if (System.currentTimeMillis() > deadline) {
-                throw new AssertionError("O pagamento atrasado não foi estornado");
-            }
-            Thread.sleep(200);
-        }
+        await("estorno do pagamento atrasado")
+                .atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> refundRepository.findByPaymentIntentId(paymentIntentId)
+                        .filter(r -> r.getStatus() == com.app.cineticket.domain.enums.RefundStatus.REFUNDED)
+                        .isPresent());
     }
 
     private Ticket ticket(TicketStatus status) {
@@ -229,27 +229,17 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
                 .toList();
     }
 
-    private List<OutboxEvent> waitForOutbox(Long ticketId, String eventType) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 15_000;
-        while (System.currentTimeMillis() < deadline) {
-            List<OutboxEvent> events = outboxEvents(ticketId, eventType);
-            if (!events.isEmpty()) {
-                return events;
-            }
-            Thread.sleep(200);
-        }
-        throw new AssertionError("Nenhum " + eventType + " para o ingresso " + ticketId);
+    private List<OutboxEvent> waitForOutbox(Long ticketId, String eventType) {
+        return await(eventType + " para o ingresso " + ticketId)
+                .atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> outboxEvents(ticketId, eventType), events -> !events.isEmpty());
     }
 
-    private Ticket waitForStatus(Long ticketId, TicketStatus expected) throws InterruptedException {
-        long deadline = System.currentTimeMillis() + 15_000;
-        while (System.currentTimeMillis() < deadline) {
-            Ticket ticket = ticketRepository.findById(ticketId).orElseThrow();
-            if (ticket.getStatus() == expected) {
-                return ticket;
-            }
-            Thread.sleep(200);
-        }
-        throw new AssertionError("O ingresso " + ticketId + " não chegou a " + expected);
+    private Ticket waitForStatus(Long ticketId, TicketStatus expected) {
+        return await("ingresso " + ticketId + " em " + expected)
+                .atMost(Duration.ofSeconds(15))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> ticketRepository.findById(ticketId).orElseThrow(), ticket -> ticket.getStatus() == expected);
     }
 }
