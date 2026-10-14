@@ -2,6 +2,7 @@ package com.app.cineticket.metrics;
 
 import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.enums.RefundStatus;
+import com.app.cineticket.domain.enums.TicketChannel;
 import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.repository.OutboxEventRepository;
@@ -45,7 +46,7 @@ public class BusinessMetrics {
     private final OutboxEventRepository outboxRepository;
 
     private final Map<TicketStatus, Map<TicketType, AtomicLong>> tickets = new EnumMap<>(TicketStatus.class);
-    private final Map<RefundStatus, AtomicLong> refunds = new EnumMap<>(RefundStatus.class);
+    private final Map<RefundStatus, Map<TicketChannel, AtomicLong>> refunds = new EnumMap<>(RefundStatus.class);
     private final AtomicLong ticketsUsed = new AtomicLong();
     private final AtomicLong outboxPending = new AtomicLong();
     private final AtomicLong outboxOldestPendingSeconds = new AtomicLong();
@@ -71,13 +72,18 @@ public class BusinessMetrics {
             }
             tickets.put(status, byType);
         }
+        // canal ONLINE: estorno no gateway; BALCAO: dinheiro devolvido no caixa.
         for (RefundStatus status : RefundStatus.values()) {
-            AtomicLong value = new AtomicLong();
-            refunds.put(status, value);
-            Gauge.builder("cineticket.refunds", value, AtomicLong::get)
-                    .description("Reembolsos por status")
-                    .tag("status", status.name())
-                    .register(registry);
+            Map<TicketChannel, AtomicLong> byChannel = new EnumMap<>(TicketChannel.class);
+            for (TicketChannel canal : TicketChannel.values()) {
+                AtomicLong value = new AtomicLong();
+                byChannel.put(canal, value);
+                Gauge.builder("cineticket.refunds", value, AtomicLong::get)
+                        .description("Reembolsos por status e canal do ingresso")
+                        .tags(Tags.of("status", status.name(), "canal", canal.name()))
+                        .register(registry);
+            }
+            refunds.put(status, byChannel);
         }
         Gauge.builder("cineticket.tickets.used", ticketsUsed, AtomicLong::get)
                 .description("Ingressos já validados na entrada")
@@ -99,9 +105,9 @@ public class BusinessMetrics {
             tickets.get(row[0]).get(row[1]).set((Long) row[2]);
         }
 
-        refunds.values().forEach(value -> value.set(0));
-        for (Object[] row : refundRepository.countGroupedByStatus()) {
-            refunds.get(row[0]).set((Long) row[1]);
+        refunds.values().forEach(byChannel -> byChannel.values().forEach(value -> value.set(0)));
+        for (Object[] row : refundRepository.countGroupedByStatusAndChannel()) {
+            refunds.get(row[0]).get(row[1]).set((Long) row[2]);
         }
 
         ticketsUsed.set(ticketRepository.countByUsedAtIsNotNull());
