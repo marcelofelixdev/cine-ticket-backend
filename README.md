@@ -16,10 +16,12 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 
 | | |
 |---|---|
-| **API (Swagger)** | _em breve_ |
+| **API (Swagger)** | [cineticket-api.onrender.com/swagger-ui.html](https://cineticket-api.onrender.com/swagger-ui.html) |
 | **Visitante** | `visitante@cineticket.dev` / `visitante123456` |
 
 No ambiente de demonstração, as compras e as contas criadas são apagadas todos os dias às 04:00 (horário de Brasília).
+
+> ⏳ Hospedado no plano gratuito do Render: depois de 15 minutos sem acesso o serviço dorme, e a primeira requisição pode levar cerca de 1 minuto para acordá-lo.
 
 ---
 
