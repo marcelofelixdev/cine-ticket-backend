@@ -54,7 +54,7 @@ flowchart LR
         J[Jobs agendados: expiração e limpeza]
     end
 
-    R --> DB[(PostgreSQL 15<br/>Flyway V1–V11)]
+    R --> DB[(PostgreSQL 15<br/>Flyway V1–V12)]
     P --> MQ[[RabbitMQ<br/>pagamentos e reembolsos + DLQs]]
     MQ --> CO[Consumers de pagamento e reembolso]
     CO --> DB
@@ -98,6 +98,7 @@ sequenceDiagram
 | **Pagamento real sem tocar em dado de cartão** | Stripe em modo de teste: a API recebe só um `paymentMethodId` (`pm_...`), cria o PaymentIntent com *idempotency key* e aprova pelo **webhook assinado** (`Stripe-Signature`, tolerância de 5 min), deduplicado pelo ID do evento | O número do cartão nunca passa pela API; duplo clique não cobra duas vezes; webhook forjado ou repetido não aprova nada. Pagamento que chega depois de a reserva expirar gera reembolso automático. |
 | **Reembolso sem estorno em dobro** | Pedido de reembolso via outbox → `RefundConsumer` → estorno no Stripe com *idempotency key*; tabela `tb_refund` com `UNIQUE(payment_intent_id)`; retry com backoff e DLQ própria | Mensagem repetida não estorna duas vezes; falha do gateway fica registrada (`FAILED`) e a mensagem vai para a DLQ em vez de travar a fila. |
 | **Ingresso falsificado ou usado duas vezes** | QR com `CT1.<id>.<HMAC-SHA256>` (segredo só no servidor, sem dado pessoal); validação com lock pessimista que grava `used_at` uma única vez, dentro da janela da sessão | Trocar o ID invalida a assinatura; dois funcionários lendo o mesmo QR ao mesmo tempo não liberam duas entradas; ingresso usado não pode mais ser cancelado. |
+| **Meia-entrada sem controle** | Idoso: 60+ na data da sessão pela data de nascimento do perfil; estudante: número da carteira gravado no ingresso e exibido ao funcionário na entrada; **cota de 40% dos lugares por sessão** (Lei 12.933/2013) contada com lock na sessão | A regra legal é aplicada no servidor; compras simultâneas de meia não estouram a cota. |
 | **Funcionário da porta com poder demais** | Papel `ROLE_STAFF` que só pode `POST /tickets/validate` | Menor privilégio: quem confere ingresso não cria sessão nem cancela sala. |
 | **Assentos travados por quem não paga** | `expires_at` + job que marca `EXPIRED` e limite de 4 reservas pendentes por usuário | O índice parcial ignora `EXPIRED`, então o assento volta a ficar livre sozinho. |
 | **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Só o hash SHA-256 fica no banco. |
@@ -165,7 +166,7 @@ Sem essas variáveis, o simulador (`PAYMENTS_PROVIDER=mock`) aprova os mesmos ID
 ./mvnw verify          # Windows: mvnw.cmd verify
 ```
 
-- **160 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
+- **169 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
 - Destaques: concorrência de compra do mesmo assento, fluxo assíncrono de pagamento, rotação e reuso de refresh token, matriz de autorização (admin e dono do recurso) e perfil de demonstração.
 - Cobertura (JaCoCo): `target/site/jacoco/index.html`.
 
@@ -175,7 +176,7 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 
 | Recurso | Público | Usuário | Admin |
 |---|---|---|---|
-| Auth | `POST /auth/login`, `/refresh`, `/logout` · `POST /users` | `GET /users/me` | |
+| Auth | `POST /auth/login`, `/refresh`, `/logout` · `POST /users` | `GET /users/me`, `PATCH /users/me` | |
 | Filmes e cinemas | `GET` (lista e detalhe) | | `POST`, `PUT`, `DELETE` |
 | Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
@@ -238,7 +239,7 @@ src/main/java/com/app/cineticket
 - [x] **Transactional outbox** para os eventos de pagamento e reembolso.
 - [x] Consumidor de reembolso idempotente.
 - [x] **QR Code assinado** (HMAC), sem dados pessoais, com validação de uso único na entrada.
-- [ ] Comprovação de meia-entrada.
+- [x] Comprovação de meia-entrada (idoso pela data de nascimento, estudante pela carteira, cota legal de 40%).
 - [ ] Frontend.
 
 ## ⚠️ Limitações conhecidas

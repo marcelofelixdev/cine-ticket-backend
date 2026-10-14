@@ -3,7 +3,6 @@ package com.app.cineticket.service;
 import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketStatus;
-import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.response.TicketQrCodeDTO;
 import com.app.cineticket.dto.response.TicketValidationResponseDTO;
 import com.app.cineticket.exception.BusinessException;
@@ -80,7 +79,7 @@ public class TicketValidationService {
                 ticket.getSeat().getFila() + "-" + ticket.getSeat().getNumero(),
                 start,
                 ticket.getTicketType(),
-                alertFor(ticket.getTicketType()),
+                alertFor(ticket),
                 now);
     }
 
@@ -98,10 +97,12 @@ public class TicketValidationService {
         return new TicketQrCodeDTO(ticket.getId(), qrCodeService.payloadFor(ticket.getId()));
     }
 
-    private static String alertFor(TicketType type) {
-        return switch (type) {
-            case MEIA_ESTUDANTE -> "Meia-entrada (estudante): conferir a carteira de estudante.";
-            case MEIA_IDOSO -> "Meia-entrada (idoso): conferir documento com foto.";
+    private static String alertFor(Ticket ticket) {
+        return switch (ticket.getTicketType()) {
+            case MEIA_ESTUDANTE -> ticket.getDocumentoMeia() == null
+                    ? "Meia-entrada (estudante): conferir a carteira de estudante."
+                    : "Meia-entrada (estudante): conferir a carteira de estudante nº " + ticket.getDocumentoMeia() + ".";
+            case MEIA_IDOSO -> "Meia-entrada (idoso, 60+): conferir documento com foto.";
             case INTEIRA -> null;
         };
     }

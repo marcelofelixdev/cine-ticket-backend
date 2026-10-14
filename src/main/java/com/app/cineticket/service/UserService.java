@@ -48,6 +48,20 @@ public class UserService {
 
     }
 
+    /** Atualiza nome e/ou data de nascimento do próprio usuário (campos nulos ficam como estão). */
+    @Transactional
+    public UserResponseDTO updateMe(User loggedUser, com.app.cineticket.dto.request.UserUpdateDTO update) {
+        User user = userRepository.findById(loggedUser.getId())
+                .orElseThrow(() -> new com.app.cineticket.exception.ResourceNotFoundException("Usuário não encontrado."));
+        if (update.nome() != null && !update.nome().isBlank()) {
+            user.setNome(update.nome().trim());
+        }
+        if (update.dataNascimento() != null) {
+            user.setDataNascimento(update.dataNascimento());
+        }
+        return userMapper.toResponseDTO(userRepository.save(user));
+    }
+
     /** Dados do usuário logado. */
     public UserResponseDTO me(User loggedUser) {
         return userMapper.toResponseDTO(loggedUser);

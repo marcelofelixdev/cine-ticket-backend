@@ -44,6 +44,10 @@ public class User extends AuditableEntity implements org.springframework.securit
     @Column(name = "locked_until")
     private java.time.LocalDateTime lockedUntil;
 
+    /** Opcional; exigida para comprar meia-entrada de idoso. */
+    @Column(name = "data_nascimento")
+    private java.time.LocalDate dataNascimento;
+
     public boolean isLockedAt(java.time.LocalDateTime instant) {
         return lockedUntil != null && lockedUntil.isAfter(instant);
     }

@@ -17,6 +17,7 @@ public interface TicketMapper {
     @Mapping(target = "expiresAt", ignore = true)
     @Mapping(target = "paymentIntentId", ignore = true)
     @Mapping(target = "refunds", ignore = true)
+    @Mapping(target = "documentoMeia", ignore = true)
     @Mapping(target = "usedAt", ignore = true)
     @Mapping(target = "usedBy", ignore = true)
     Ticket toEntity(TicketRequestDTO requestDTO);

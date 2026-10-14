@@ -24,6 +24,15 @@ public class UserController {
         return ResponseEntity.ok(userService.me(loggedUser));
     }
 
+    @PatchMapping("/me")
+    public ResponseEntity<UserResponseDTO> updateMe(
+            @RequestBody @Valid com.app.cineticket.dto.request.UserUpdateDTO update) {
+        var loggedUser = (com.app.cineticket.domain.entity.User)
+                org.springframework.security.core.context.SecurityContextHolder.getContext()
+                        .getAuthentication().getPrincipal();
+        return ResponseEntity.ok(userService.updateMe(loggedUser, update));
+    }
+
     @PostMapping
     public ResponseEntity<UserResponseDTO> create(
             @RequestBody @Valid UserRequestDTO requestDTO,

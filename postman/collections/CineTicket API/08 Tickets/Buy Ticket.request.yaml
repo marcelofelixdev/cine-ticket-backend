@@ -19,7 +19,8 @@ body:
     {
       "sessionId": {{sessionId}},
       "seatId": {{seatId}},
-      "ticketType": "MEIA_ESTUDANTE"
+      "ticketType": "MEIA_ESTUDANTE",
+      "documentoMeia": "CIE-2026-0001"
     }
 scripts:
   - type: afterResponse

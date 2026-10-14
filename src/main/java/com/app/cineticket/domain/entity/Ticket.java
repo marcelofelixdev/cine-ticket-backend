@@ -51,6 +51,10 @@ public class Ticket extends AuditableEntity {
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
 
+    /** Número da carteira de estudante (meia-entrada de estudante), conferido na entrada. */
+    @Column(name = "documento_meia", length = 30)
+    private String documentoMeia;
+
     /** Quando o ingresso foi usado na entrada da sala (null = ainda não usado). */
     @Column(name = "used_at")
     private LocalDateTime usedAt;
