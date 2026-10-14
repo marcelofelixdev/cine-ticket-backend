@@ -50,6 +50,14 @@ public class SessionService {
     private final CounterRefundService counterRefundService;
 
 
+    /** Intervalo de limpeza entre o fim de um filme e a próxima sessão na mesma sala. */
+    public static final int CLEANING_MINUTES = 30;
+
+    /** Até quando a sala fica ocupada: início + duração do filme + limpeza. */
+    public static LocalDateTime occupiedUntil(LocalDateTime start, int durationMinutes) {
+        return start.plusMinutes((long) durationMinutes + CLEANING_MINUTES);
+    }
+
     /**
      * Mapa de assentos de uma sessão ativa: cada assento da sala com status LIVRE ou OCUPADO,
      * ordenado por fila e número. Público, para quem ainda não fez login poder escolher o lugar.
@@ -96,11 +104,11 @@ public class SessionService {
         List<Session> sessoesNaSala = sessionRepository.findByRoomIdAndAtivoTrue(requestDTO.roomId());
 
         LocalDateTime novoInicio = requestDTO.horarioInicio();
-        LocalDateTime novoFim = novoInicio.plusMinutes(movie.getDuracaoEmMinutos() + 30);
+        LocalDateTime novoFim = occupiedUntil(novoInicio, movie.getDuracaoEmMinutos());
 
         for (Session sessaoExistente : sessoesNaSala) {
             LocalDateTime existenteInicio = sessaoExistente.getHorarioInicio();
-            LocalDateTime existenteFim = existenteInicio.plusMinutes(sessaoExistente.getMovie().getDuracaoEmMinutos() + 30);
+            LocalDateTime existenteFim = occupiedUntil(existenteInicio, sessaoExistente.getMovie().getDuracaoEmMinutos());
 
             if (novoInicio.isBefore(existenteFim) && novoFim.isAfter(existenteInicio)) {
                 throw new ConflictException("Conflito de horário: a sala já estará ocupada neste período.");
