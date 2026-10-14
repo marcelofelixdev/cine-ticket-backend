@@ -52,6 +52,7 @@ public class DemoDataService {
     private final MovieRepository movieRepository;
     private final com.app.cineticket.repository.CinemaMovieRepository cinemaMovieRepository;
     private final CinemaRepository cinemaRepository;
+    private final com.app.cineticket.repository.MovieRequestRepository movieRequestRepository;
     private final RoomRepository roomRepository;
     private final RoomService roomService;
     private final SessionRepository sessionRepository;
@@ -68,6 +69,7 @@ public class DemoDataService {
     public DemoDataService(MovieRepository movieRepository,
                            com.app.cineticket.repository.CinemaMovieRepository cinemaMovieRepository,
                            CinemaRepository cinemaRepository,
+                           com.app.cineticket.repository.MovieRequestRepository movieRequestRepository,
                            RoomRepository roomRepository, RoomService roomService,
                            SessionRepository sessionRepository, TicketRepository ticketRepository,
                            RefreshTokenRepository refreshTokenRepository, UserRepository userRepository,
@@ -79,6 +81,7 @@ public class DemoDataService {
         this.movieRepository = movieRepository;
         this.cinemaMovieRepository = cinemaMovieRepository;
         this.cinemaRepository = cinemaRepository;
+        this.movieRequestRepository = movieRequestRepository;
         this.roomRepository = roomRepository;
         this.roomService = roomService;
         this.sessionRepository = sessionRepository;
@@ -118,14 +121,15 @@ public class DemoDataService {
     }
 
     /**
-     * Reset diário: apaga ingressos, sessões e as contas criadas por visitantes (inclusive
-     * funcionários cadastrados pelo gerente público), mantém filmes, cinemas, admins, a equipe
+     * Reset diário: apaga ingressos, sessões, pedidos de filme (feitos pelo gerente público) e as
+     * contas criadas por visitantes (inclusive funcionários cadastrados pelo gerente público), mantém filmes, cinemas, admins, a equipe
      * de exemplo e o visitante, e recria a programação.
      */
     @Transactional
     public void reset() {
         ticketRepository.deleteAllInBatch();
         sessionRepository.deleteAllInBatch();
+        movieRequestRepository.deleteAllInBatch();
 
         List<User> visitorAccounts = userRepository.findAll().stream()
                 .filter(user -> !isAdmin(user)

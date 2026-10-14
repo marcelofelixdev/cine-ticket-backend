@@ -46,6 +46,6 @@ public class DemoController {
                 staffPassword,
                 managerEmail,
                 managerPassword,
-                "Compras e contas criadas são apagadas todos os dias às 04:00 (horário de Brasília)."));
+                "Compras, pedidos de filme e contas criadas são apagados todos os dias às 04:00 (horário de Brasília)."));
     }
 }
