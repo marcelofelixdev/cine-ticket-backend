@@ -4,10 +4,12 @@ import com.app.cineticket.security.RestAccessDeniedHandler;
 import com.app.cineticket.security.RestAuthenticationEntryPoint;
 import com.app.cineticket.security.SecurityFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AuthorizeHttpRequestsConfigurer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,6 +25,15 @@ public class SecurityConfig {
     private final SecurityFilter securityFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
+
+    /** Libera /actuator/prometheus sem login (só no dev/docker-compose, para o Prometheus local). */
+    @Value("${app.metrics.public:false}")
+    private boolean metricsPublic;
+
+    private AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry permitMetricsIfPublic(
+            AuthorizeHttpRequestsConfigurer<HttpSecurity>.AuthorizationManagerRequestMatcherRegistry auth) {
+        return metricsPublic ? auth.requestMatchers(HttpMethod.GET, "/actuator/prometheus").permitAll() : auth;
+    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -51,7 +62,7 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
-                .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> permitMetricsIfPublic(auth)
                         // Login, refresh e logout: o refresh/logout se autenticam pelo cookie, não pelo access token.
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/logout").permitAll()

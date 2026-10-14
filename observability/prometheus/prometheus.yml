@@ -1,0 +1,17 @@
+# Prometheus local (docker compose --profile observability up).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # API: métricas do Spring Boot (HTTP, JVM, Hikari, RabbitMQ client) e de negócio (cineticket_*).
+  - job_name: cineticket-api
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["api:8080"]
+
+  # RabbitMQ: plugin rabbitmq_prometheus, com métricas por fila (profundidade das filas e DLQs).
+  - job_name: rabbitmq
+    metrics_path: /metrics/per-object
+    static_configs:
+      - targets: ["rabbitmq:15692"]

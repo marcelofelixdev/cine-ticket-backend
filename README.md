@@ -160,13 +160,32 @@ defina `PROFILE=dev,demo` no `.env` e rode o `docker compose up -d --build` de n
 
 Sem essas variáveis, o simulador (`PAYMENTS_PROVIDER=mock`) aprova os mesmos IDs de teste sem rede.
 
+## 📈 Observabilidade
+
+Prometheus e Grafana sobem junto com a aplicação num perfil opcional do Docker Compose:
+
+```bash
+docker compose --profile observability up -d --build
+```
+
+| Serviço | Endereço |
+|---|---|
+| Grafana (dashboard **CineTicket — visão geral**, já carregado) | http://localhost:3001 (admin / admin) |
+| Prometheus | http://localhost:9090 |
+
+O dashboard mostra vendas por tipo e status, tentativas de pagamento por resposta, webhooks do Stripe,
+reembolsos, eventos pendentes no outbox (e a idade do mais antigo), profundidade das filas e DLQs,
+latência p95 por rota e erros 5xx. As métricas de negócio (`cineticket_*`) são lidas do banco a cada
+30 s, então batem com a realidade mesmo depois de reiniciar a API. Em produção o `/actuator/prometheus`
+continua exigindo login (`app.metrics.public=false`).
+
 ## 🧪 Testes
 
 ```bash
 ./mvnw verify          # Windows: mvnw.cmd verify
 ```
 
-- **169 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
+- **171 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
 - Destaques: concorrência de compra do mesmo assento, fluxo assíncrono de pagamento, rotação e reuso de refresh token, matriz de autorização (admin e dono do recurso) e perfil de demonstração.
 - Cobertura (JaCoCo): `target/site/jacoco/index.html`.
 
@@ -240,6 +259,7 @@ src/main/java/com/app/cineticket
 - [x] Consumidor de reembolso idempotente.
 - [x] **QR Code assinado** (HMAC), sem dados pessoais, com validação de uso único na entrada.
 - [x] Comprovação de meia-entrada (idoso pela data de nascimento, estudante pela carteira, cota legal de 40%).
+- [x] **Prometheus + Grafana** com dashboard de vendas, pagamentos, filas e latência.
 - [ ] Frontend.
 
 ## ⚠️ Limitações conhecidas

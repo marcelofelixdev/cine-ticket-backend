@@ -41,6 +41,12 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     long countByUserIdAndStatus(Long userId, TicketStatus status);
 
+    /** Linhas [status, tipo, quantidade] para as métricas de negócio. */
+    @Query("select t.status, t.ticketType, count(t) from Ticket t group by t.status, t.ticketType")
+    List<Object[]> countGroupedByStatusAndType();
+
+    long countByUsedAtIsNotNull();
+
     long countBySessionIdAndTicketTypeInAndStatusIn(Long sessionId,
                                                      java.util.Collection<com.app.cineticket.domain.enums.TicketType> types,
                                                      java.util.Collection<TicketStatus> statuses);

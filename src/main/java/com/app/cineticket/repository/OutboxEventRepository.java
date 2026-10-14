@@ -27,6 +27,9 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
 
     long countByPublishedAtIsNull();
 
+    @Query("select min(e.createdAt) from OutboxEvent e where e.publishedAt is null")
+    LocalDateTime findOldestPendingCreatedAt();
+
     @Modifying
     @Query("DELETE FROM OutboxEvent e WHERE e.publishedAt < :before")
     int deletePublishedBefore(@Param("before") LocalDateTime before);

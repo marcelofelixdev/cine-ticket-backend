@@ -29,6 +29,8 @@ services:
       - "127.0.0.1:15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      # Painel de administração + métricas para o Prometheus (porta 15692, só na rede interna).
+      - ./observability/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     networks:
       - cine-network
     deploy:
@@ -85,9 +87,50 @@ services:
           cpus: '1.0'
           memory: 512M
 
+  # Observabilidade (opcional): docker compose --profile observability up -d
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: cineticket-prometheus
+    profiles: ["observability"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - cine-network
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana-oss:12.1.0
+    container_name: cineticket-grafana
+    profiles: ["observability"]
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/cineticket.json
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - cine-network
+    depends_on:
+      - prometheus
+
 volumes:
   pgdata:
   rabbitmq_data:
+  prometheus_data:
+  grafana_data:
 
 networks:
   cine-network:
