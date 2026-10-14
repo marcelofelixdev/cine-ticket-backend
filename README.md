@@ -45,11 +45,12 @@ flowchart LR
         F[Filtros: Correlation ID, JWT, CORS, RBAC] --> C[Controllers]
         C --> S[Services: regras, transações e locks]
         S --> R[Repositories JPA]
-        S -.->|evento após o commit| P[Producer]
+        S -->|evento na mesma transação| OB[(Outbox)]
+        OB -.->|relay com publisher confirm| P[Relay]
         J[Jobs agendados: expiração e limpeza]
     end
 
-    R --> DB[(PostgreSQL 15<br/>Flyway V1–V7)]
+    R --> DB[(PostgreSQL 15<br/>Flyway V1–V8)]
     P --> MQ[[RabbitMQ<br/>pagamentos + DLQ]]
     MQ --> CO[Consumer de pagamento]
     CO --> DB
@@ -70,7 +71,8 @@ sequenceDiagram
     A->>DB: SELECT assento FOR UPDATE
     A->>DB: INSERT ticket PENDING (expira em 10 min)
     A-->>U: 201 Created + Location
-    A->>MQ: evento de pagamento (após o commit)
+    A->>DB: INSERT outbox (mesma transação)
+    A-->>MQ: relay publica o evento (com confirmação do broker)
     MQ->>PC: entrega a mensagem
     PC->>DB: UPDATE ... SET APPROVED WHERE status = PENDING
     U->>A: GET /tickets/{id}
@@ -82,7 +84,7 @@ sequenceDiagram
 | Problema | Solução | Por quê |
 |---|---|---|
 | **Venda dupla do mesmo assento** | Lock pessimista no assento **e** índice único parcial `(session_id, seat_id) WHERE status IN ('PENDING','APPROVED')` | Duas camadas: o lock serializa os compradores e o índice garante a regra no banco mesmo que o código falhe. Um teste com 8 compras simultâneas comprova exatamente 1 venda. |
-| **Pagamento lento ou instável** | Compra nasce `PENDING`, evento publicado no RabbitMQ **só após o commit** (`@TransactionalEventListener`) e aprovação por `UPDATE` condicional | A requisição não fica presa ao gateway; a aprovação é idempotente e mensagens com erro vão para a DLQ. |
+| **Pagamento lento ou instável** | Compra nasce `PENDING`; o evento é gravado no **outbox na mesma transação** e um relay o publica no RabbitMQ com *publisher confirms*; aprovação por `UPDATE` condicional | A requisição não fica presa ao gateway; se o broker cair, nenhum evento se perde (fica no banco até ser entregue); a entrega é "pelo menos uma vez" e a aprovação é idempotente; mensagens com erro vão para a DLQ. |
 | **Assentos travados por quem não paga** | `expires_at` + job que marca `EXPIRED` e limite de 4 reservas pendentes por usuário | O índice parcial ignora `EXPIRED`, então o assento volta a ficar livre sozinho. |
 | **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Só o hash SHA-256 fica no banco. |
 | **CSRF com cookie entre domínios** | Validação do header `Origin` nas rotas de refresh e logout | O resto da API usa `Authorization: Bearer`, que o navegador não envia sozinho. |
@@ -139,7 +141,7 @@ defina `PROFILE=dev,demo` no `.env` e rode o `docker compose up -d --build` de n
 ./mvnw verify          # Windows: mvnw.cmd verify
 ```
 
-- **107 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
+- **114 testes**: unitários + integração ponta a ponta com **PostgreSQL e RabbitMQ reais** (Testcontainers — exige Docker em execução).
 - Destaques: concorrência de compra do mesmo assento, fluxo assíncrono de pagamento, rotação e reuso de refresh token, matriz de autorização (admin e dono do recurso) e perfil de demonstração.
 - Cobertura (JaCoCo): `target/site/jacoco/index.html`.
 
@@ -195,7 +197,7 @@ src/main/java/com/app/cineticket
 ├── dto/          # Records de entrada e saída
 ├── exception/    # Exceções tipadas e tratamento ProblemDetail
 ├── mapper/       # MapStruct
-├── messaging/    # Producer e consumer do RabbitMQ
+├── messaging/    # Outbox (registro e relay) e consumers do RabbitMQ
 ├── repository/   # Spring Data JPA (+ Specifications)
 ├── security/     # JWT, refresh token, bloqueio de conta
 └── service/      # Regras de negócio e jobs agendados
@@ -204,7 +206,7 @@ src/main/java/com/app/cineticket
 ## 🗺️ Próximos passos
 
 - [ ] Pagamento em **modo de teste do Stripe** com webhook assinado.
-- [ ] **Transactional outbox** para os eventos de pagamento e reembolso.
+- [x] **Transactional outbox** para os eventos de pagamento e reembolso.
 - [ ] Consumidor de reembolso idempotente.
 - [ ] **QR Code assinado** (HMAC), sem dados pessoais, com validação de uso único na entrada.
 - [ ] Comprovação de meia-entrada.

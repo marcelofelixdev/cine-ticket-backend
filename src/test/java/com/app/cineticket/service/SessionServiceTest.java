@@ -14,7 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
+import com.app.cineticket.messaging.OutboxService;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -33,7 +33,7 @@ class SessionServiceTest {
     @Mock private RoomRepository roomRepository;
     @Mock private TicketRepository ticketRepository;
     @Mock private SessionMapper sessionMapper;
-    @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private OutboxService outboxService;
 
     @InjectMocks private SessionService sessionService;
 
@@ -51,7 +51,7 @@ class SessionServiceTest {
 
         assertEquals(TicketStatus.EMERGENCY_CANCELLED, pending.getStatus());
         assertEquals(TicketStatus.EMERGENCY_CANCELLED, approved.getStatus());
-        verify(eventPublisher).publishEvent(new RefundEventDTO(11L, new BigDecimal("40.00")));
+        verify(outboxService).refundRequested(new RefundEventDTO(11L, new BigDecimal("40.00")));
     }
 
     @Test
@@ -64,7 +64,7 @@ class SessionServiceTest {
         sessionService.deleteEmergency(1L);
 
         verify(ticketRepository, never()).findBySessionIdForUpdate(1L);
-        verify(eventPublisher, never()).publishEvent(org.mockito.ArgumentMatchers.any());
+        verify(outboxService, never()).refundRequested(org.mockito.ArgumentMatchers.any());
     }
 
     private Ticket ticket(Long id, TicketStatus status) {

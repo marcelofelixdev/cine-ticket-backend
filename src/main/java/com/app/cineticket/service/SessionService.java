@@ -15,6 +15,7 @@ import com.app.cineticket.dto.response.SessionResponseDTO;
 import com.app.cineticket.exception.ConflictException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.SessionMapper;
+import com.app.cineticket.messaging.OutboxService;
 import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
@@ -22,7 +23,6 @@ import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.SessionSpecifications;
 import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +41,7 @@ public class SessionService {
     private final RoomRepository roomRepository;
     private final TicketRepository ticketRepository;
     private final SessionMapper sessionMapper;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OutboxService outboxService;
     private final SeatRepository seatRepository;
 
     /** Status que ocupam um assento; é o mesmo critério usado na compra e no índice anti-overbooking. */
@@ -124,7 +124,7 @@ public class SessionService {
             }
             ticket.setStatus(TicketStatus.EMERGENCY_CANCELLED);
             if (previousStatus == TicketStatus.APPROVED) {
-                eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
+                outboxService.refundRequested(new com.app.cineticket.dto.request.RefundEventDTO(
                         ticket.getId(), ticket.getValorPago()));
             }
         }

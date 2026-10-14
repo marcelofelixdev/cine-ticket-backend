@@ -7,7 +7,7 @@ import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.TicketRequestDTO;
 import com.app.cineticket.exception.BusinessException;
 import com.app.cineticket.mapper.TicketMapper;
-import com.app.cineticket.messaging.PaymentProducer;
+import com.app.cineticket.messaging.OutboxService;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
@@ -30,7 +30,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 public class TicketServiceTest {
@@ -48,7 +47,7 @@ public class TicketServiceTest {
     private TicketMapper ticketMapper;
 
     @Mock
-    private ApplicationEventPublisher eventPublisher;
+    private OutboxService outboxService;
 
     @Mock
     private PdfService pdfService;
@@ -139,8 +138,8 @@ public class TicketServiceTest {
         ticketService.cancelTicket(20L, user);
 
         assertEquals(TicketStatus.CANCELLED, ticket.getStatus());
-        Mockito.verify(eventPublisher, Mockito.never())
-                .publishEvent(any(com.app.cineticket.dto.request.RefundEventDTO.class));
+        Mockito.verify(outboxService, Mockito.never())
+                .refundRequested(any(com.app.cineticket.dto.request.RefundEventDTO.class));
     }
 
     @Test
@@ -162,7 +161,7 @@ public class TicketServiceTest {
         ticketService.cancelTicket(21L, user);
 
         assertEquals(TicketStatus.CANCELLED, ticket.getStatus());
-        Mockito.verify(eventPublisher).publishEvent(
+        Mockito.verify(outboxService).refundRequested(
                 new com.app.cineticket.dto.request.RefundEventDTO(21L, new BigDecimal("30.00")));
     }
 
@@ -235,7 +234,7 @@ public class TicketServiceTest {
                 () -> ticketService.cancelTicket(30L, dono));
 
         assertEquals("O ingresso expirou por falta de pagamento.", exception.getMessage());
-        Mockito.verifyNoInteractions(eventPublisher);
+        Mockito.verifyNoInteractions(outboxService);
     }
 
     private void prepararCompraValida(TicketRequestDTO request, long pendentesDoUsuario) {

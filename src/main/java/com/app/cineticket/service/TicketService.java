@@ -12,6 +12,7 @@ import com.app.cineticket.exception.ForbiddenException;
 import com.app.cineticket.exception.ConflictException;
 import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.TicketMapper;
+import com.app.cineticket.messaging.OutboxService;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
@@ -38,7 +39,7 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final SessionRepository sessionRepository;
     private final SeatRepository seatRepository;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final OutboxService outboxService;
     private final TicketMapper ticketMapper;
     private final com.app.cineticket.service.PdfService pdfService;
 
@@ -131,9 +132,8 @@ public class TicketService {
 
         Ticket savedTicket = ticketRepository.save(ticket);
 
-        eventPublisher.publishEvent(new PaymentEventDTO(
+        outboxService.paymentRequested(new PaymentEventDTO(
                 savedTicket.getId(),
-                request.cartaoToken(),
                 savedTicket.getValorPago()
         ));
 
@@ -188,7 +188,7 @@ public class TicketService {
 
         if (previousStatus == TicketStatus.APPROVED) {
             log.info("Ticket {} cancelado. Preparando reembolso...", ticket.getId());
-            eventPublisher.publishEvent(new com.app.cineticket.dto.request.RefundEventDTO(
+            outboxService.refundRequested(new com.app.cineticket.dto.request.RefundEventDTO(
                     ticket.getId(), ticket.getValorPago()));
         }
 

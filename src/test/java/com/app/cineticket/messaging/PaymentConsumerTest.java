@@ -27,7 +27,7 @@ class PaymentConsumerTest {
         var amount = new BigDecimal("25.00");
         when(ticketRepository.approvePendingPayment(1L, amount)).thenReturn(1);
 
-        paymentConsumer.processarPagamento(new PaymentEventDTO(1L, "token-local", amount));
+        paymentConsumer.processarPagamento(new PaymentEventDTO(1L, amount));
 
         verify(ticketRepository).approvePendingPayment(1L, amount);
     }
@@ -37,7 +37,7 @@ class PaymentConsumerTest {
         var amount = new BigDecimal("25.00");
         when(ticketRepository.approvePendingPayment(1L, amount)).thenReturn(0);
 
-        paymentConsumer.processarPagamento(new PaymentEventDTO(1L, "token-local", amount));
+        paymentConsumer.processarPagamento(new PaymentEventDTO(1L, amount));
 
         verify(ticketRepository).approvePendingPayment(1L, amount);
     }
