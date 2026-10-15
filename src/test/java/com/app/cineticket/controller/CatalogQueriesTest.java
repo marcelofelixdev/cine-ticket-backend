@@ -82,6 +82,16 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void listaDeSalasFiltraPorCinema() throws Exception {
+        mockMvc.perform(authed(get("/api/v1/rooms").param("cinemaId", String.valueOf(cinema1.getId())), ownerToken, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].nome").value("Sala 1"));
+        mockMvc.perform(authed(get("/api/v1/rooms"), ownerToken, null))
+                .andExpect(jsonPath("$.page.totalElements").value(2));
+    }
+
+    @Test
     void filmeComSessoesNaoPodeSerExcluido() throws Exception {
         String adminToken = testData.token(ADMIN_EMAIL, "ROLE_ADMIN", null);
         Movie semSessao = testData.movie("Filme Sem Sessão", 90);

@@ -157,8 +157,9 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<RoomResponseDTO> findAll(org.springframework.data.domain.Pageable pageable) {
-        return roomRepository.findAll(pageable)
+    public org.springframework.data.domain.Page<RoomResponseDTO> findAll(Long cinemaId,
+                                                                        org.springframework.data.domain.Pageable pageable) {
+        return (cinemaId == null ? roomRepository.findAll(pageable) : roomRepository.findByCinemaId(cinemaId, pageable))
                 .map(roomMapper::toResponseDTO);
     }
 }

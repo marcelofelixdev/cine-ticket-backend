@@ -25,8 +25,9 @@ public class RoomController {
 
     @GetMapping
     public ResponseEntity<org.springframework.data.domain.Page<RoomResponseDTO>> findAll(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Long cinemaId,
             @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "nome") org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(roomService.findAll(pageable));
+        return ResponseEntity.ok(roomService.findAll(cinemaId, pageable));
     }
 
     @GetMapping("/{id}")
