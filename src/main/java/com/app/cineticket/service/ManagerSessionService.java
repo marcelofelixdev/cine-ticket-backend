@@ -4,6 +4,7 @@ import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.User;
+import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.SessionRequestDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
@@ -33,6 +34,7 @@ public class ManagerSessionService {
     private final SessionRepository sessionRepository;
     private final RoomRepository roomRepository;
     private final SessionOccupancyService occupancyService;
+    private final BoxOfficeService boxOfficeService;
     private final RoomMapper roomMapper;
 
     @Transactional
@@ -75,7 +77,7 @@ public class ManagerSessionService {
                 .toList();
     }
 
-    private static ManagerSessionDTO toDto(Session session, SessionOccupancy occupancy, boolean withRevenue) {
+    private ManagerSessionDTO toDto(Session session, SessionOccupancy occupancy, boolean withRevenue) {
         int duration = session.getMovie().getDuracaoEmMinutos();
         return new ManagerSessionDTO(
                 session.getId(),
@@ -92,6 +94,8 @@ public class ManagerSessionService {
                 session.getRoom().getCapacidade(),
                 occupancy.ocupados(),
                 occupancy.meias(),
-                withRevenue ? occupancy.receita() : null);
+                withRevenue ? occupancy.receita() : null,
+                HalfPricePolicy.priceFor(session.getValorBase(), TicketType.MEIA_ESTUDANTE),
+                boxOfficeService.salesOpen(session));
     }
 }

@@ -72,7 +72,8 @@ class SessionAvailabilityIntegrationTest extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/v1/sessions/" + session.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.lugaresLivres").value(7))
-                .andExpect(jsonPath("$.meiasRestantes").value(3));
+                .andExpect(jsonPath("$.meiasRestantes").value(3))
+                .andExpect(jsonPath("$.valorMeia").value(15.0));
 
         mockMvc.perform(get("/api/v1/sessions").param("movieId", session.getMovie().getId().toString()))
                 .andExpect(status().isOk())
@@ -93,7 +94,9 @@ class SessionAvailabilityIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].ocupados").value(3))
                 .andExpect(jsonPath("$[0].meias").value(1))
-                .andExpect(jsonPath("$[0].receita").value(45.0));
+                .andExpect(jsonPath("$[0].receita").value(45.0))
+                .andExpect(jsonPath("$[0].valorMeia").value(15.0))
+                .andExpect(jsonPath("$[0].vendasAbertas").value(true));
 
         mockMvc.perform(authed(get("/api/v1/box-office/sessions").param("date", day), staffToken, null))
                 .andExpect(status().isOk())

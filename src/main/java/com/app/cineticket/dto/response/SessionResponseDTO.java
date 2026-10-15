@@ -7,6 +7,8 @@ public record SessionResponseDTO (
         Long id,
         LocalDateTime horarioInicio,
         BigDecimal valorBase,
+        /** Preço da meia-entrada (metade do valor da sessão). */
+        BigDecimal valorMeia,
         Long movieId,
         String movieTitulo,
         Long roomId,
@@ -22,7 +24,7 @@ public record SessionResponseDTO (
 ) {
 
     public SessionResponseDTO withAvailability(int livres, int meias) {
-        return new SessionResponseDTO(id, horarioInicio, valorBase, movieId, movieTitulo, roomId, roomNome,
+        return new SessionResponseDTO(id, horarioInicio, valorBase, valorMeia, movieId, movieTitulo, roomId, roomNome,
                 cinemaId, cinemaNome, formato, audio, livres, meias);
     }
 }

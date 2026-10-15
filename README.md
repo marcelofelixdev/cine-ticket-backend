@@ -18,7 +18,7 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 |---|---|
 | **API (Swagger)** | [cineticket-api.onrender.com/swagger-ui.html](https://cineticket-api.onrender.com/swagger-ui.html) |
 | **Visitante** | `visitante@cineticket.dev` / `visitante123456` |
-| **Funcionário** do Cine 1 (só valida ingressos) | `funcionario@cineticket.dev` / `funcionario12345` |
+| **Funcionário** do Cine 1 (caixa, devoluções e entrada) | `funcionario@cineticket.dev` / `funcionario12345` |
 | **Gerente** do Cine 1 (equipe do próprio cinema) | `gerente@cineticket.dev` / `gerente12345` |
 
 No ambiente de demonstração, as compras, os pedidos de filme e as contas criadas são apagados todos os dias às 04:00 (horário de Brasília). Como os logins são públicos, o gerente não cancela sessões nem vendas ali, e nenhuma dessas contas é bloqueada por senha errada.

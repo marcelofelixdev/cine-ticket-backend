@@ -22,6 +22,10 @@ public record ManagerSessionDTO(
         long ocupados,
         long meias,
         /** Receita dos ingressos pagos: só na lista do gerente; no caixa vem nula. */
-        BigDecimal receita
+        BigDecimal receita,
+        /** Preço da meia-entrada (metade do valor da sessão). */
+        BigDecimal valorMeia,
+        /** O caixa ainda vende (até 30 min depois do início). */
+        boolean vendasAbertas
 ) {
 }

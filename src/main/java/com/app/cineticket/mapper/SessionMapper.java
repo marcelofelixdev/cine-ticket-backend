@@ -22,6 +22,8 @@ public interface SessionMapper {
     @Mapping(source = "room.cinema.id", target = "cinemaId")
     @Mapping(source = "room.nome", target = "roomNome")
     @Mapping(source = "room.cinema.nome", target = "cinemaNome")
+    @Mapping(target = "valorMeia", expression = "java(com.app.cineticket.service.HalfPricePolicy.priceFor("
+            + "entity.getValorBase(), com.app.cineticket.domain.enums.TicketType.MEIA_ESTUDANTE))")
     @Mapping(target = "lugaresLivres", ignore = true) // calculados no SessionService (withAvailability)
     @Mapping(target = "meiasRestantes", ignore = true)
     SessionResponseDTO toResponseDTO(Session entity);

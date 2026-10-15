@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static com.app.cineticket.support.ApiRequests.authed;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -162,6 +163,10 @@ class BoxOfficeIntegrationTest extends AbstractIntegrationTest {
 
         mockMvc.perform(authed(post(SALES), staffToken, sale(started, "DINHEIRO", null, item(seatsA.get(0), "INTEIRA", null))))
                 .andExpect(status().isUnprocessableEntity());
+
+        mockMvc.perform(authed(get("/api/v1/box-office/sessions")
+                        .param("date", started.getHorarioInicio().toLocalDate().toString()), staffToken, null))
+                .andExpect(jsonPath("$[?(@.id == " + started.getId() + ")].vendasAbertas", hasItem(false)));
     }
 
     @Test
