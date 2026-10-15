@@ -128,9 +128,17 @@ public class MovieService {
 
     /** Catálogo público: filmes em cartaz (opcionalmente de um cinema ou de uma cidade). */
     @Transactional(readOnly = true)
-    public Page<MovieResponseDTO> findAll(Pageable pageable, Long cinemaId, String cidade) {
-        return movieRepository.findAll(MovieSpecifications.emCartaz(cinemaId, cidade, today()), pageable)
-                .map(movieMapper::toResponseDTO);
+    public Page<MovieResponseDTO> findAll(Pageable pageable, com.app.cineticket.dto.request.MovieFilter filter) {
+        org.springframework.data.jpa.domain.Specification<Movie> spec =
+                MovieSpecifications.emCartaz(filter.cinemaId(), filter.cidade(), today());
+        if (filter.bySession()) {
+            spec = spec.and(MovieSpecifications.comSessao(filter.cinemaId(), filter.cidade(), filter.formato(),
+                    filter.audio(), java.time.LocalDateTime.now(AppTimeZone.ZONE)));
+        }
+        if (filter.classificacao() != null) {
+            spec = spec.and(MovieSpecifications.classificacao(filter.classificacao()));
+        }
+        return movieRepository.findAll(spec, pageable).map(movieMapper::toResponseDTO);
     }
 
     /** "Em breve": filmes programados com estreia depois de hoje (opcionalmente de uma cidade). */

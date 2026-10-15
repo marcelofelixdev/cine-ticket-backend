@@ -38,13 +38,19 @@ public class MovieController {
     }
 
     @Operation(summary = "Filmes em cartaz (público)",
-            description = "Ativos em algum cinema e já estreados. Filtros opcionais: cinemaId ou cidade.")
+            description = "Ativos em algum cinema e já estreados. Filtros opcionais: cinemaId ou cidade; "
+                    + "formato e audio (só filmes com sessão futura assim); classificacao.")
     @GetMapping
     public ResponseEntity<Page<MovieResponseDTO>> findAll(
             @RequestParam(required = false) Long cinemaId,
             @RequestParam(required = false) String cidade,
+            @RequestParam(required = false) @jakarta.validation.constraints.Pattern(regexp = "2D|3D") String formato,
+            @RequestParam(required = false) com.app.cineticket.domain.enums.SessionAudio audio,
+            @RequestParam(required = false) @jakarta.validation.constraints.Pattern(regexp = "L|10|12|14|16|18")
+            String classificacao,
             @ParameterObject @PageableDefault(size = 10, page = 0, sort = "titulo") Pageable pageable) {
-        return ResponseEntity.ok(movieService.findAll(pageable, cinemaId, cidade));
+        return ResponseEntity.ok(movieService.findAll(pageable,
+                new com.app.cineticket.dto.request.MovieFilter(cinemaId, cidade, formato, audio, classificacao)));
     }
 
     @Operation(summary = "Em breve (público)",
