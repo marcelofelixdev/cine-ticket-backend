@@ -59,13 +59,18 @@ public class BoxOfficeService {
     @Value("${app.box-office.sales-close-after-start:30m}")
     private Duration salesCloseAfterStart = Duration.ofMinutes(30);
 
+    /** O caixa ainda vende até {@code salesCloseAfterStart} depois do início da sessão. */
+    public boolean salesOpen(Session session) {
+        return !LocalDateTime.now(AppTimeZone.ZONE).isAfter(session.getHorarioInicio().plus(salesCloseAfterStart));
+    }
+
     @Transactional
     public BoxOfficeSaleResponseDTO sell(BoxOfficeSaleRequestDTO request, User seller) {
         Session session = sessionRepository.findByIdWithLock(request.sessionId())
                 .filter(found -> Boolean.TRUE.equals(found.getAtivo()))
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
         CinemaScope.requireSameCinema(seller, session.getRoom().getCinema().getId(), "Esta sessão é de outro cinema.");
-        if (LocalDateTime.now(AppTimeZone.ZONE).isAfter(session.getHorarioInicio().plus(salesCloseAfterStart))) {
+        if (!salesOpen(session)) {
             throw new BusinessException("As vendas desta sessão já foram encerradas.");
         }
 
