@@ -31,6 +31,8 @@ public interface SessionRepository extends JpaRepository<Session, Long>,
 
     boolean existsByRoomId(Long roomId);
 
+    boolean existsByMovieId(Long movieId);
+
     boolean existsByRoomCinemaId(Long cinemaId);
 
     boolean existsByRoomIdAndHorarioInicioBetween(Long roomId, java.time.LocalDateTime start, java.time.LocalDateTime end);

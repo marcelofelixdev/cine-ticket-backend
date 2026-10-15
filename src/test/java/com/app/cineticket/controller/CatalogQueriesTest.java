@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CatalogQueriesTest extends AbstractIntegrationTest {
 
     private static final String SESSIONS = "/api/v1/sessions";
+    private static final String ADMIN_EMAIL = "admin@catalogo.teste";
 
     @Autowired private MockMvc mockMvc;
     @Autowired private TestData testData;
@@ -77,7 +78,19 @@ class CatalogQueriesTest extends AbstractIntegrationTest {
     @AfterEach
     void cleanUp() {
         testData.deleteCatalog();
-        testData.deleteUsers("dono@teste.com", "outro@teste.com");
+        testData.deleteUsers("dono@teste.com", "outro@teste.com", ADMIN_EMAIL);
+    }
+
+    @Test
+    void filmeComSessoesNaoPodeSerExcluido() throws Exception {
+        String adminToken = testData.token(ADMIN_EMAIL, "ROLE_ADMIN", null);
+        Movie semSessao = testData.movie("Filme Sem Sessão", 90);
+
+        mockMvc.perform(authed(delete("/api/v1/movies/" + movieA.getId()), adminToken, null))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("O filme tem sessões cadastradas e não pode ser excluído."));
+        mockMvc.perform(authed(delete("/api/v1/movies/" + semSessao.getId()), adminToken, null))
+                .andExpect(status().isNoContent());
     }
 
     @Test
