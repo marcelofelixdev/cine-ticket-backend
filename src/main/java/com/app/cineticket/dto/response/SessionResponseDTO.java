@@ -14,5 +14,15 @@ public record SessionResponseDTO (
         Long cinemaId,
         String cinemaNome,
         String formato,
-        com.app.cineticket.domain.enums.SessionAudio audio
-) {}
+        com.app.cineticket.domain.enums.SessionAudio audio,
+        /** Lugares livres agora. */
+        Integer lugaresLivres,
+        /** Meias que ainda cabem na cota da sessão. */
+        Integer meiasRestantes
+) {
+
+    public SessionResponseDTO withAvailability(int livres, int meias) {
+        return new SessionResponseDTO(id, horarioInicio, valorBase, movieId, movieTitulo, roomId, roomNome,
+                cinemaId, cinemaNome, formato, audio, livres, meias);
+    }
+}

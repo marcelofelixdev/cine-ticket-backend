@@ -37,11 +37,11 @@ public class ManagerSessionController {
     private final ManagerSessionService managerSessionService;
     private final DemoRestrictions demoRestrictions;
 
-    @Operation(summary = "Sessões do dia no próprio cinema, com ocupação (MANAGER)",
+    @Operation(summary = "Sessões do dia no próprio cinema, com ocupação, meias e receita (MANAGER)",
             description = "Sem date, hoje. Inclui as que já começaram.")
     @GetMapping("/sessions")
     public ResponseEntity<List<ManagerSessionDTO>> sessions(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser));
+        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser, true));
     }
 
     @Operation(summary = "Cria uma sessão no próprio cinema (MANAGER)",

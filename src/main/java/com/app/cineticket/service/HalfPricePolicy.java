@@ -51,6 +51,20 @@ public class HalfPricePolicy {
         return documento;
     }
 
+    public static int capacityOf(Session session) {
+        return session.getRoom().getCapacidade() == null ? 0 : session.getRoom().getCapacidade();
+    }
+
+    /** Quantas meias a sessão aceita no total (40% dos lugares, arredondado para baixo). */
+    public long limitFor(Session session) {
+        return (long) Math.floor(capacityOf(session) * quota);
+    }
+
+    /** Quantas meias ainda cabem, dadas as já vendidas ou reservadas. */
+    public long remaining(Session session, long sold) {
+        return Math.max(0, limitFor(session) - sold);
+    }
+
     /**
      * Confere se ainda cabem {@code requested} meias na sessão. Quem chama precisa ter travado
      * a sessão (lock pessimista), senão duas vendas simultâneas podem estourar a cota.
@@ -59,8 +73,8 @@ public class HalfPricePolicy {
         if (requested <= 0) {
             return;
         }
-        int capacity = session.getRoom().getCapacidade() == null ? 0 : session.getRoom().getCapacidade();
-        long limit = (long) Math.floor(capacity * quota);
+        int capacity = capacityOf(session);
+        long limit = limitFor(session);
         long sold = ticketRepository.countBySessionIdAndTicketTypeInAndStatusIn(
                 session.getId(), HALF_PRICE_TYPES, TicketStatus.OCCUPYING_SEAT);
         if (sold + requested <= limit) {

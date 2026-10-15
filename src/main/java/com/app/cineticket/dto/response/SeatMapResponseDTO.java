@@ -13,6 +13,8 @@ public record SeatMapResponseDTO(
         /** Para desenhar a sala: cadeiras por fila e os corredores (depois de qual cadeira). */
         int cadeirasPorFila,
         List<Integer> corredores,
+        /** Meias que ainda cabem na cota da sessão. */
+        int meiasRestantes,
         List<SeatStatusDTO> assentos
 ) {
 }

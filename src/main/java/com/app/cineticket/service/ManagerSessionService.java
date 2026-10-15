@@ -4,7 +4,6 @@ import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Session;
 import com.app.cineticket.domain.entity.User;
-import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.dto.request.SessionRequestDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
@@ -13,13 +12,13 @@ import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.mapper.RoomMapper;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SessionRepository;
-import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Sessões do cinema do gerente: as mesmas regras de {@link SessionService} (conflito de
@@ -33,7 +32,7 @@ public class ManagerSessionService {
     private final SessionService sessionService;
     private final SessionRepository sessionRepository;
     private final RoomRepository roomRepository;
-    private final TicketRepository ticketRepository;
+    private final SessionOccupancyService occupancyService;
     private final RoomMapper roomMapper;
 
     @Transactional
@@ -52,13 +51,20 @@ public class ManagerSessionService {
         sessionService.deleteEmergency(sessionId);
     }
 
-    /** Sessões ativas do dia (padrão: hoje), com lugares e ocupação. */
+    /**
+     * Sessões ativas do dia (padrão: hoje), com lugares, ocupação e meias, em uma consulta de
+     * ocupação para o dia todo. {@code withRevenue}: a receita só vai para a lista do gerente.
+     */
     @Transactional(readOnly = true)
-    public List<ManagerSessionDTO> listOfDay(LocalDate date, User manager) {
+    public List<ManagerSessionDTO> listOfDay(LocalDate date, User user, boolean withRevenue) {
         LocalDate day = date == null ? LocalDate.now(AppTimeZone.ZONE) : date;
-        return sessionRepository.findActiveByCinemaBetween(CinemaScope.cinemaIdOf(manager),
-                        day.atStartOfDay(), day.plusDays(1).atStartOfDay()).stream()
-                .map(this::toDto)
+        List<Session> sessions = sessionRepository.findActiveByCinemaBetween(CinemaScope.cinemaIdOf(user),
+                day.atStartOfDay(), day.plusDays(1).atStartOfDay());
+        Map<Long, SessionOccupancy> occupancy =
+                occupancyService.bySession(sessions.stream().map(Session::getId).toList());
+        return sessions.stream()
+                .map(session -> toDto(session, occupancy.getOrDefault(session.getId(), SessionOccupancy.EMPTY),
+                        withRevenue))
                 .toList();
     }
 
@@ -69,7 +75,7 @@ public class ManagerSessionService {
                 .toList();
     }
 
-    private ManagerSessionDTO toDto(Session session) {
+    private static ManagerSessionDTO toDto(Session session, SessionOccupancy occupancy, boolean withRevenue) {
         int duration = session.getMovie().getDuracaoEmMinutos();
         return new ManagerSessionDTO(
                 session.getId(),
@@ -84,6 +90,8 @@ public class ManagerSessionService {
                 session.getAudio(),
                 session.getValorBase(),
                 session.getRoom().getCapacidade(),
-                ticketRepository.countBySessionIdAndStatusIn(session.getId(), TicketStatus.OCCUPYING_SEAT));
+                occupancy.ocupados(),
+                occupancy.meias(),
+                withRevenue ? occupancy.receita() : null);
     }
 }

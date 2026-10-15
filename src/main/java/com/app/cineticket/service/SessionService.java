@@ -48,6 +48,7 @@ public class SessionService {
     private final SeatRepository seatRepository;
     private final CinemaMovieRepository cinemaMovieRepository;
     private final CounterRefundService counterRefundService;
+    private final SessionOccupancyService occupancyService;
 
 
     /** Intervalo de limpeza entre o fim de um filme e a próxima sessão na mesma sala. */
@@ -79,9 +80,11 @@ public class SessionService {
 
         int freeSeats = (int) seatStatuses.stream().filter(s -> s.status() == SeatAvailability.LIVRE).count();
 
+        int meiasRestantes = occupancyService.meiasRestantes(session, occupancyService.of(sessionId));
+
         return new SeatMapResponseDTO(session.getId(), session.getHorarioInicio(), session.getRoom().getNome(),
                 seatStatuses.size(), freeSeats, session.getRoom().getCadeirasPorFila(),
-                List.copyOf(session.getRoom().getCorredores()), seatStatuses);
+                List.copyOf(session.getRoom().getCorredores()), meiasRestantes, seatStatuses);
     }
 
     @Transactional
@@ -119,7 +122,7 @@ public class SessionService {
         session.setRoom(room);
 
         Session savedSession = sessionRepository.save(session);
-        return sessionMapper.toResponseDTO(savedSession);
+        return toResponse(savedSession, SessionOccupancy.EMPTY);
     }
 
     @Transactional
@@ -182,8 +185,12 @@ public class SessionService {
             specs.add(SessionSpecifications.startsFrom(from));
         }
 
-        return sessionRepository.findAll(org.springframework.data.jpa.domain.Specification.allOf(specs), pageable)
-                .map(sessionMapper::toResponseDTO);
+        org.springframework.data.domain.Page<Session> page =
+                sessionRepository.findAll(org.springframework.data.jpa.domain.Specification.allOf(specs), pageable);
+        // Ocupação da página inteira em uma consulta.
+        java.util.Map<Long, SessionOccupancy> occupancy =
+                occupancyService.bySession(page.getContent().stream().map(Session::getId).toList());
+        return page.map(session -> toResponse(session, occupancy.getOrDefault(session.getId(), SessionOccupancy.EMPTY)));
     }
 
     /** Detalhe de uma sessão ativa. Sessão inexistente ou cancelada responde 404. */
@@ -191,7 +198,13 @@ public class SessionService {
     public SessionResponseDTO findById(Long id) {
         return sessionRepository.findWithDetailsById(id)
                 .filter(session -> Boolean.TRUE.equals(session.getAtivo()))
-                .map(sessionMapper::toResponseDTO)
+                .map(session -> toResponse(session, occupancyService.of(session.getId())))
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
+    }
+
+    private SessionResponseDTO toResponse(Session session, SessionOccupancy occupancy) {
+        return sessionMapper.toResponseDTO(session).withAvailability(
+                occupancyService.lugaresLivres(session, occupancy),
+                occupancyService.meiasRestantes(session, occupancy));
     }
 }

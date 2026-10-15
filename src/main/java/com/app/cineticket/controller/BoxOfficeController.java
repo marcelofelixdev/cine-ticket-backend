@@ -43,10 +43,11 @@ public class BoxOfficeController {
     private final ManagerSessionService managerSessionService;
     private final CounterRefundService counterRefundService;
 
-    @Operation(summary = "Sessões do dia no próprio cinema, com ocupação (STAFF ou MANAGER)")
+    @Operation(summary = "Sessões do dia no próprio cinema, com ocupação e meias (STAFF ou MANAGER)",
+            description = "Sem a receita, que só aparece na lista do gerente.")
     @GetMapping("/sessions")
     public ResponseEntity<List<ManagerSessionDTO>> sessions(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser));
+        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser, false));
     }
 
     @Operation(summary = "Vende lugares no caixa (STAFF ou MANAGER)",
