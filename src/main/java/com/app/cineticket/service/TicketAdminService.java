@@ -91,10 +91,10 @@ public class TicketAdminService {
      * o valor na hora: o reembolso já fica registrado como feito (REFUNDED).
      */
     @Transactional
-    public TicketResponseDTO cancelCounterSale(Long ticketId, User manager) {
+    public TicketResponseDTO cancelCounterSale(Long ticketId, Long cinemaId, User manager) {
         Ticket ticket = ticketRepository.findByIdForUpdate(ticketId)
                 .orElseThrow(() -> new ResourceNotFoundException("Ingresso não encontrado."));
-        CinemaScope.requireSameCinema(manager, ticket.getSession().getRoom().getCinema().getId(),
+        CinemaScope.requireWithin(cinemaId, ticket.getSession().getRoom().getCinema().getId(),
                 "Este ingresso é de outro cinema.");
         if (ticket.getCanal() != TicketChannel.BALCAO) {
             throw new BusinessException("Ingresso comprado online: o cancelamento é feito pelo cliente no site "

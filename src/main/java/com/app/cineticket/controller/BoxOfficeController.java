@@ -6,6 +6,7 @@ import com.app.cineticket.dto.response.BoxOfficeSaleResponseDTO;
 import com.app.cineticket.dto.response.CounterRefundDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
 import com.app.cineticket.service.BoxOfficeService;
+import com.app.cineticket.service.CinemaScope;
 import com.app.cineticket.service.CounterRefundService;
 import com.app.cineticket.service.ManagerSessionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,7 +48,7 @@ public class BoxOfficeController {
             description = "Sem a receita, que só aparece na lista do gerente.")
     @GetMapping("/sessions")
     public ResponseEntity<List<ManagerSessionDTO>> sessions(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser, false));
+        return ResponseEntity.ok(managerSessionService.listOfDay(date, CinemaScope.cinemaIdOf(loggedUser), false));
     }
 
     @Operation(summary = "Vende lugares no caixa (STAFF ou MANAGER)",

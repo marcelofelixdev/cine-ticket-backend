@@ -3,7 +3,6 @@ package com.app.cineticket.service;
 import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.domain.entity.Room;
 import com.app.cineticket.domain.entity.Session;
-import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.SessionRequestDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
@@ -38,18 +37,18 @@ public class ManagerSessionService {
     private final RoomMapper roomMapper;
 
     @Transactional
-    public SessionResponseDTO create(SessionRequestDTO request, User manager) {
+    public SessionResponseDTO create(SessionRequestDTO request, Long cinemaId) {
         Room room = roomRepository.findWithCinemaById(request.roomId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sala não encontrada."));
-        CinemaScope.requireSameCinema(manager, room.getCinema().getId(), "Esta sala é de outro cinema.");
+        CinemaScope.requireWithin(cinemaId, room.getCinema().getId(), "Esta sala é de outro cinema.");
         return sessionService.create(request);
     }
 
     @Transactional
-    public void cancel(Long sessionId, User manager) {
+    public void cancel(Long sessionId, Long cinemaId) {
         Session session = sessionRepository.findWithDetailsById(sessionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
-        CinemaScope.requireSameCinema(manager, session.getRoom().getCinema().getId(), "Esta sessão é de outro cinema.");
+        CinemaScope.requireWithin(cinemaId, session.getRoom().getCinema().getId(), "Esta sessão é de outro cinema.");
         sessionService.deleteEmergency(sessionId);
     }
 
@@ -58,9 +57,9 @@ public class ManagerSessionService {
      * ocupação para o dia todo. {@code withRevenue}: a receita só vai para a lista do gerente.
      */
     @Transactional(readOnly = true)
-    public List<ManagerSessionDTO> listOfDay(LocalDate date, User user, boolean withRevenue) {
+    public List<ManagerSessionDTO> listOfDay(LocalDate date, Long cinemaId, boolean withRevenue) {
         LocalDate day = date == null ? LocalDate.now(AppTimeZone.ZONE) : date;
-        List<Session> sessions = sessionRepository.findActiveByCinemaBetween(CinemaScope.cinemaIdOf(user),
+        List<Session> sessions = sessionRepository.findActiveByCinemaBetween(cinemaId,
                 day.atStartOfDay(), day.plusDays(1).atStartOfDay());
         Map<Long, SessionOccupancy> occupancy =
                 occupancyService.bySession(sessions.stream().map(Session::getId).toList());
@@ -71,8 +70,8 @@ public class ManagerSessionService {
     }
 
     @Transactional(readOnly = true)
-    public List<RoomResponseDTO> rooms(User manager) {
-        return roomRepository.findByCinemaIdOrderByNome(CinemaScope.cinemaIdOf(manager)).stream()
+    public List<RoomResponseDTO> rooms(Long cinemaId) {
+        return roomRepository.findByCinemaIdOrderByNome(cinemaId).stream()
                 .map(roomMapper::toResponseDTO)
                 .toList();
     }

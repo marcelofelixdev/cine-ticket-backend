@@ -205,11 +205,17 @@ class TicketAdministrationIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void soGerenteEAdminVeemOPainelDeIngressos() throws Exception {
-        for (String token : List.of(staffToken, clientToken, adminToken)) {
+        for (String token : List.of(staffToken, clientToken)) {
             mockMvc.perform(authed(get("/api/v1/manager/tickets"), token, null)).andExpect(status().isForbidden());
             mockMvc.perform(authed(post("/api/v1/manager/tickets/" + counterHalf.getId() + "/cancel"), token, null))
                     .andExpect(status().isForbidden());
         }
+        // O admin usa as rotas do cinema informando qual; o ingresso tem de ser dele.
+        String cinemaB = String.valueOf(sessionB.getRoom().getCinema().getId());
+        mockMvc.perform(authed(get("/api/v1/manager/tickets"), adminToken, null)).andExpect(status().isBadRequest());
+        mockMvc.perform(authed(post("/api/v1/manager/tickets/" + counterHalf.getId() + "/cancel").param("cinemaId", cinemaB),
+                        adminToken, null))
+                .andExpect(status().isForbidden());
         for (String token : List.of(staffToken, clientToken, managerToken)) {
             mockMvc.perform(authed(get("/api/v1/admin/tickets"), token, null)).andExpect(status().isForbidden());
         }

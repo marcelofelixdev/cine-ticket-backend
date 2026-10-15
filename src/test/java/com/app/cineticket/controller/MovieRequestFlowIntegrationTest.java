@@ -171,6 +171,20 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void adminConfirmaNaProgramacaoDoCinemaEscolhido() throws Exception {
+        mockMvc.perform(authed(post(offer()), adminToken, offerBody(cinemaB))).andExpect(status().isOk());
+        String cinemaBId = String.valueOf(cinemaB.getId());
+
+        mockMvc.perform(authed(get("/api/v1/manager/programacao").param("cinemaId", cinemaBId), adminToken, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status").value("AGUARDANDO_GERENTE"));
+        mockMvc.perform(authed(post(confirm()).param("cinemaId", cinemaBId), adminToken, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ATIVO"));
+        mockMvc.perform(authed(get("/api/v1/manager/programacao"), adminToken, null)).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void gerenteNaoConfirmaFilmeQueNaoFoiEnviadoAoSeuCinema() throws Exception {
         mockMvc.perform(authed(post(offer()), adminToken, offerBody(cinemaB))).andExpect(status().isOk());
 
@@ -186,8 +200,11 @@ class MovieRequestFlowIntegrationTest extends AbstractIntegrationTest {
             mockMvc.perform(authed(get("/api/v1/admin/movies"), token, null)).andExpect(status().isForbidden());
             mockMvc.perform(authed(post(offer()), token, offerBody(cinemaA))).andExpect(status().isForbidden());
         }
-        for (String token : List.of(adminToken, staffToken, clientToken)) {
+        for (String token : List.of(staffToken, clientToken)) {
             mockMvc.perform(authed(get("/api/v1/manager/programacao"), token, null)).andExpect(status().isForbidden());
+        }
+        // Pedir filme é só do gerente: o admin envia direto.
+        for (String token : List.of(adminToken, staffToken, clientToken)) {
             mockMvc.perform(authed(post("/api/v1/manager/movie-requests"), token, REQUEST_BODY))
                     .andExpect(status().isForbidden());
         }
