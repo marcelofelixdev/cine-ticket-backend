@@ -48,6 +48,13 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>,
 
     long countByUsedAtIsNotNull();
 
+    /** Linhas [sessão, tipo, status, quantidade, soma do valor pago] das sessões pedidas. */
+    @Query("select t.session.id, t.ticketType, t.status, count(t), sum(t.valorPago) from Ticket t "
+            + "where t.session.id in :sessionIds and t.status in :statuses "
+            + "group by t.session.id, t.ticketType, t.status")
+    List<Object[]> countBySessionTypeAndStatus(@Param("sessionIds") java.util.Collection<Long> sessionIds,
+                                               @Param("statuses") java.util.Collection<TicketStatus> statuses);
+
     long countBySessionIdAndStatusIn(Long sessionId, java.util.Collection<TicketStatus> statuses);
 
     long countBySessionIdAndTicketTypeInAndStatusIn(Long sessionId,

@@ -19,6 +19,9 @@ public record ManagerSessionDTO(
         SessionAudio audio,
         BigDecimal valorBase,
         int lugares,
-        long ocupados
+        long ocupados,
+        long meias,
+        /** Receita dos ingressos pagos: só na lista do gerente; no caixa vem nula. */
+        BigDecimal receita
 ) {
 }
