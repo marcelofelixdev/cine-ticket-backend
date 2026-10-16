@@ -1,5 +1,6 @@
 package com.app.cineticket.security;
 
+import com.app.cineticket.domain.entity.RefreshToken;
 import com.app.cineticket.support.AbstractIntegrationTest;
 import com.app.cineticket.support.TestData;
 import com.app.cineticket.repository.RefreshTokenRepository;
@@ -89,6 +90,7 @@ class AuthFlowTest extends AbstractIntegrationTest {
     void reusoDeRefreshTokenJaTrocadoRevogaASessaoInteira() throws Exception {
         String original = refreshCookieOf(mockMvc.perform(login()).andReturn());
         String rotated = refreshCookieOf(mockMvc.perform(refresh(original)).andReturn());
+        trocadoHaUmMinuto(original);
 
         mockMvc.perform(refresh(original))
                 .andExpect(status().isUnauthorized())
@@ -96,6 +98,30 @@ class AuthFlowTest extends AbstractIntegrationTest {
 
         // O token novo, de quem fez o refresh legítimo, também deixa de valer.
         mockMvc.perform(refresh(rotated)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void duasAbasRenovandoJuntasNaoDerrubamASessao() throws Exception {
+        String original = refreshCookieOf(mockMvc.perform(login()).andReturn());
+        String abaUm = refreshCookieOf(mockMvc.perform(refresh(original)).andReturn());
+
+        // A segunda aba chega logo depois com o mesmo token: recebe outro, sem revogar nada.
+        String abaDois = refreshCookieOf(mockMvc.perform(refresh(original)).andExpect(status().isOk()).andReturn());
+
+        assertNotEquals(abaUm, abaDois);
+        mockMvc.perform(refresh(abaUm)).andExpect(status().isOk());
+        mockMvc.perform(refresh(abaDois)).andExpect(status().isOk());
+    }
+
+    @Test
+    void toleranciaNaoValeDepoisDoLogout() throws Exception {
+        String original = refreshCookieOf(mockMvc.perform(login()).andReturn());
+        String rotated = refreshCookieOf(mockMvc.perform(refresh(original)).andReturn());
+
+        mockMvc.perform(post("/api/v1/auth/logout").cookie(new Cookie(RefreshTokenCookies.NAME, rotated)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(refresh(original)).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -139,6 +165,13 @@ class AuthFlowTest extends AbstractIntegrationTest {
 
     private MockHttpServletRequestBuilder refresh(String refreshToken) {
         return post("/api/v1/auth/refresh").cookie(new Cookie(RefreshTokenCookies.NAME, refreshToken));
+    }
+
+    /** Simula que a troca do token aconteceu fora da tolerância de abas concorrentes. */
+    private void trocadoHaUmMinuto(String rawToken) {
+        RefreshToken token = refreshTokenRepository.findByTokenHash(RefreshTokenService.hash(rawToken)).orElseThrow();
+        token.setRevokedAt(token.getRevokedAt().minusMinutes(1));
+        refreshTokenRepository.save(token);
     }
 
     private static MockHttpServletRequestBuilder withNewIp(MockHttpServletRequestBuilder request) {
