@@ -210,7 +210,7 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Ingressos (painel) | | `MANAGER`: `GET /manager/tickets` (filtros), `GET /manager/sessions/{id}/summary`, `POST /manager/tickets/{id}/cancel` (venda de balcão) | `GET /admin/tickets`, `GET /admin/sessions/{id}/summary`; as rotas do gerente com `?cinemaId=` |
 | Sessões do cinema | | `MANAGER`: `GET /manager/sessions?date=` (com ocupação), `POST`, `DELETE /manager/sessions/{id}`, `GET /manager/rooms` | As mesmas rotas com `?cinemaId=` (obrigatório para o admin) |
 | Pedidos e programação | | `MANAGER`: `POST`, `GET /manager/movie-requests`, `GET /manager/programacao`, `POST /manager/programacao/{movieId}/confirm` | Programação e confirmação com `?cinemaId=`; `GET /admin/movie-requests?status=, `POST /{id}/approve`, `POST /{id}/reject`, `GET /admin/movies`, `POST /admin/movies/{id}/offer` |
-| Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
+| Sessões | `GET` (filtros: filme, cinema, cidade, dia, formato, áudio), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
 | Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `GET /{id}/qr`, `PUT /{id}/cancel` | `POST /validate` (também `STAFF`) |
 | Pagamentos | `POST /payments/webhook` (somente Stripe, com assinatura) | | |

@@ -168,6 +168,9 @@ public class SessionService {
         if (filter.cinemaId() != null) {
             specs.add(SessionSpecifications.cinemaId(filter.cinemaId()));
         }
+        if (filter.cidade() != null && !filter.cidade().isBlank()) {
+            specs.add(SessionSpecifications.cidade(filter.cidade()));
+        }
         if (filter.formato() != null) {
             specs.add(SessionSpecifications.formato(filter.formato()));
         }

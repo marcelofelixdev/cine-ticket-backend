@@ -21,8 +21,10 @@ import java.util.List;
 
 import static com.app.cineticket.support.ApiRequests.authed;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -180,6 +182,14 @@ class ManagerSessionIntegrationTest extends AbstractIntegrationTest {
                         .param("audio", "DUBLADO"))
                 .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].audio").value("DUBLADO"));
+
+        // Cidade: só os cinemas dela, sem diferenciar maiúsculas.
+        testData.session(emCartaz, roomB, day.atTime(14, 0));
+        mockMvc.perform(get("/api/v1/sessions").param("movieId", String.valueOf(emCartaz.getId())).param("cidade", "são paulo"))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.content[*].cinemaId", everyItem(is(cinemaA.getId().intValue()))));
+        mockMvc.perform(get("/api/v1/sessions").param("movieId", String.valueOf(emCartaz.getId())).param("cidade", "Rio de Janeiro"))
+                .andExpect(jsonPath("$.page.totalElements").value(1));
     }
 
     @Test
