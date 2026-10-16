@@ -1,5 +1,6 @@
 package com.app.cineticket.dto.request;
 
+import com.app.cineticket.dto.request.BoxOfficeSaleRequestDTO.Item;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -15,6 +16,6 @@ import java.util.List;
  */
 public record OrderRequestDTO(
         @NotNull @Positive Long sessionId,
-        @NotEmpty @Size(max = 20) List<@Valid @NotNull BoxOfficeSaleRequestDTO.Item> itens
+        @NotEmpty @Size(max = 20) List<@Valid @NotNull Item> itens
 ) {
 }
