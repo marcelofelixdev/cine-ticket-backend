@@ -32,7 +32,7 @@ No ambiente de demonstração, as compras, os pedidos de filme e as contas criad
 
 ## ✨ Funcionalidades
 
-- **Catálogo público:** filmes com ficha completa do [TMDB](https://www.themoviedb.org/) (direção, elenco, produtora, gêneros, classificação indicativa brasileira, trailer, estreia), cinemas e sessões com filtros por filme, cinema e data.
+- **Catálogo público:** filmes com ficha completa do [TMDB](https://www.themoviedb.org/) (direção, elenco principal com foto, produtora, gêneros, classificação indicativa brasileira, trailer, estreia), cinemas e sessões com filtros por filme, cinema e data.
 - **Cadastro de filmes pelo nome:** o painel pesquisa no TMDB, a pessoa escolhe o filme certo e o resto da ficha é preenchido sozinho.
 - **Cinema de shopping:** cidade dos cinemas, sessões 2D/3D e dubladas, legendadas ou nacionais, "Em breve" pela data de estreia, lugares livres e meias restantes por sessão; o gerente monta as sessões do próprio cinema.
 - **Venda no caixa:** o funcionário vende até 10 lugares por vez, pagos na hora (dinheiro, cartão ou Pix); os ingressos saem aprovados, com QR para imprimir, e podem ir para a conta do cliente pelo e-mail.

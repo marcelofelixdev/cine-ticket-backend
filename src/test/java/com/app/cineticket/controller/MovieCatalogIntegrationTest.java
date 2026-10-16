@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static com.app.cineticket.support.ApiRequests.authed;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -53,7 +54,8 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
         movie.setClassificacao("14");
         movie.setTrailerYoutubeKey("abc123");
         movie.setDataEstreia(LocalDate.of(2024, 2, 29));
-        movie.getElenco().add(new MovieCastMember("Timothée Chalamet", "Paul Atreides"));
+        movie.getElenco().add(new MovieCastMember("Timothée Chalamet", "Paul Atreides",
+                "https://image.tmdb.org/t/p/w185/chalamet.jpg"));
         movie.getElenco().add(new MovieCastMember("Zendaya", "Chani"));
         movie = movieRepository.save(movie);
         movieId = movie.getId();
@@ -84,7 +86,9 @@ class MovieCatalogIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.trailerUrl").value("https://www.youtube.com/watch?v=abc123"))
                 .andExpect(jsonPath("$.dataEstreia").value("2024-02-29"))
                 .andExpect(jsonPath("$.elenco[0].nome").value("Timothée Chalamet"))
-                .andExpect(jsonPath("$.elenco[1].personagem").value("Chani"));
+                .andExpect(jsonPath("$.elenco[0].fotoUrl").value("https://image.tmdb.org/t/p/w185/chalamet.jpg"))
+                .andExpect(jsonPath("$.elenco[1].personagem").value("Chani"))
+                .andExpect(jsonPath("$.elenco[1].fotoUrl").value(nullValue()));
 
         mockMvc.perform(get("/api/v1/movies"))
                 .andExpect(status().isOk())

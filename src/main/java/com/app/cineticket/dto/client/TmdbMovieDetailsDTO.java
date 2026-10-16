@@ -33,7 +33,7 @@ public record TmdbMovieDetailsDTO(
     public record Credits(List<CastMember> cast, List<CrewMember> crew) {
     }
 
-    public record CastMember(String name, String character, Integer order) {
+    public record CastMember(String name, String character, Integer order, String profile_path) {
     }
 
     public record CrewMember(String name, String job) {
