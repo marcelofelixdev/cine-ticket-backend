@@ -6,6 +6,7 @@ import com.app.cineticket.domain.enums.TicketStatus;
 import com.app.cineticket.dto.request.PaymentEventDTO;
 import com.app.cineticket.dto.request.RefundEventDTO;
 import com.app.cineticket.repository.TicketRepository;
+import com.app.cineticket.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
@@ -30,12 +31,18 @@ public class PaymentConsumer {
 
     private final TicketRepository ticketRepository;
     private final OutboxService outboxService;
+    private final OrderService orderService;
 
     @RabbitListener(queues = RabbitMQConfig.FILA_PAGAMENTOS)
     @Transactional
     public void onPaymentConfirmed(PaymentEventDTO event) {
-        if (event == null || event.ticketId() == null || event.valor() == null || event.paymentIntentId() == null) {
+        if (event == null || (event.ticketId() == null && event.orderId() == null)
+                || event.valor() == null || event.paymentIntentId() == null) {
             throw new AmqpRejectAndDontRequeueException("Evento de pagamento inválido: " + event);
+        }
+        if (event.orderId() != null) {
+            orderService.confirmPayment(event);
+            return;
         }
 
         int updated = ticketRepository.approvePendingPayment(event.ticketId(), event.valor(), event.paymentIntentId());

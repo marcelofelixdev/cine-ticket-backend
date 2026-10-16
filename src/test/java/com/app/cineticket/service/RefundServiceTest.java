@@ -52,8 +52,8 @@ class RefundServiceTest {
     @Test
     void estornaNoGatewayEGravaComoReembolsado() {
         when(ticketRepository.findById(5L)).thenReturn(Optional.of(ticket));
-        when(refundRepository.findByPaymentIntentId("pi_1")).thenReturn(Optional.empty());
-        when(paymentGateway.refund("pi_1")).thenReturn(new RefundResult("re_1"));
+        when(refundRepository.findByTicketIdAndPaymentIntentId(5L, "pi_1")).thenReturn(Optional.empty());
+        when(paymentGateway.refund("pi_1", AMOUNT, "ticket-5-pi_1")).thenReturn(new RefundResult("re_1"));
 
         RefundStatus status = refundService.process(new RefundEventDTO(5L, "pi_1", AMOUNT));
 
@@ -69,7 +69,7 @@ class RefundServiceTest {
         Refund refunded = new Refund();
         refunded.setStatus(RefundStatus.REFUNDED);
         when(ticketRepository.findById(5L)).thenReturn(Optional.of(ticket));
-        when(refundRepository.findByPaymentIntentId("pi_1")).thenReturn(Optional.of(refunded));
+        when(refundRepository.findByTicketIdAndPaymentIntentId(5L, "pi_1")).thenReturn(Optional.of(refunded));
 
         RefundStatus status = refundService.process(new RefundEventDTO(5L, "pi_1", AMOUNT));
 
@@ -81,8 +81,8 @@ class RefundServiceTest {
     @Test
     void falhaDoGatewayFicaRegistradaComoFailed() {
         when(ticketRepository.findById(5L)).thenReturn(Optional.of(ticket));
-        when(refundRepository.findByPaymentIntentId("pi_1")).thenReturn(Optional.empty());
-        when(paymentGateway.refund("pi_1")).thenThrow(new PaymentGatewayException("Stripe fora do ar", null));
+        when(refundRepository.findByTicketIdAndPaymentIntentId(5L, "pi_1")).thenReturn(Optional.empty());
+        when(paymentGateway.refund("pi_1", AMOUNT, "ticket-5-pi_1")).thenThrow(new PaymentGatewayException("Stripe fora do ar", null));
 
         RefundStatus status = refundService.process(new RefundEventDTO(5L, "pi_1", AMOUNT));
 
@@ -95,7 +95,7 @@ class RefundServiceTest {
     @Test
     void pagamentoDoSimuladorEEstornadoSemChamarOGateway() {
         when(ticketRepository.findById(5L)).thenReturn(Optional.of(ticket));
-        when(refundRepository.findByPaymentIntentId("pi_mock_1")).thenReturn(Optional.empty());
+        when(refundRepository.findByTicketIdAndPaymentIntentId(5L, "pi_mock_1")).thenReturn(Optional.empty());
 
         RefundStatus status = refundService.process(new RefundEventDTO(5L, "pi_mock_1", AMOUNT));
 

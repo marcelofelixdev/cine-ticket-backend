@@ -15,6 +15,8 @@ public record SeatMapResponseDTO(
         List<Integer> corredores,
         /** Meias que ainda cabem na cota da sessão. */
         int meiasRestantes,
+        /** Quantos lugares cabem num pedido da compra online. */
+        int maxLugaresPorPedido,
         List<SeatStatusDTO> assentos
 ) {
 }

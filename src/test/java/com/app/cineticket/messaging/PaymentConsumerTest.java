@@ -36,7 +36,7 @@ class PaymentConsumerTest {
     void aprovaIngressoPendenteComValorEsperado() {
         when(ticketRepository.approvePendingPayment(1L, AMOUNT, "pi_1")).thenReturn(1);
 
-        paymentConsumer.onPaymentConfirmed(new PaymentEventDTO(1L, "pi_1", AMOUNT));
+        paymentConsumer.onPaymentConfirmed(PaymentEventDTO.ofTicket(1L, "pi_1", AMOUNT));
 
         verify(ticketRepository).approvePendingPayment(1L, AMOUNT, "pi_1");
         verifyNoInteractions(outboxService);
@@ -47,7 +47,7 @@ class PaymentConsumerTest {
         when(ticketRepository.approvePendingPayment(1L, AMOUNT, "pi_1")).thenReturn(0);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket(TicketStatus.APPROVED, "pi_1")));
 
-        paymentConsumer.onPaymentConfirmed(new PaymentEventDTO(1L, "pi_1", AMOUNT));
+        paymentConsumer.onPaymentConfirmed(PaymentEventDTO.ofTicket(1L, "pi_1", AMOUNT));
 
         verify(outboxService, never()).refundRequested(any());
     }
@@ -57,7 +57,7 @@ class PaymentConsumerTest {
         when(ticketRepository.approvePendingPayment(1L, AMOUNT, "pi_1")).thenReturn(0);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket(TicketStatus.EXPIRED, null)));
 
-        paymentConsumer.onPaymentConfirmed(new PaymentEventDTO(1L, "pi_1", AMOUNT));
+        paymentConsumer.onPaymentConfirmed(PaymentEventDTO.ofTicket(1L, "pi_1", AMOUNT));
 
         verify(outboxService).refundRequested(new RefundEventDTO(1L, "pi_1", AMOUNT));
     }
@@ -67,14 +67,14 @@ class PaymentConsumerTest {
         when(ticketRepository.approvePendingPayment(1L, AMOUNT, "pi_2")).thenReturn(0);
         when(ticketRepository.findById(1L)).thenReturn(Optional.of(ticket(TicketStatus.APPROVED, "pi_1")));
 
-        paymentConsumer.onPaymentConfirmed(new PaymentEventDTO(1L, "pi_2", AMOUNT));
+        paymentConsumer.onPaymentConfirmed(PaymentEventDTO.ofTicket(1L, "pi_2", AMOUNT));
 
         verify(outboxService).refundRequested(new RefundEventDTO(1L, "pi_2", AMOUNT));
     }
 
     @Test
     void eventoIncompletoVaiParaADlq() {
-        PaymentEventDTO event = new PaymentEventDTO(1L, null, AMOUNT);
+        PaymentEventDTO event = PaymentEventDTO.ofTicket(1L, null, AMOUNT);
 
         assertThrows(AmqpRejectAndDontRequeueException.class, () -> paymentConsumer.onPaymentConfirmed(event));
         verifyNoInteractions(ticketRepository, outboxService);

@@ -49,7 +49,7 @@ public class RefundService {
             return registerNotApplicable(ticket.get(), event);
         }
 
-        Refund refund = refundRepository.findByPaymentIntentId(event.paymentIntentId())
+        Refund refund = refundRepository.findByTicketIdAndPaymentIntentId(event.ticketId(), event.paymentIntentId())
                 .orElseGet(() -> newRefund(ticket.get(), event, RefundStatus.PENDING));
 
         if (refund.getStatus() == RefundStatus.REFUNDED) {
@@ -59,7 +59,8 @@ public class RefundService {
 
         refund.setAttempts(refund.getAttempts() + 1);
         try {
-            RefundResult result = refundOnGateway(event.paymentIntentId());
+            RefundResult result = refundOnGateway(event.paymentIntentId(), refund.getAmount(),
+                    "ticket-" + event.ticketId() + "-" + event.paymentIntentId());
             refund.setStatus(RefundStatus.REFUNDED);
             refund.setGatewayRefundId(result.refundId());
             refund.setRefundedAt(LocalDateTime.now(AppTimeZone.ZONE));
@@ -76,12 +77,15 @@ public class RefundService {
         return refund.getStatus();
     }
 
-    /** Pagamentos do simulador são sempre estornados pelo simulador, qualquer que seja o gateway atual. */
-    private RefundResult refundOnGateway(String paymentIntentId) {
+    /**
+     * Estorna o valor do ingresso, que num pedido é só uma parte do pagamento. Pagamentos do
+     * simulador são sempre estornados pelo simulador, qualquer que seja o gateway atual.
+     */
+    private RefundResult refundOnGateway(String paymentIntentId, java.math.BigDecimal amount, String reference) {
         if (paymentIntentId.startsWith("pi_mock_")) {
             return new RefundResult("re_mock_" + UUID.randomUUID());
         }
-        return paymentGateway.refund(paymentIntentId);
+        return paymentGateway.refund(paymentIntentId, amount, reference);
     }
 
     private RefundStatus registerNotApplicable(Ticket ticket, RefundEventDTO event) {

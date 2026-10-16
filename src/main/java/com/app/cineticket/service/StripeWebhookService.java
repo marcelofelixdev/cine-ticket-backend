@@ -70,8 +70,9 @@ public class StripeWebhookService {
         JsonNode intent = event.path("data").path("object");
         switch (type) {
             case "payment_intent.succeeded" -> onSucceeded(eventId, intent);
-            case "payment_intent.payment_failed" -> log.info("[WEBHOOK] Pagamento recusado: {} (ingresso {}).",
-                    intent.path("id").asText(), intent.path("metadata").path("ticketId").asText("?"));
+            case "payment_intent.payment_failed" -> log.info("[WEBHOOK] Pagamento recusado: {} (ingresso {}, pedido {}).",
+                    intent.path("id").asText(), intent.path("metadata").path("ticketId").asText("-"),
+                    intent.path("metadata").path("orderId").asText("-"));
             default -> log.debug("[WEBHOOK] Evento {} ignorado.", type);
         }
     }
@@ -79,17 +80,25 @@ public class StripeWebhookService {
     private void onSucceeded(String eventId, JsonNode intent) {
         String paymentIntentId = intent.path("id").asText(null);
         String ticketId = intent.path("metadata").path("ticketId").asText(null);
-        if (paymentIntentId == null || ticketId == null || !ticketId.matches("\\d+")) {
-            log.warn("[WEBHOOK] Evento {} sem ticketId nos metadados; ignorado.", eventId);
+        String orderId = intent.path("metadata").path("orderId").asText(null);
+        boolean isOrder = orderId != null && orderId.matches("\\d+");
+        boolean isTicket = ticketId != null && ticketId.matches("\\d+");
+        if (paymentIntentId == null || (!isOrder && !isTicket)) {
+            log.warn("[WEBHOOK] Evento {} sem ticketId nem orderId nos metadados; ignorado.", eventId);
             return;
         }
         long amountInCents = intent.hasNonNull("amount_received")
                 ? intent.path("amount_received").asLong()
                 : intent.path("amount").asLong();
+        BigDecimal amount = BigDecimal.valueOf(amountInCents, 2);
 
-        outboxService.paymentConfirmed(new PaymentEventDTO(
-                Long.valueOf(ticketId), paymentIntentId, BigDecimal.valueOf(amountInCents, 2)));
-        log.info("[WEBHOOK] Pagamento {} confirmado para o ingresso {}.", paymentIntentId, ticketId);
+        if (isOrder) {
+            outboxService.paymentConfirmed(PaymentEventDTO.ofOrder(Long.valueOf(orderId), paymentIntentId, amount));
+            log.info("[WEBHOOK] Pagamento {} confirmado para o pedido {}.", paymentIntentId, orderId);
+        } else {
+            outboxService.paymentConfirmed(PaymentEventDTO.ofTicket(Long.valueOf(ticketId), paymentIntentId, amount));
+            log.info("[WEBHOOK] Pagamento {} confirmado para o ingresso {}.", paymentIntentId, ticketId);
+        }
     }
 
     private void verifySignature(String payload, String signatureHeader) {

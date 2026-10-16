@@ -23,14 +23,18 @@ import java.time.LocalDateTime;
 public class PendingTicketExpirationJob {
 
     private final TicketRepository ticketRepository;
+    private final OrderService orderService;
 
     @Scheduled(fixedDelayString = "${tickets.pending.expiration-check-interval-ms:60000}",
             initialDelayString = "${tickets.pending.expiration-check-interval-ms:60000}")
     @Transactional
     public void expirePendingTickets() {
-        int expired = ticketRepository.expirePendingTickets(LocalDateTime.now());
-        if (expired > 0) {
-            log.info("[EXPIRATION] {} ingresso(s) pendente(s) expirado(s); assentos liberados.", expired);
+        LocalDateTime now = LocalDateTime.now();
+        int expired = ticketRepository.expirePendingTickets(now);
+        int orders = orderService.expirePendingOrders(now);
+        if (expired > 0 || orders > 0) {
+            log.info("[EXPIRATION] {} ingresso(s) e {} pedido(s) pendente(s) expirado(s); assentos liberados.",
+                    expired, orders);
         }
     }
 }

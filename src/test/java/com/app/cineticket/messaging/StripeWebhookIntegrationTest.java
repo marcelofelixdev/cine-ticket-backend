@@ -52,6 +52,7 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
     @Autowired private TicketRepository ticketRepository;
     @Autowired private OutboxEventRepository outboxRepository;
     @Autowired private com.app.cineticket.repository.RefundRepository refundRepository;
+    @Autowired private com.app.cineticket.repository.TicketOrderRepository orderRepository;
 
     private Session session;
     private Seat seat;
@@ -136,6 +137,34 @@ class StripeWebhookIntegrationTest extends AbstractIntegrationTest {
                 .until(() -> refundRepository.findByPaymentIntentId(paymentIntentId)
                         .filter(r -> r.getStatus() == com.app.cineticket.domain.enums.RefundStatus.REFUNDED)
                         .isPresent());
+    }
+
+    @Test
+    void pagamentoDePedidoAprovaTodosOsIngressosDoPedido() throws Exception {
+        com.app.cineticket.domain.entity.TicketOrder order = new com.app.cineticket.domain.entity.TicketOrder();
+        order.setUser(user);
+        order.setSession(session);
+        order.setStatus(com.app.cineticket.domain.enums.OrderStatus.PENDING);
+        order.setTotal(new BigDecimal("40.00"));
+        order.setExpiresAt(LocalDateTime.now().plusMinutes(10));
+        order = orderRepository.save(order);
+        Ticket ticket = ticket(TicketStatus.PENDING);
+        ticket.setTicketOrder(order);
+        ticketRepository.save(ticket);
+        String paymentIntentId = "pi_order_" + UUID.randomUUID();
+        String payload = """
+                {"id":"evt_%s","object":"event","type":"payment_intent.succeeded",
+                 "data":{"object":{"id":"%s","object":"payment_intent","amount":4000,
+                 "amount_received":4000,"currency":"brl","status":"succeeded",
+                 "metadata":{"orderId":"%d"}}}}
+                """.formatted(UUID.randomUUID(), paymentIntentId, order.getId());
+
+        send(payload).andExpect(status().isOk());
+
+        Ticket approved = waitForStatus(ticket.getId(), TicketStatus.APPROVED);
+        assertEquals(paymentIntentId, approved.getPaymentIntentId());
+        assertEquals(com.app.cineticket.domain.enums.OrderStatus.PAID,
+                orderRepository.findById(order.getId()).orElseThrow().getStatus());
     }
 
     private Ticket ticket(TicketStatus status) {

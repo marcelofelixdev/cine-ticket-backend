@@ -11,10 +11,8 @@ import com.app.cineticket.domain.enums.TicketType;
 import com.app.cineticket.dto.request.BoxOfficeSaleRequestDTO;
 import com.app.cineticket.dto.response.BoxOfficeSaleResponseDTO;
 import com.app.cineticket.exception.BusinessException;
-import com.app.cineticket.exception.ConflictException;
 import com.app.cineticket.exception.ForbiddenException;
 import com.app.cineticket.exception.ResourceNotFoundException;
-import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
 import com.app.cineticket.repository.TicketRepository;
 import com.app.cineticket.repository.UserRepository;
@@ -29,9 +27,9 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -48,12 +46,12 @@ import java.util.Optional;
 public class BoxOfficeService {
 
     private final SessionRepository sessionRepository;
-    private final SeatRepository seatRepository;
     private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final TicketQrCodeService qrCodeService;
     private final PdfService pdfService;
     private final HalfPricePolicy halfPricePolicy;
+    private final SeatAllocator seatAllocator;
 
     /** Até quanto tempo depois do início da sessão o caixa ainda vende. */
     @Value("${app.box-office.sales-close-after-start:30m}")
@@ -77,9 +75,6 @@ public class BoxOfficeService {
         List<BoxOfficeSaleRequestDTO.Item> itens = request.itens().stream()
                 .sorted(Comparator.comparing(BoxOfficeSaleRequestDTO.Item::seatId))
                 .toList();
-        if (new HashSet<>(itens.stream().map(BoxOfficeSaleRequestDTO.Item::seatId).toList()).size() != itens.size()) {
-            throw new BusinessException("O mesmo lugar foi informado mais de uma vez.");
-        }
         halfPricePolicy.requireQuota(session,
                 itens.stream().filter(item -> HalfPricePolicy.isHalfPrice(item.ticketType())).count());
 
@@ -88,21 +83,13 @@ public class BoxOfficeService {
         Optional<User> buyer = email == null ? Optional.empty() : userRepository.findByEmailIgnoreCase(email);
         User sellerRef = userRepository.getReferenceById(seller.getId());
 
+        Map<Long, Seat> seats = seatAllocator.lockFreeSeats(session,
+                itens.stream().map(BoxOfficeSaleRequestDTO.Item::seatId).toList());
+
         List<Ticket> tickets = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
-        // Em ordem de assento: duas vendas que disputam os mesmos lugares travam na mesma ordem.
         for (BoxOfficeSaleRequestDTO.Item item : itens) {
-            Seat seat = seatRepository.findByIdWithLock(item.seatId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Cadeira não encontrada. ID: " + item.seatId()));
-            String assento = seat.label();
-            if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
-                throw new BusinessException("A cadeira " + assento + " não é da sala desta sessão.");
-            }
-            if (ticketRepository.existsBySessionIdAndSeatIdAndStatusIn(session.getId(), seat.getId(),
-                    TicketStatus.OCCUPYING_SEAT)) {
-                throw new ConflictException("A cadeira " + assento + " já está ocupada.");
-            }
-
+            Seat seat = seats.get(item.seatId());
             Ticket ticket = new Ticket();
             ticket.setSession(session);
             ticket.setSeat(seat);

@@ -40,6 +40,13 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>,
                               @Param("expectedAmount") BigDecimal expectedAmount,
                               @Param("paymentIntentId") String paymentIntentId);
 
+    /** Aprova os ingressos ainda pendentes de um pedido com o pagamento que cobriu o pedido inteiro. */
+    @Modifying
+    @Query("update Ticket t set t.status = com.app.cineticket.domain.enums.TicketStatus.APPROVED, " +
+            "t.paymentIntentId = :paymentIntentId " +
+            "where t.ticketOrder.id = :orderId and t.status = com.app.cineticket.domain.enums.TicketStatus.PENDING")
+    int approvePendingOrderTickets(@Param("orderId") Long orderId, @Param("paymentIntentId") String paymentIntentId);
+
     long countByUserIdAndStatus(Long userId, TicketStatus status);
 
     /** Linhas [status, tipo, quantidade] para as métricas de negócio. */

@@ -23,8 +23,9 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 
 No ambiente de demonstração, as compras, os pedidos de filme e as contas criadas são apagados todos os dias às 04:00 (horário de Brasília). Como os logins são públicos, o gerente não cancela sessões nem vendas ali, e nenhuma dessas contas é bloqueada por senha errada.
 
-**Comprar pelo Swagger:** reserve em `POST /api/v1/tickets` e pague em `POST /api/v1/tickets/{id}/payment` com
-`{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado). Acompanhe a aprovação em `GET /api/v1/tickets/{id}`.
+**Comprar pelo Swagger:** reserve os lugares em `POST /api/v1/orders` (`{"sessionId": 1, "itens": [{"seatId": 1, "ticketType": "INTEIRA"}]}`)
+e pague o pedido em `POST /api/v1/orders/{id}/payment` com `{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado).
+Acompanhe a aprovação em `GET /api/v1/orders/{id}`. O ingresso avulso (`POST /api/v1/tickets` e `/tickets/{id}/payment`) continua disponível.
 
 > ⏳ Hospedado no plano gratuito do Render: depois de 15 minutos sem acesso o serviço dorme, e a primeira requisição pode levar cerca de 1 minuto para acordá-lo.
 
@@ -212,6 +213,7 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Pedidos e programação | | `MANAGER`: `POST`, `GET /manager/movie-requests`, `GET /manager/programacao`, `POST /manager/programacao/{movieId}/confirm` | Programação e confirmação com `?cinemaId=`; `GET /admin/movie-requests?status=, `POST /{id}/approve`, `POST /{id}/reject`, `GET /admin/movies`, `POST /admin/movies/{id}/offer` |
 | Sessões | `GET` (filtros: filme, cinema, cidade, dia, formato, áudio), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
+| Pedidos | | `POST /orders` (vários lugares, todos ou nenhum), `GET /orders/{id}`, `POST /orders/{id}/payment` (uma cobrança) | |
 | Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `GET /{id}/qr`, `PUT /{id}/cancel` | `POST /validate` (também `STAFF`) |
 | Pagamentos | `POST /payments/webhook` (somente Stripe, com assinatura) | | |
 | Equipe | | `GET`, `POST /manager/staff` (só `MANAGER`, no próprio cinema) | `GET /admin/team?cinemaId=`, `POST /admin/team` |

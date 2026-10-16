@@ -1,6 +1,5 @@
 package com.app.cineticket.payment;
 
-import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.exception.InvalidPaymentMethodException;
 import com.app.cineticket.exception.PaymentGatewayException;
 import com.stripe.StripeClient;
@@ -15,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
-import java.math.RoundingMode;
 
 /**
  * Cobrança real no Stripe, <b>somente em modo de teste</b> (chaves {@code sk_test_...}).
@@ -47,17 +45,17 @@ public class StripePaymentGateway implements PaymentGateway {
     }
 
     @Override
-    public PaymentResult charge(Ticket ticket, String paymentMethodId) {
+    public PaymentResult charge(Charge charge, String paymentMethodId) {
         if (client == null) {
             throw new PaymentGatewayException("Stripe não configurado.", null);
         }
         PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-                .setAmount(toMinorUnits(ticket))
+                .setAmount(Charge.toMinorUnits(charge.amount()))
                 .setCurrency(currency)
                 .setPaymentMethod(paymentMethodId)
                 .setConfirm(true)
-                .setDescription("CineTicket - ingresso " + ticket.getId())
-                .putMetadata("ticketId", String.valueOf(ticket.getId()))
+                .setDescription("CineTicket - " + charge.reference())
+                .putMetadata(charge.metadataKey(), String.valueOf(charge.id()))
                 // Sem redirecionamento: métodos que exigem sair do checkout ficam de fora.
                 .setAutomaticPaymentMethods(PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
                         .setEnabled(true)
@@ -66,7 +64,7 @@ public class StripePaymentGateway implements PaymentGateway {
                 .build();
         // Repetir a mesma requisição (timeout, duplo clique) não gera uma segunda cobrança.
         RequestOptions options = RequestOptions.builder()
-                .setIdempotencyKey("ticket-" + ticket.getId() + "-" + paymentMethodId)
+                .setIdempotencyKey(charge.reference() + "-" + paymentMethodId)
                 .build();
 
         try {
@@ -79,17 +77,17 @@ public class StripePaymentGateway implements PaymentGateway {
             };
         } catch (CardException e) {
             String reason = e.getDeclineCode() != null ? e.getDeclineCode() : e.getCode();
-            log.info("[STRIPE] Cartão recusado para o ingresso {}: {}", ticket.getId(), reason);
+            log.info("[STRIPE] Cartão recusado ({}): {}", charge.reference(), reason);
             return PaymentResult.declined(null, "Cartão recusado pelo emissor (" + reason + ").");
         } catch (InvalidRequestException e) {
             if ("payment_method".equals(e.getParam()) || "resource_missing".equals(e.getCode())) {
-                log.info("[STRIPE] Método de pagamento inválido para o ingresso {}: {}", ticket.getId(), e.getMessage());
+                log.info("[STRIPE] Método de pagamento inválido ({}): {}", charge.reference(), e.getMessage());
                 throw new InvalidPaymentMethodException(INVALID_PAYMENT_METHOD);
             }
-            log.error("[STRIPE] Requisição inválida ao cobrar o ingresso {}: {}", ticket.getId(), e.getMessage());
+            log.error("[STRIPE] Requisição inválida ao cobrar {}: {}", charge.reference(), e.getMessage());
             throw new PaymentGatewayException("Não foi possível falar com o gateway de pagamento. Tente novamente.", e);
         } catch (StripeException e) {
-            log.error("[STRIPE] Falha ao cobrar o ingresso {}: {}", ticket.getId(), e.getMessage());
+            log.error("[STRIPE] Falha ao cobrar {}: {}", charge.reference(), e.getMessage());
             throw new PaymentGatewayException("Não foi possível falar com o gateway de pagamento. Tente novamente.", e);
         }
     }
@@ -100,15 +98,16 @@ public class StripePaymentGateway implements PaymentGateway {
     }
 
     @Override
-    public RefundResult refund(String paymentIntentId) {
+    public RefundResult refund(String paymentIntentId, java.math.BigDecimal amount, String reference) {
         if (client == null) {
             throw new PaymentGatewayException("Stripe não configurado.", null);
         }
         com.stripe.param.RefundCreateParams params = com.stripe.param.RefundCreateParams.builder()
                 .setPaymentIntent(paymentIntentId)
+                .setAmount(Charge.toMinorUnits(amount))
                 .build();
         RequestOptions options = RequestOptions.builder()
-                .setIdempotencyKey("refund-" + paymentIntentId)
+                .setIdempotencyKey("refund-" + reference)
                 .build();
         try {
             com.stripe.model.Refund refund = client.v1().refunds().create(params, options);
@@ -125,8 +124,4 @@ public class StripePaymentGateway implements PaymentGateway {
         }
     }
 
-    /** O Stripe trabalha na menor unidade da moeda (centavos). */
-    private static long toMinorUnits(Ticket ticket) {
-        return ticket.getValorPago().setScale(2, RoundingMode.HALF_UP).movePointRight(2).longValueExact();
-    }
 }

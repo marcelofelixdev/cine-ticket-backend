@@ -71,7 +71,7 @@ class PaymentServiceTest {
 
         assertEquals("pi_mock_1", ticket.getPaymentIntentId());
         assertEquals(TicketStatus.PENDING, ticket.getStatus());
-        verify(outboxService).paymentConfirmed(new PaymentEventDTO(30L, "pi_mock_1", new BigDecimal("40.00")));
+        verify(outboxService).paymentConfirmed(PaymentEventDTO.ofTicket(30L, "pi_mock_1", new BigDecimal("40.00")));
     }
 
     @Test

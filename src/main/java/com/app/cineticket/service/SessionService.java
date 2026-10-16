@@ -49,6 +49,7 @@ public class SessionService {
     private final CinemaMovieRepository cinemaMovieRepository;
     private final CounterRefundService counterRefundService;
     private final SessionOccupancyService occupancyService;
+    private final OrderService orderService;
 
 
     /** Intervalo de limpeza entre o fim de um filme e a próxima sessão na mesma sala. */
@@ -84,7 +85,7 @@ public class SessionService {
 
         return new SeatMapResponseDTO(session.getId(), session.getHorarioInicio(), session.getRoom().getNome(),
                 seatStatuses.size(), freeSeats, session.getRoom().getCadeirasPorFila(),
-                List.copyOf(session.getRoom().getCorredores()), meiasRestantes, seatStatuses);
+                List.copyOf(session.getRoom().getCorredores()), meiasRestantes, orderService.maxSeatsPerOrder(), seatStatuses);
     }
 
     @Transactional

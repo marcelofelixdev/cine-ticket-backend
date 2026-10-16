@@ -46,11 +46,25 @@ public class TicketService {
     @Value("${tickets.pending.ttl:10m}")
     private Duration pendingTtl = Duration.ofMinutes(10);
 
-    private static final int SENIOR_AGE = 60;
-
     /** Máximo de ingressos aguardando pagamento por usuário (evita travar a sala inteira). */
     @Value("${tickets.pending.max-per-user:4}")
     private int maxPendingPerUser = 4;
+
+    /** Compra online só em sessão ativa que ainda não começou (avulso e pedido). */
+    public static void requireOnlineSaleOpen(com.app.cineticket.domain.entity.Session session) {
+        if (!Boolean.TRUE.equals(session.getAtivo())) {
+            throw new BusinessException("Esta sessão não está ativa");
+        }
+        if (!session.getHorarioInicio().isAfter(LocalDateTime.now())) {
+            throw new BusinessException("Não é possível comprar ingresso para uma sessão iniciada ou encerrada");
+        }
+    }
+
+    public static void requirePaymentsEnabled(boolean paymentsEnabled) {
+        if (!paymentsEnabled) {
+            throw new BusinessException("Compra de ingressos indisponível até a configuração de um gateway de pagamento seguro");
+        }
+    }
 
     @Transactional(readOnly = true)
     public byte[] downloadPdf(Long ticketId, User loggedUser) {
@@ -76,13 +90,7 @@ public class TicketService {
         var session = sessionRepository.findById(request.sessionId())
                 .orElseThrow(() -> new ResourceNotFoundException("Sessão não encontrada."));
 
-        if (!Boolean.TRUE.equals(session.getAtivo())) {
-            throw new BusinessException("Esta sessão não está ativa");
-        }
-
-        if (!session.getHorarioInicio().isAfter(LocalDateTime.now())) {
-            throw new BusinessException("Não é possível comprar ingresso para uma sessão iniciada ou encerrada");
-        }
+        requireOnlineSaleOpen(session);
 
         if (!seat.getRoom().getId().equals(session.getRoom().getId())) {
             throw new BusinessException("A cadeira solicitada não pertence à sala desta sessão.");
@@ -93,9 +101,7 @@ public class TicketService {
             throw new ConflictException("Esta cadeira já está ocupada para esta sessão.");
         }
 
-        if (!paymentsEnabled) {
-            throw new BusinessException("Compra de ingressos indisponível até a configuração de um gateway de pagamento seguro");
-        }
+        requirePaymentsEnabled(paymentsEnabled);
 
         long pendingTickets = ticketRepository.countByUserIdAndStatus(loggedUser.getId(), TicketStatus.PENDING);
         if (pendingTickets >= maxPendingPerUser) {
@@ -138,16 +144,7 @@ public class TicketService {
 
         String documento = null;
         if (request.ticketType() == TicketType.MEIA_IDOSO) {
-            if (buyer.getDataNascimento() == null) {
-                throw new BusinessException("Para meia-entrada de idoso, informe sua data de nascimento no perfil "
-                        + "(PATCH /api/v1/users/me).");
-            }
-            int age = java.time.Period.between(buyer.getDataNascimento(),
-                    session.getHorarioInicio().toLocalDate()).getYears();
-            if (age < SENIOR_AGE) {
-                throw new BusinessException("Meia-entrada de idoso é para quem tem " + SENIOR_AGE
-                        + " anos ou mais na data da sessão.");
-            }
+            HalfPricePolicy.requireSenior(buyer, session);
         } else {
             documento = HalfPricePolicy.studentDocument(request.documentoMeia());
         }

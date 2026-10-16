@@ -48,6 +48,11 @@ public class Ticket extends AuditableEntity {
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
+    /** Pedido da compra online que reservou este ingresso junto com outros (null no avulso e no balcão). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private TicketOrder ticketOrder;
+
     /** PaymentIntent do Stripe (ou do simulador) que pagou este ingresso. */
     @Column(name = "payment_intent_id")
     private String paymentIntentId;
