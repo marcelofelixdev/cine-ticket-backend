@@ -36,7 +36,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -109,10 +108,7 @@ public class OrderService {
 
         User owner = userRepository.findById(buyer.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado."));
-        List<String> documentos = new ArrayList<>();
-        for (BoxOfficeSaleRequestDTO.Item item : itens) {
-            documentos.add(validateItem(item, session, owner));
-        }
+        List<String> documentos = itens.stream().map(item -> validateItem(item, session, owner)).toList();
         halfPricePolicy.requireQuota(session,
                 itens.stream().filter(item -> HalfPricePolicy.isHalfPrice(item.ticketType())).count());
         Map<Long, Seat> seats = seatAllocator.lockFreeSeats(session,

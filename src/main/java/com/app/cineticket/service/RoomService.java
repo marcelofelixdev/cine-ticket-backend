@@ -13,11 +13,9 @@ import com.app.cineticket.repository.CinemaRepository;
 import com.app.cineticket.repository.RoomRepository;
 import com.app.cineticket.repository.SeatRepository;
 import com.app.cineticket.repository.SessionRepository;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.ArrayList;
 import java.util.List;

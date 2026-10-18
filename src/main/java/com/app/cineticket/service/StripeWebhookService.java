@@ -37,6 +37,11 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class StripeWebhookService {
 
+    /** Campos dos metadados que o gateway grava no PaymentIntent (ver Charge). */
+    private static final String METADATA = "metadata";
+    private static final String TICKET_ID = "ticketId";
+    private static final String ORDER_ID = "orderId";
+
     private final ProcessedWebhookEventRepository processedEvents;
     private final OutboxService outboxService;
     private final ObjectMapper objectMapper;
@@ -71,16 +76,16 @@ public class StripeWebhookService {
         switch (type) {
             case "payment_intent.succeeded" -> onSucceeded(eventId, intent);
             case "payment_intent.payment_failed" -> log.info("[WEBHOOK] Pagamento recusado: {} (ingresso {}, pedido {}).",
-                    intent.path("id").asText(), intent.path("metadata").path("ticketId").asText("-"),
-                    intent.path("metadata").path("orderId").asText("-"));
+                    intent.path("id").asText(), intent.path(METADATA).path(TICKET_ID).asText("-"),
+                    intent.path(METADATA).path(ORDER_ID).asText("-"));
             default -> log.debug("[WEBHOOK] Evento {} ignorado.", type);
         }
     }
 
     private void onSucceeded(String eventId, JsonNode intent) {
         String paymentIntentId = intent.path("id").asText(null);
-        String ticketId = intent.path("metadata").path("ticketId").asText(null);
-        String orderId = intent.path("metadata").path("orderId").asText(null);
+        String ticketId = intent.path(METADATA).path(TICKET_ID).asText(null);
+        String orderId = intent.path(METADATA).path(ORDER_ID).asText(null);
         boolean isOrder = orderId != null && orderId.matches("\\d+");
         boolean isTicket = ticketId != null && ticketId.matches("\\d+");
         if (paymentIntentId == null || (!isOrder && !isTicket)) {

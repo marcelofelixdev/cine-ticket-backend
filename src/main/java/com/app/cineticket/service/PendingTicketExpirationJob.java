@@ -1,5 +1,6 @@
 package com.app.cineticket.service;
 
+import com.app.cineticket.config.AppTimeZone;
 import com.app.cineticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,7 +30,7 @@ public class PendingTicketExpirationJob {
             initialDelayString = "${tickets.pending.expiration-check-interval-ms:60000}")
     @Transactional
     public void expirePendingTickets() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(AppTimeZone.ZONE);
         int expired = ticketRepository.expirePendingTickets(now);
         int orders = orderService.expirePendingOrders(now);
         if (expired > 0 || orders > 0) {

@@ -71,7 +71,8 @@ public class ProgramacaoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Este filme não foi enviado para este cinema."));
         if (entry.getStatus() != ProgramacaoStatus.ATIVO) {
             activate(entry, manager);
-            log.info("[PROGRAMACAO] Filme {} confirmado no cinema {} por {}.", movieId, cinemaId, manager.getEmail());
+            log.info("[PROGRAMACAO] Filme {} confirmado no cinema {} por {}.", movieId, cinemaId,
+                    manager == null ? "-" : manager.getEmail());
         }
         return toItem(entry);
     }
