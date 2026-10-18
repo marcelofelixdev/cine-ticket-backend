@@ -57,6 +57,7 @@ public class DemoDataService {
     private final RoomService roomService;
     private final SessionRepository sessionRepository;
     private final TicketRepository ticketRepository;
+    private final com.app.cineticket.repository.TicketOrderRepository ticketOrderRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -72,6 +73,7 @@ public class DemoDataService {
                            com.app.cineticket.repository.MovieRequestRepository movieRequestRepository,
                            RoomRepository roomRepository, RoomService roomService,
                            SessionRepository sessionRepository, TicketRepository ticketRepository,
+                           com.app.cineticket.repository.TicketOrderRepository ticketOrderRepository,
                            RefreshTokenRepository refreshTokenRepository, UserRepository userRepository,
                            RoleRepository roleRepository, PasswordEncoder passwordEncoder, TmdbClient tmdbClient,
                            @Value("${app.demo.visitor.email}") String visitorEmail,
@@ -86,6 +88,7 @@ public class DemoDataService {
         this.roomService = roomService;
         this.sessionRepository = sessionRepository;
         this.ticketRepository = ticketRepository;
+        this.ticketOrderRepository = ticketOrderRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -128,6 +131,7 @@ public class DemoDataService {
     @Transactional
     public void reset() {
         ticketRepository.deleteAllInBatch();
+        ticketOrderRepository.deleteAllInBatch();
         sessionRepository.deleteAllInBatch();
         movieRequestRepository.deleteAllInBatch();
 

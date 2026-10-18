@@ -51,6 +51,26 @@ public class HalfPricePolicy {
         return documento;
     }
 
+    /** Idade mínima da meia 60+, na data da sessão. */
+    public static final int SENIOR_AGE = 60;
+
+    /**
+     * Meia 60+ na compra online: pela data de nascimento do perfil, com 60 anos ou mais na
+     * data da sessão. No caixa o documento é conferido na hora.
+     */
+    public static void requireSenior(com.app.cineticket.domain.entity.User buyer, Session session) {
+        if (buyer.getDataNascimento() == null) {
+            throw new BusinessException("Para meia-entrada de idoso, informe sua data de nascimento no perfil "
+                    + "(PATCH /api/v1/users/me).");
+        }
+        int age = java.time.Period.between(buyer.getDataNascimento(),
+                session.getHorarioInicio().toLocalDate()).getYears();
+        if (age < SENIOR_AGE) {
+            throw new BusinessException("Meia-entrada de idoso é para quem tem " + SENIOR_AGE
+                    + " anos ou mais na data da sessão.");
+        }
+    }
+
     public static int capacityOf(Session session) {
         return session.getRoom().getCapacidade() == null ? 0 : session.getRoom().getCapacidade();
     }

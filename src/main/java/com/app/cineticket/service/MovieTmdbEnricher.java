@@ -23,8 +23,10 @@ public final class MovieTmdbEnricher {
 
     public static final String POSTER_BASE = "https://image.tmdb.org/t/p/w500";
     public static final String BACKDROP_BASE = "https://image.tmdb.org/t/p/w1280";
+    /** Foto de rosto do elenco: w185 basta para o círculo da ficha. */
+    public static final String PROFILE_BASE = "https://image.tmdb.org/t/p/w185";
 
-    static final int MAX_CAST = 5;
+    static final int MAX_CAST = 10;
     private static final int MAX_COMPANIES = 3;
     private static final Set<String> BR_RATINGS = Set.of("L", "10", "12", "14", "16", "18");
     private static final int THEATRICAL_RELEASE = 3;
@@ -93,7 +95,8 @@ public final class MovieTmdbEnricher {
                 .sorted(Comparator.comparing(member -> member.order() == null ? Integer.MAX_VALUE : member.order()))
                 .limit(MAX_CAST)
                 .map(member -> new MovieCastMember(truncate(member.name(), 150),
-                        hasText(member.character()) ? truncate(member.character(), 150) : null))
+                        hasText(member.character()) ? truncate(member.character(), 150) : null,
+                        hasText(member.profile_path()) ? PROFILE_BASE + member.profile_path() : null))
                 .toList();
     }
 

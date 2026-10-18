@@ -20,4 +20,12 @@ public class MovieCastMember {
 
     @Column(length = 150)
     private String personagem;
+
+    /** Foto do TMDB (w185), ou null. */
+    @Column(name = "foto_url", length = 255)
+    private String fotoUrl;
+
+    public MovieCastMember(String nome, String personagem) {
+        this(nome, personagem, null);
+    }
 }

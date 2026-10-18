@@ -64,23 +64,23 @@ public class ProgramacaoService {
         return cinemasOf(movieId);
     }
 
-    /** O gerente confirma um filme enviado pelo admin; confirmar de novo não muda nada. */
+    /** O gerente (ou o admin, no cinema escolhido) confirma um filme enviado; confirmar de novo não muda nada. */
     @Transactional
-    public ProgramacaoItemDTO confirm(Long movieId, User manager) {
-        Long cinemaId = CinemaScope.cinemaIdOf(manager);
+    public ProgramacaoItemDTO confirm(Long movieId, Long cinemaId, User manager) {
         CinemaMovie entry = cinemaMovieRepository.findByCinemaIdAndMovieId(cinemaId, movieId)
-                .orElseThrow(() -> new ResourceNotFoundException("Este filme não foi enviado para o seu cinema."));
+                .orElseThrow(() -> new ResourceNotFoundException("Este filme não foi enviado para este cinema."));
         if (entry.getStatus() != ProgramacaoStatus.ATIVO) {
             activate(entry, manager);
-            log.info("[PROGRAMACAO] Filme {} confirmado no cinema {} por {}.", movieId, cinemaId, manager.getEmail());
+            log.info("[PROGRAMACAO] Filme {} confirmado no cinema {} por {}.", movieId, cinemaId,
+                    manager == null ? "-" : manager.getEmail());
         }
         return toItem(entry);
     }
 
-    /** Programação do cinema do gerente: ativos e aguardando confirmação. */
+    /** Programação de um cinema: ativos e aguardando confirmação. */
     @Transactional(readOnly = true)
-    public List<ProgramacaoItemDTO> listForManager(User manager) {
-        return cinemaMovieRepository.findByCinemaWithMovie(CinemaScope.cinemaIdOf(manager)).stream()
+    public List<ProgramacaoItemDTO> listForCinema(Long cinemaId) {
+        return cinemaMovieRepository.findByCinemaWithMovie(cinemaId).stream()
                 .map(ProgramacaoService::toItem)
                 .toList();
     }

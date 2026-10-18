@@ -26,6 +26,10 @@ import java.util.UUID;
  *     <li>Cada uso troca o token por um novo (rotação) e invalida o anterior.</li>
  *     <li>Se um token já trocado for usado de novo, alguém pode tê-lo copiado:
  *     a família inteira é revogada e o usuário precisa fazer login de novo.</li>
+ *     <li>Exceção: duas abas renovando quase juntas mandam o mesmo token. Até
+ *     {@code reuse-grace} depois da troca, e só se a família ainda tiver um token válido
+ *     (sem logout nem reuso detectado), o reuso é tratado como concorrência: sai mais um
+ *     token da mesma família e nada é revogado.</li>
  *     <li>Só o hash SHA-256 vai para o banco.</li>
  * </ul>
  */
@@ -38,11 +42,14 @@ public class RefreshTokenService {
 
     private final RefreshTokenRepository repository;
     private final Duration ttl;
+    private final Duration reuseGrace;
 
     public RefreshTokenService(RefreshTokenRepository repository,
-                               @Value("${app.auth.refresh-token.ttl:7d}") Duration ttl) {
+                               @Value("${app.auth.refresh-token.ttl:7d}") Duration ttl,
+                               @Value("${app.auth.refresh-token.reuse-grace:30s}") Duration reuseGrace) {
         this.repository = repository;
         this.ttl = ttl;
+        this.reuseGrace = reuseGrace;
     }
 
     /** Valor que vai para o cookie e por quanto tempo ele vale. */
@@ -74,6 +81,11 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new UnauthorizedException(INVALID_SESSION));
         LocalDateTime now = LocalDateTime.now();
 
+        if (current.getRevokedAt() != null && isConcurrentRefresh(current, now)) {
+            log.info("[AUTH] Refresh concorrente do usuário {} dentro da tolerância; novo token na mesma família.",
+                    current.getUser().getId());
+            return new Rotation(current.getUser(), issueInFamily(current.getUser(), current.getFamilyId()));
+        }
         if (current.getRevokedAt() != null) {
             int revoked = repository.revokeFamily(current.getFamilyId(), now);
             log.warn("[AUTH] Reuso de refresh token detectado para o usuário {}. {} token(s) da família revogado(s).",
@@ -87,6 +99,17 @@ public class RefreshTokenService {
         current.setRevokedAt(now);
         IssuedRefreshToken next = issueInFamily(current.getUser(), current.getFamilyId());
         return new Rotation(current.getUser(), next);
+    }
+
+    /**
+     * Token trocado há pouco (dentro da tolerância) cuja família continua ativa: é outra aba
+     * do mesmo navegador, não um token copiado. Logout ou reuso já detectado revogam a família
+     * inteira, então nesses casos não há token ativo e a tolerância não vale.
+     */
+    private boolean isConcurrentRefresh(RefreshToken token, LocalDateTime now) {
+        return !token.getRevokedAt().plus(reuseGrace).isBefore(now)
+                && token.getExpiresAt().isAfter(now)
+                && repository.existsByFamilyIdAndRevokedAtIsNullAndExpiresAtAfter(token.getFamilyId(), now);
     }
 
     /** Logout: revoga todos os tokens da família do token informado. Token ausente ou desconhecido é ignorado. */

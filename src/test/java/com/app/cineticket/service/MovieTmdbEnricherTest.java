@@ -44,7 +44,7 @@ class MovieTmdbEnricherTest {
     }
 
     @Test
-    void elencoTemOsCincoPrimeirosNaOrdemDeDestaque() {
+    void elencoTemOsDezPrimeirosNaOrdemDeDestaqueComFoto() {
         Movie movie = new Movie();
 
         MovieTmdbEnricher.apply(movie, fullDetails(), NOW);
@@ -52,7 +52,12 @@ class MovieTmdbEnricherTest {
         assertEquals(MovieTmdbEnricher.MAX_CAST, movie.getElenco().size());
         assertEquals("Timothée Chalamet", movie.getElenco().get(0).getNome());
         assertEquals("Paul Atreides", movie.getElenco().get(0).getPersonagem());
+        assertEquals("https://image.tmdb.org/t/p/w185/chalamet.jpg", movie.getElenco().get(0).getFotoUrl());
         assertEquals("Zendaya", movie.getElenco().get(1).getNome());
+        // Sem profile_path no TMDB, sem foto.
+        assertNull(movie.getElenco().get(2).getFotoUrl());
+        // O 11º e o 12º ficam de fora.
+        assertEquals("Ator 10", movie.getElenco().get(9).getNome());
     }
 
     @Test
@@ -88,13 +93,16 @@ class MovieTmdbEnricherTest {
     }
 
     private static TmdbMovieDetailsDTO fullDetails() {
-        List<CastMember> cast = List.of(
-                new CastMember("Rebecca Ferguson", "Jessica", 2),
-                new CastMember("Timothée Chalamet", "Paul Atreides", 0),
-                new CastMember("Zendaya", "Chani", 1),
-                new CastMember("Javier Bardem", "Stilgar", 3),
-                new CastMember("Josh Brolin", "Gurney Halleck", 4),
-                new CastMember("Austin Butler", "Feyd-Rautha", 5));
+        List<CastMember> cast = new java.util.ArrayList<>(List.of(
+                new CastMember("Rebecca Ferguson", "Jessica", 2, null),
+                new CastMember("Timothée Chalamet", "Paul Atreides", 0, "/chalamet.jpg"),
+                new CastMember("Zendaya", "Chani", 1, "/zendaya.jpg"),
+                new CastMember("Javier Bardem", "Stilgar", 3, null),
+                new CastMember("Josh Brolin", "Gurney Halleck", 4, null),
+                new CastMember("Austin Butler", "Feyd-Rautha", 5, null)));
+        for (int i = 6; i <= 11; i++) {
+            cast.add(new CastMember("Ator " + (i + 1), null, i, null));
+        }
         List<CrewMember> crew = List.of(
                 new CrewMember("Hans Zimmer", "Original Music Composer"),
                 new CrewMember("Denis Villeneuve", "Director"),

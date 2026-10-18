@@ -28,6 +28,7 @@ public class SessionController {
     public ResponseEntity<org.springframework.data.domain.Page<SessionResponseDTO>> findAll(
             @RequestParam(required = false) Long movieId,
             @RequestParam(required = false) Long cinemaId,
+            @RequestParam(required = false) @jakarta.validation.constraints.Size(max = 100) String cidade,
             @RequestParam(required = false)
             @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
             java.time.LocalDate date,
@@ -35,7 +36,7 @@ public class SessionController {
             @RequestParam(required = false) @jakarta.validation.constraints.Pattern(regexp = "2D|3D") String formato,
             @RequestParam(required = false) com.app.cineticket.domain.enums.SessionAudio audio,
             @org.springdoc.core.annotations.ParameterObject @org.springframework.data.web.PageableDefault(size = 10, page = 0, sort = "horarioInicio") org.springframework.data.domain.Pageable pageable) {
-        SessionFilter filter = new SessionFilter(movieId, cinemaId, date, includePast, formato, audio);
+        SessionFilter filter = new SessionFilter(movieId, cinemaId, cidade, date, includePast, formato, audio);
         return ResponseEntity.ok(sessionService.findAll(filter, pageable));
     }
 

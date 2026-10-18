@@ -10,6 +10,9 @@ public interface RefundRepository extends JpaRepository<Refund, Long> {
 
     Optional<Refund> findByPaymentIntentId(String paymentIntentId);
 
+    /** Estorno de um ingresso num pagamento (num pedido, vários ingressos dividem o mesmo pagamento). */
+    Optional<Refund> findByTicketIdAndPaymentIntentId(Long ticketId, String paymentIntentId);
+
     boolean existsByTicketIdAndPaymentIntentIdIsNull(Long ticketId);
 
     List<Refund> findByTicketId(Long ticketId);

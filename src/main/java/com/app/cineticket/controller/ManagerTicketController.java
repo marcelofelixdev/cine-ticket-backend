@@ -40,10 +40,11 @@ public class ManagerTicketController {
     private final TicketAdminService ticketAdminService;
     private final DemoRestrictions demoRestrictions;
 
-    @Operation(summary = "Ingressos do próprio cinema com filtros (MANAGER)")
+    @Operation(summary = "Ingressos do cinema com filtros (MANAGER ou ADMIN)", description = CinemaScope.CINEMA_ID_DOC)
     @GetMapping("/tickets")
     public ResponseEntity<Page<TicketAdminDTO>> list(
             @AuthenticationPrincipal User loggedUser,
+            @RequestParam(required = false) Long cinemaId,
             @RequestParam(required = false) Long sessionId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) TicketStatus status,
@@ -51,24 +52,29 @@ public class ManagerTicketController {
             @RequestParam(required = false) String email,
             @ParameterObject @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable) {
         TicketAdminFilter filter = new TicketAdminFilter(null, sessionId, date, status, canal, email);
-        return ResponseEntity.ok(ticketAdminService.list(filter, CinemaScope.cinemaIdOf(loggedUser), pageable));
+        return ResponseEntity.ok(ticketAdminService.list(filter, CinemaScope.actingCinemaId(loggedUser, cinemaId), pageable));
     }
 
-    @Operation(summary = "Resumo de uma sessão do próprio cinema: ocupação, meias e receita (MANAGER)")
+    @Operation(summary = "Resumo de uma sessão do cinema: ocupação, meias e receita (MANAGER ou ADMIN)",
+            description = CinemaScope.CINEMA_ID_DOC)
     @GetMapping("/sessions/{id}/summary")
-    public ResponseEntity<SessionSummaryDTO> summary(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
-        return ResponseEntity.ok(ticketAdminService.summary(id, CinemaScope.cinemaIdOf(loggedUser)));
+    public ResponseEntity<SessionSummaryDTO> summary(@AuthenticationPrincipal User loggedUser, @PathVariable Long id,
+                                                     @RequestParam(required = false) Long cinemaId) {
+        return ResponseEntity.ok(ticketAdminService.summary(id, CinemaScope.actingCinemaId(loggedUser, cinemaId)));
     }
 
-    @Operation(summary = "Cancela uma venda de balcão e registra a devolução no caixa (MANAGER)",
-            description = "Só ingressos de balcão do próprio cinema, aprovados, não usados e antes do início da sessão.")
+    @Operation(summary = "Cancela uma venda de balcão e registra a devolução no caixa (MANAGER ou ADMIN)",
+            description = "Só ingressos de balcão do cinema, aprovados, não usados e antes do início da sessão. "
+                    + CinemaScope.CINEMA_ID_DOC)
     @ApiResponse(responseCode = "200", description = "Cancelado; reembolso REFUNDED")
     @ApiResponse(responseCode = "403", description = "Ingresso de outro cinema ou demonstração pública", content = @Content)
     @ApiResponse(responseCode = "409", description = "Já cancelado ou já usado na entrada", content = @Content)
     @ApiResponse(responseCode = "422", description = "Ingresso online ou sessão já começou", content = @Content)
     @PostMapping("/tickets/{id}/cancel")
-    public ResponseEntity<TicketResponseDTO> cancel(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
+    public ResponseEntity<TicketResponseDTO> cancel(@AuthenticationPrincipal User loggedUser, @PathVariable Long id,
+                                                    @RequestParam(required = false) Long cinemaId) {
         demoRestrictions.requireNotDemo("Cancelar vendas");
-        return ResponseEntity.ok(ticketAdminService.cancelCounterSale(id, loggedUser));
+        return ResponseEntity.ok(ticketAdminService.cancelCounterSale(id, CinemaScope.actingCinemaId(loggedUser, cinemaId),
+                loggedUser));
     }
 }

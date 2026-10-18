@@ -1,6 +1,5 @@
 package com.app.cineticket.payment;
 
-import com.app.cineticket.domain.entity.Ticket;
 import com.app.cineticket.exception.InvalidPaymentMethodException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
@@ -19,7 +18,7 @@ import java.util.UUID;
 public class MockPaymentGateway implements PaymentGateway {
 
     @Override
-    public PaymentResult charge(Ticket ticket, String paymentMethodId) {
+    public PaymentResult charge(Charge charge, String paymentMethodId) {
         if (!paymentMethodId.startsWith("pm_card_")) {
             throw new InvalidPaymentMethodException(StripePaymentGateway.INVALID_PAYMENT_METHOD);
         }
@@ -39,7 +38,7 @@ public class MockPaymentGateway implements PaymentGateway {
     }
 
     @Override
-    public RefundResult refund(String paymentIntentId) {
+    public RefundResult refund(String paymentIntentId, java.math.BigDecimal amount, String reference) {
         return new RefundResult("re_mock_" + UUID.randomUUID());
     }
 }

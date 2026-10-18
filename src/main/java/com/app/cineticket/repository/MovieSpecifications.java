@@ -80,7 +80,8 @@ public final class MovieSpecifications {
         return (root, query, cb) -> cb.equal(root.get("classificacao"), classificacao);
     }
 
-    private static Predicate sameCity(CriteriaBuilder cb, Path<?> cinema, String cidade) {
+    /** Cinema na cidade informada (sem diferenciar maiúsculas). Usado também pelas sessões. */
+    static Predicate sameCity(CriteriaBuilder cb, Path<?> cinema, String cidade) {
         return cb.equal(cb.lower(cinema.get("cidade")), cidade.trim().toLowerCase(Locale.ROOT));
     }
 

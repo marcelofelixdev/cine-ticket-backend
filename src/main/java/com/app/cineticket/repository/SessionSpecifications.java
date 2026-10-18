@@ -23,6 +23,11 @@ public final class SessionSpecifications {
         return (root, query, cb) -> cb.equal(root.get("room").get("cinema").get("id"), cinemaId);
     }
 
+    /** Sessões dos cinemas desta cidade. */
+    public static Specification<Session> cidade(String cidade) {
+        return (root, query, cb) -> MovieSpecifications.sameCity(cb, root.get("room").get("cinema"), cidade);
+    }
+
     /** Sessões que começam a partir deste instante (inclusive). */
     public static Specification<Session> startsFrom(LocalDateTime from) {
         return (root, query, cb) -> cb.greaterThanOrEqualTo(root.get("horarioInicio"), from);

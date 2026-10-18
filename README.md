@@ -23,8 +23,9 @@ compra de ingressos com pagamento assíncrono e ingresso em PDF com QR Code.
 
 No ambiente de demonstração, as compras, os pedidos de filme e as contas criadas são apagados todos os dias às 04:00 (horário de Brasília). Como os logins são públicos, o gerente não cancela sessões nem vendas ali, e nenhuma dessas contas é bloqueada por senha errada.
 
-**Comprar pelo Swagger:** reserve em `POST /api/v1/tickets` e pague em `POST /api/v1/tickets/{id}/payment` com
-`{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado). Acompanhe a aprovação em `GET /api/v1/tickets/{id}`.
+**Comprar pelo Swagger:** reserve os lugares em `POST /api/v1/orders` (`{"sessionId": 1, "itens": [{"seatId": 1, "ticketType": "INTEIRA"}]}`)
+e pague o pedido em `POST /api/v1/orders/{id}/payment` com `{"paymentMethodId": "pm_card_visa"}` (aprovado) ou `"pm_card_chargeDeclined"` (recusado).
+Acompanhe a aprovação em `GET /api/v1/orders/{id}`. O ingresso avulso (`POST /api/v1/tickets` e `/tickets/{id}/payment`) continua disponível.
 
 > ⏳ Hospedado no plano gratuito do Render: depois de 15 minutos sem acesso o serviço dorme, e a primeira requisição pode levar cerca de 1 minuto para acordá-lo.
 
@@ -32,7 +33,7 @@ No ambiente de demonstração, as compras, os pedidos de filme e as contas criad
 
 ## ✨ Funcionalidades
 
-- **Catálogo público:** filmes com ficha completa do [TMDB](https://www.themoviedb.org/) (direção, elenco, produtora, gêneros, classificação indicativa brasileira, trailer, estreia), cinemas e sessões com filtros por filme, cinema e data.
+- **Catálogo público:** filmes com ficha completa do [TMDB](https://www.themoviedb.org/) (direção, elenco principal com foto, produtora, gêneros, classificação indicativa brasileira, trailer, estreia), cinemas e sessões com filtros por filme, cinema e data.
 - **Cadastro de filmes pelo nome:** o painel pesquisa no TMDB, a pessoa escolhe o filme certo e o resto da ficha é preenchido sozinho.
 - **Cinema de shopping:** cidade dos cinemas, sessões 2D/3D e dubladas, legendadas ou nacionais, "Em breve" pela data de estreia, lugares livres e meias restantes por sessão; o gerente monta as sessões do próprio cinema.
 - **Venda no caixa:** o funcionário vende até 10 lugares por vez, pagos na hora (dinheiro, cartão ou Pix); os ingressos saem aprovados, com QR para imprimir, e podem ir para a conta do cliente pelo e-mail.
@@ -106,10 +107,10 @@ sequenceDiagram
 | **Ingresso falsificado ou usado duas vezes** | QR com `CT1.<id>.<HMAC-SHA256>` (segredo só no servidor, sem dado pessoal); validação com lock pessimista que grava `used_at` uma única vez, dentro da janela da sessão | Trocar o ID invalida a assinatura; dois funcionários lendo o mesmo QR ao mesmo tempo não liberam duas entradas; ingresso usado não pode mais ser cancelado. |
 | **Meia-entrada sem controle** | Idoso: 60+ na data da sessão pela data de nascimento do perfil; estudante: número da carteira gravado no ingresso e exibido ao funcionário na entrada; **cota de 40% dos lugares por sessão** (Lei 12.933/2013) contada com lock na sessão | A regra legal é aplicada no servidor; compras simultâneas de meia não estouram a cota. |
 | **Funcionário da porta com poder demais** | Papel `ROLE_STAFF` que só pode `POST /tickets/validate`, e só para sessões do próprio cinema | Menor privilégio: quem confere ingresso não cria sessão nem cancela sala, e não libera entrada em outro cinema. |
-| **Gerente mexendo em outro cinema** | Papel `ROLE_MANAGER` vinculado a um cinema; o cinema do cadastro vem do gerente logado, não do pedido | O gerente cadastra funcionários só no próprio cinema e não cria gerentes nem admins. |
+| **Gerente mexendo em outro cinema** | Papel `ROLE_MANAGER` vinculado a um cinema; o cinema do cadastro vem do gerente logado, não do pedido (um `cinemaId` de outro cinema dá 403) | O gerente cadastra funcionários só no próprio cinema e não cria gerentes nem admins. O admin usa as mesmas rotas de operação do cinema informando `cinemaId`. |
 | **Caixa descobrindo quem tem conta** | A venda no balcão aceita o e-mail do cliente, mas a resposta e o PDF não dizem se ele tem conta (o PDF de balcão não traz o nome do titular) | O funcionário não consegue testar e-mails para listar clientes cadastrados; quem tem conta vê o ingresso em "Meus ingressos". |
 | **Assentos travados por quem não paga** | `expires_at` + job que marca `EXPIRED` e limite de 4 reservas pendentes por usuário | O índice parcial ignora `EXPIRED`, então o assento volta a ficar livre sozinho. |
-| **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Só o hash SHA-256 fica no banco. |
+| **Sessão longa sem token longo** | Access token JWT de 15 min em memória + refresh token opaco de 7 dias em cookie `HttpOnly`, **rotativo com detecção de reuso** | Reduz o estrago de um vazamento; reusar um refresh já trocado revoga a sessão inteira. Duas abas renovando juntas têm 30 s de tolerância (só com a sessão ainda ativa). Só o hash SHA-256 fica no banco. |
 | **CSRF com cookie entre domínios** | Validação do header `Origin` nas rotas de refresh e logout | O resto da API usa `Authorization: Bearer`, que o navegador não envia sozinho. |
 | **Força bruta** | Rate limit por IP (Bucket4j) + bloqueio de 15 min por conta após 5 senhas erradas | Mensagem de erro genérica, que não revela se a conta existe. |
 | **Erros inconsistentes** | `ProblemDetail` (RFC 9457) com `correlationId` | Mesmo formato para validação, regra de negócio, segurança e erros do framework. |
@@ -207,11 +208,12 @@ O contrato completo e interativo está no **Swagger** (`/swagger-ui.html`, botã
 | Filmes e cinemas | `GET` (lista e detalhe; `GET /movies` só traz filmes em cartaz, com filtros `cinemaId`, `cidade`, `formato`, `audio` e `classificacao`), `GET /movies/em-breve?cidade=`, `GET /cinemas?cidade=`, `GET /cinemas/cidades` | | `POST` (filme por `tmdbId`), `PUT` (correção parcial), `DELETE`, `POST /movies/{id}/tmdb-sync` |
 | Busca no TMDB | | `GET /tmdb/search?q=` (só `MANAGER`) | `GET /tmdb/search?q=` |
 | Caixa (balcão) | | `STAFF` ou `MANAGER`: `GET /box-office/sessions?date=`, `POST /box-office/sales`, `GET /box-office/tickets/{id}/pdf`, `GET /box-office/refunds/pending`, `POST /box-office/refunds/{ticketId}/confirm` | |
-| Ingressos (painel) | | `MANAGER`: `GET /manager/tickets` (filtros), `GET /manager/sessions/{id}/summary`, `POST /manager/tickets/{id}/cancel` (venda de balcão) | `GET /admin/tickets`, `GET /admin/sessions/{id}/summary` |
-| Sessões do cinema | | `MANAGER`: `GET /manager/sessions?date=` (com ocupação), `POST`, `DELETE /manager/sessions/{id}`, `GET /manager/rooms` | |
-| Pedidos e programação | | `MANAGER`: `POST`, `GET /manager/movie-requests`, `GET /manager/programacao`, `POST /manager/programacao/{movieId}/confirm` | `GET /admin/movie-requests?status=`, `POST /{id}/approve`, `POST /{id}/reject`, `GET /admin/movies`, `POST /admin/movies/{id}/offer` |
-| Sessões | `GET` (filtros), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
+| Ingressos (painel) | | `MANAGER`: `GET /manager/tickets` (filtros), `GET /manager/sessions/{id}/summary`, `POST /manager/tickets/{id}/cancel` (venda de balcão) | `GET /admin/tickets`, `GET /admin/sessions/{id}/summary`; as rotas do gerente com `?cinemaId=` |
+| Sessões do cinema | | `MANAGER`: `GET /manager/sessions?date=` (com ocupação), `POST`, `DELETE /manager/sessions/{id}`, `GET /manager/rooms` | As mesmas rotas com `?cinemaId=` (obrigatório para o admin) |
+| Pedidos e programação | | `MANAGER`: `POST`, `GET /manager/movie-requests`, `GET /manager/programacao`, `POST /manager/programacao/{movieId}/confirm` | Programação e confirmação com `?cinemaId=`; `GET /admin/movie-requests?status=, `POST /{id}/approve`, `POST /{id}/reject`, `GET /admin/movies`, `POST /admin/movies/{id}/offer` |
+| Sessões | `GET` (filtros: filme, cinema, cidade, dia, formato, áudio), `GET /{id}`, `GET /{id}/seats` | | `POST`, `DELETE` (cancelamento emergencial) |
 | Salas | | `GET` | `POST`, `PUT`, `DELETE` |
+| Pedidos | | `POST /orders` (vários lugares, todos ou nenhum), `GET /orders/{id}`, `POST /orders/{id}/payment` (uma cobrança) | |
 | Ingressos | | `POST`, `POST /{id}/payment`, `GET /my-tickets`, `GET /{id}`, `GET /{id}/pdf`, `GET /{id}/qr`, `PUT /{id}/cancel` | `POST /validate` (também `STAFF`) |
 | Pagamentos | `POST /payments/webhook` (somente Stripe, com assinatura) | | |
 | Equipe | | `GET`, `POST /manager/staff` (só `MANAGER`, no próprio cinema) | `GET /admin/team?cinemaId=`, `POST /admin/team` |

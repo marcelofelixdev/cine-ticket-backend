@@ -4,6 +4,7 @@ import com.app.cineticket.domain.entity.User;
 import com.app.cineticket.dto.request.MovieRequestCreateDTO;
 import com.app.cineticket.dto.response.MovieRequestResponseDTO;
 import com.app.cineticket.dto.response.ProgramacaoItemDTO;
+import com.app.cineticket.service.CinemaScope;
 import com.app.cineticket.service.MovieRequestService;
 import com.app.cineticket.service.ProgramacaoService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -49,18 +51,21 @@ public class ManagerCatalogController {
         return ResponseEntity.ok(movieRequestService.listForManager(loggedUser));
     }
 
-    @Operation(summary = "Programação do próprio cinema (MANAGER)",
-            description = "Filmes ativos e os enviados pelo admin que aguardam confirmação.")
+    @Operation(summary = "Programação do cinema (MANAGER ou ADMIN)",
+            description = "Filmes ativos e os enviados pelo admin que aguardam confirmação. " + CinemaScope.CINEMA_ID_DOC)
     @GetMapping("/programacao")
-    public ResponseEntity<List<ProgramacaoItemDTO>> programacao(@AuthenticationPrincipal User loggedUser) {
-        return ResponseEntity.ok(programacaoService.listForManager(loggedUser));
+    public ResponseEntity<List<ProgramacaoItemDTO>> programacao(@AuthenticationPrincipal User loggedUser,
+                                                                @RequestParam(required = false) Long cinemaId) {
+        return ResponseEntity.ok(programacaoService.listForCinema(CinemaScope.actingCinemaId(loggedUser, cinemaId)));
     }
 
-    @Operation(summary = "Confirma um filme enviado pelo admin (MANAGER)")
+    @Operation(summary = "Confirma um filme enviado pelo admin (MANAGER ou ADMIN)", description = CinemaScope.CINEMA_ID_DOC)
     @ApiResponse(responseCode = "200", description = "Filme ativo no cinema")
     @ApiResponse(responseCode = "404", description = "Filme não foi enviado para este cinema", content = @Content)
     @PostMapping("/programacao/{movieId}/confirm")
-    public ResponseEntity<ProgramacaoItemDTO> confirm(@AuthenticationPrincipal User loggedUser, @PathVariable Long movieId) {
-        return ResponseEntity.ok(programacaoService.confirm(movieId, loggedUser));
+    public ResponseEntity<ProgramacaoItemDTO> confirm(@AuthenticationPrincipal User loggedUser, @PathVariable Long movieId,
+                                                      @RequestParam(required = false) Long cinemaId) {
+        return ResponseEntity.ok(
+                programacaoService.confirm(movieId, CinemaScope.actingCinemaId(loggedUser, cinemaId), loggedUser));
     }
 }

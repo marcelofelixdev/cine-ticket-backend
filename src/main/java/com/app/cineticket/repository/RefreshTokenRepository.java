@@ -21,6 +21,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
+    /** A família ainda tem um token válido (não revogado e não vencido)? */
+    boolean existsByFamilyIdAndRevokedAtIsNullAndExpiresAtAfter(UUID familyId, LocalDateTime now);
+
     @Modifying
     @Query("update RefreshToken r set r.revokedAt = :now, r.updatedAt = :now " +
             "where r.familyId = :familyId and r.revokedAt is null")

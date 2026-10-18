@@ -16,6 +16,7 @@ import com.app.cineticket.exception.TmdbUnavailableException;
 import com.app.cineticket.mapper.MovieMapper;
 import com.app.cineticket.repository.MovieRepository;
 import com.app.cineticket.repository.MovieSpecifications;
+import com.app.cineticket.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -40,6 +41,7 @@ public class MovieService {
     private final MovieRepository movieRepository;
     private final TmdbClient tmdbClient;
     private final MovieMapper movieMapper;
+    private final SessionRepository sessionRepository;
 
     /**
      * Com {@code tmdbId}: busca a ficha completa no TMDB (falha do TMDB = 502).
@@ -175,6 +177,10 @@ public class MovieService {
     public void delete(Long id) {
         if (!movieRepository.existsById(id)) {
             throw new ResourceNotFoundException("Filme não encontrado. ID: " + id);
+        }
+        // Sessões (e os ingressos delas) dependem do filme: excluir apagaria o histórico de vendas.
+        if (sessionRepository.existsByMovieId(id)) {
+            throw new ConflictException("O filme tem sessões cadastradas e não pode ser excluído.");
         }
 
         movieRepository.deleteById(id);

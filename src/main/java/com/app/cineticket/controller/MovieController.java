@@ -83,6 +83,9 @@ public class MovieController {
         return ResponseEntity.ok(movieService.syncFromTmdb(id));
     }
 
+    @Operation(summary = "Exclui um filme do catálogo (ADMIN)")
+    @ApiResponse(responseCode = "204", description = "Excluído")
+    @ApiResponse(responseCode = "409", description = "Filme com sessões cadastradas", content = @Content)
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         movieService.delete(id);

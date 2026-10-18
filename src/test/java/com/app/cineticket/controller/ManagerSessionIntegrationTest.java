@@ -20,8 +20,11 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static com.app.cineticket.support.ApiRequests.authed;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -179,6 +182,14 @@ class ManagerSessionIntegrationTest extends AbstractIntegrationTest {
                         .param("audio", "DUBLADO"))
                 .andExpect(jsonPath("$.page.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].audio").value("DUBLADO"));
+
+        // Cidade: só os cinemas dela, sem diferenciar maiúsculas.
+        testData.session(emCartaz, roomB, day.atTime(14, 0));
+        mockMvc.perform(get("/api/v1/sessions").param("movieId", String.valueOf(emCartaz.getId())).param("cidade", "são paulo"))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.content[*].cinemaId", everyItem(is(cinemaA.getId().intValue()))));
+        mockMvc.perform(get("/api/v1/sessions").param("movieId", String.valueOf(emCartaz.getId())).param("cidade", "Rio de Janeiro"))
+                .andExpect(jsonPath("$.page.totalElements").value(1));
     }
 
     @Test
@@ -191,9 +202,40 @@ class ManagerSessionIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void soOGerenteAcessaAsRotasDeSessaoDoCinema() throws Exception {
+    void adminAgeNoCinemaQueInformaEOGerenteSoNoProprio() throws Exception {
+        Session sessaoB = testData.session(emCartaz, roomB, day.atTime(18, 0));
+        String cinemaB = String.valueOf(roomB.getCinema().getId());
+        String cinemaAId = String.valueOf(cinemaA.getId());
+
+        mockMvc.perform(authed(get(MANAGER_SESSIONS).param("date", day.toString()).param("cinemaId", cinemaB), adminToken, null))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(sessaoB.getId()));
+        mockMvc.perform(authed(get("/api/v1/manager/rooms").param("cinemaId", cinemaB), adminToken, null))
+                .andExpect(jsonPath("$[0].nome").value("Sala B1"));
+        mockMvc.perform(authed(post(MANAGER_SESSIONS).param("cinemaId", cinemaAId), adminToken,
+                        sessionJson(emCartaz, roomA, "14:00", null, null)))
+                .andExpect(status().isCreated());
+        // A sala tem de ser do cinema escolhido, também para o admin.
+        mockMvc.perform(authed(post(MANAGER_SESSIONS).param("cinemaId", cinemaAId), adminToken,
+                        sessionJson(emCartaz, roomB, "20:00", null, null)))
+                .andExpect(status().isForbidden());
+        // Sem cinemaId o admin não sabe onde está agindo.
+        mockMvc.perform(authed(get(MANAGER_SESSIONS), adminToken, null))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("cinemaId")));
+
+        // O gerente pode omitir ou repetir o próprio cinema; outro cinema dá 403.
+        mockMvc.perform(authed(get(MANAGER_SESSIONS).param("cinemaId", cinemaAId), managerToken, null))
+                .andExpect(status().isOk());
+        mockMvc.perform(authed(get(MANAGER_SESSIONS).param("cinemaId", cinemaB), managerToken, null))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void soGerenteEAdminAcessamAsRotasDeSessaoDoCinema() throws Exception {
         String body = sessionJson(emCartaz, roomA, "14:00", null, null);
-        for (String token : List.of(adminToken, staffToken, clientToken)) {
+        for (String token : List.of(staffToken, clientToken)) {
             mockMvc.perform(authed(get(MANAGER_SESSIONS), token, null)).andExpect(status().isForbidden());
             mockMvc.perform(authed(get("/api/v1/manager/rooms"), token, null)).andExpect(status().isForbidden());
             mockMvc.perform(authed(post(MANAGER_SESSIONS), token, body)).andExpect(status().isForbidden());

@@ -24,6 +24,7 @@ public interface TicketMapper {
     @Mapping(target = "formaPagamento", ignore = true)
     @Mapping(target = "vendidoPor", ignore = true)
     @Mapping(target = "clienteEmail", ignore = true)
+    @Mapping(target = "ticketOrder", ignore = true)
     Ticket toEntity(TicketRequestDTO requestDTO);
 
     @Mapping(source = "session.id", target = "sessionId")

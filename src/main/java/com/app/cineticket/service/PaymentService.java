@@ -80,7 +80,7 @@ public class PaymentService {
                 ticket.setPaymentIntentId(result.paymentIntentId());
                 ticketRepository.save(ticket);
                 if (!paymentGateway.confirmsViaWebhook() && result.outcome() == PaymentOutcome.SUCCEEDED) {
-                    outboxService.paymentConfirmed(new PaymentEventDTO(
+                    outboxService.paymentConfirmed(PaymentEventDTO.ofTicket(
                             ticket.getId(), result.paymentIntentId(), ticket.getValorPago()));
                 }
                 log.info("[PAYMENT] Ingresso {} cobrado ({}), aguardando confirmação.",

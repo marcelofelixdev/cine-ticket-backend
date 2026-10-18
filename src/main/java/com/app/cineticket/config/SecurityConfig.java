@@ -97,6 +97,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/tickets/validate").hasAnyRole(STAFF, ADMIN)
                         // Equipe: o admin cuida da rede toda; o gerente, só do próprio cinema (checado no serviço).
                         .requestMatchers("/api/v1/admin/**").hasRole(ADMIN)
+                        // Operação de um cinema: o gerente no próprio; o admin no cinema que informar (cinemaId).
+                        // Pedidos de filme e equipe ficam só com o gerente: o admin tem as rotas da rede.
+                        .requestMatchers("/api/v1/manager/sessions", "/api/v1/manager/sessions/**",
+                                "/api/v1/manager/rooms", "/api/v1/manager/programacao", "/api/v1/manager/programacao/**",
+                                "/api/v1/manager/tickets", "/api/v1/manager/tickets/**").hasAnyRole(MANAGER, ADMIN)
                         .requestMatchers("/api/v1/manager/**").hasRole(MANAGER)
                         // Caixa: funcionário e gerente, só no próprio cinema (checado no serviço).
                         .requestMatchers("/api/v1/box-office/**").hasAnyRole(STAFF, MANAGER)

@@ -6,6 +6,7 @@ import com.app.cineticket.dto.request.SessionRequestDTO;
 import com.app.cineticket.dto.response.ManagerSessionDTO;
 import com.app.cineticket.dto.response.RoomResponseDTO;
 import com.app.cineticket.dto.response.SessionResponseDTO;
+import com.app.cineticket.service.CinemaScope;
 import com.app.cineticket.service.ManagerSessionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -37,38 +38,43 @@ public class ManagerSessionController {
     private final ManagerSessionService managerSessionService;
     private final DemoRestrictions demoRestrictions;
 
-    @Operation(summary = "Sessões do dia no próprio cinema, com ocupação, meias e receita (MANAGER)",
-            description = "Sem date, hoje. Inclui as que já começaram.")
+    @Operation(summary = "Sessões do dia no cinema, com ocupação, meias e receita (MANAGER ou ADMIN)",
+            description = "Sem date, hoje. Inclui as que já começaram. " + CinemaScope.CINEMA_ID_DOC)
     @GetMapping("/sessions")
-    public ResponseEntity<List<ManagerSessionDTO>> sessions(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(managerSessionService.listOfDay(date, loggedUser, true));
+    public ResponseEntity<List<ManagerSessionDTO>> sessions(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                                            @RequestParam(required = false) Long cinemaId) {
+        return ResponseEntity.ok(managerSessionService.listOfDay(date, CinemaScope.actingCinemaId(loggedUser, cinemaId), true));
     }
 
-    @Operation(summary = "Cria uma sessão no próprio cinema (MANAGER)",
-            description = "A sala tem de ser do cinema do gerente e o filme tem de estar em cartaz nele.")
+    @Operation(summary = "Cria uma sessão no cinema (MANAGER ou ADMIN)",
+            description = "A sala tem de ser do cinema e o filme tem de estar em cartaz nele. " + CinemaScope.CINEMA_ID_DOC)
     @ApiResponse(responseCode = "201", description = "Criada")
     @ApiResponse(responseCode = "403", description = "Sala de outro cinema", content = @Content)
     @ApiResponse(responseCode = "409", description = "Conflito de horário na sala", content = @Content)
     @ApiResponse(responseCode = "422", description = "Filme não está em cartaz no cinema", content = @Content)
     @PostMapping("/sessions")
-    public ResponseEntity<SessionResponseDTO> create(@AuthenticationPrincipal User loggedUser, @RequestBody @Valid SessionRequestDTO request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(managerSessionService.create(request, loggedUser));
+    public ResponseEntity<SessionResponseDTO> create(@AuthenticationPrincipal User loggedUser, @RequestBody @Valid SessionRequestDTO request,
+                                                     @RequestParam(required = false) Long cinemaId) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(managerSessionService.create(request, CinemaScope.actingCinemaId(loggedUser, cinemaId)));
     }
 
-    @Operation(summary = "Cancela uma sessão do próprio cinema (MANAGER)",
-            description = "Cancela os ingressos e estorna os pagos, como o cancelamento emergencial do admin.")
+    @Operation(summary = "Cancela uma sessão do cinema (MANAGER ou ADMIN)",
+            description = "Cancela os ingressos e estorna os pagos, como o cancelamento emergencial do admin. "
+                    + CinemaScope.CINEMA_ID_DOC)
     @ApiResponse(responseCode = "204", description = "Cancelada")
     @ApiResponse(responseCode = "403", description = "Sessão de outro cinema ou demonstração pública", content = @Content)
     @DeleteMapping("/sessions/{id}")
-    public ResponseEntity<Void> cancel(@AuthenticationPrincipal User loggedUser, @PathVariable Long id) {
+    public ResponseEntity<Void> cancel(@AuthenticationPrincipal User loggedUser, @PathVariable Long id,
+                                       @RequestParam(required = false) Long cinemaId) {
         demoRestrictions.requireNotDemo("Cancelar sessões");
-        managerSessionService.cancel(id, loggedUser);
+        managerSessionService.cancel(id, CinemaScope.actingCinemaId(loggedUser, cinemaId));
         return ResponseEntity.noContent().build();
     }
 
-    @Operation(summary = "Salas do próprio cinema (MANAGER)")
+    @Operation(summary = "Salas do cinema (MANAGER ou ADMIN)", description = CinemaScope.CINEMA_ID_DOC)
     @GetMapping("/rooms")
-    public ResponseEntity<List<RoomResponseDTO>> rooms(@AuthenticationPrincipal User loggedUser) {
-        return ResponseEntity.ok(managerSessionService.rooms(loggedUser));
+    public ResponseEntity<List<RoomResponseDTO>> rooms(@AuthenticationPrincipal User loggedUser, @RequestParam(required = false) Long cinemaId) {
+        return ResponseEntity.ok(managerSessionService.rooms(CinemaScope.actingCinemaId(loggedUser, cinemaId)));
     }
 }

@@ -24,13 +24,16 @@ import java.time.LocalDateTime;
 public class OutboxService {
 
     private static final String TICKET = "Ticket";
+    private static final String ORDER = "Order";
 
     private final OutboxEventRepository repository;
     private final ObjectMapper objectMapper;
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void paymentConfirmed(PaymentEventDTO event) {
-        enqueue(TICKET, event.ticketId(), "PaymentConfirmed", RabbitMQConfig.ROUTING_KEY_PAGAMENTO, event);
+        boolean order = event.orderId() != null;
+        enqueue(order ? ORDER : TICKET, order ? event.orderId() : event.ticketId(), "PaymentConfirmed",
+                RabbitMQConfig.ROUTING_KEY_PAGAMENTO, event);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

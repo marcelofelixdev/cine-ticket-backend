@@ -13,6 +13,7 @@ import com.app.cineticket.exception.ResourceNotFoundException;
 import com.app.cineticket.exception.TmdbUnavailableException;
 import com.app.cineticket.mapper.MovieMapper;
 import com.app.cineticket.repository.MovieRepository;
+import com.app.cineticket.repository.SessionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,12 +41,13 @@ class MovieServiceTest {
 
     @Mock private MovieRepository movieRepository;
     @Mock private TmdbClient tmdbClient;
+    @Mock private SessionRepository sessionRepository;
 
     private MovieService movieService;
 
     @BeforeEach
     void setUp() {
-        movieService = new MovieService(movieRepository, tmdbClient, Mappers.getMapper(MovieMapper.class));
+        movieService = new MovieService(movieRepository, tmdbClient, Mappers.getMapper(MovieMapper.class), sessionRepository);
     }
 
     @Test
